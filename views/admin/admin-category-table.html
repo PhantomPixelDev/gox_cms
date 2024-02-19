@@ -1,0 +1,90 @@
+<div class="table-responsive">
+    <table class="table table-striped table-hover table-bordered table-responsive-md align-middle">
+
+        <thead>
+            <tr>
+                <td>ID</td>
+                <th>Category Name</th>
+                <th>Slug</th>
+                <th>Used Times</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Categories}}
+            <tr id="category-row-{{.ID}}">
+                <td>{{.ID}}</td>
+                <td>{{.Name}}</td>
+                <td>{{.Slug}}</td>
+                <td>{{.PostsCount }}</td>
+                <td>
+                    <button class="btn btn-danger" hx-delete="/delete-category" hx-vals='{"id": "{{.ID}}"}' hx-confirm="Are you sure you want to delete this category?"  hx-target="#category-row-{{.ID}}" hx-swap="#category-row-{{.ID}}">Delete</button>
+                </td>
+            </tr>
+            {{end}}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+
+
+
+<!-- Add Pagination -->
+
+<div id="pagination-container" class="col-12 d-flex justify-content-center">
+        
+    {{ $totalPages := .TotalPages }}
+    {{ $currentPage := .CurrentPage  }}
+  
+    {{ $searchQuery := .SearchQuery }}
+
+    <!-- ... Other variables ... -->
+
+    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
+            <!-- ... Other pagination links prev and next ... -->
+
+            <!--- add prev and next buttons -->
+            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
+              
+                <a class="page-link" href="/search-categories?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-categories?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-target="#category-table-container">
+                    Previous
+                </a>
+      
+            </li>
+
+
+            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
+              
+                <a class="page-link" href="/search-categories?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-categories?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-target="#category-table-container">
+                    Next
+                </a>
+
+            </li>
+
+            
+            <!-- Dynamically set hx-get based on whether it's a search result -->
+            {{ range $i := sequence 1 $totalPages }}
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+               
+                <a class="page-link" href="/search-categories?page={{$i}}&query={{$searchQuery}}"
+                   hx-get="/search-categories?page={{$i}}&query={{$searchQuery}}"
+                   hx-target="#category-table-container">
+                    {{$i}}
+                </a>
+             
+            </li>
+            {{ end }}
+        </ul>
+    </nav>
+</div>
+
+
+</div>

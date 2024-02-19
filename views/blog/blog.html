@@ -1,0 +1,77 @@
+<div class="row">
+    {{range .Posts}}
+    <div class="col-md-6">
+        <div class="card mb-4 shadow-lg">
+            <div class="row g-0">
+                <div class="col-lg-4">
+                    {{if .ImageURL}}
+                    <img src="{{.ImageURL}}" class="img-fluid w-100 h-100 rounded-start" alt="{{.Title}}">
+                    {{else}}
+                    <img src="https://picsum.photos/seed/picsum/1200/600" class="img-fluid rounded-start" alt="{{.Title}}">
+                    {{end}}
+                </div>
+                <div class="col-lg-8">
+                    <div class="card-body">
+                        <h5 class="card-title">{{.Title}}</h5>
+                        <p class="card-text text-muted small">{{.CreatedAt.Format "02 Jan 2006"}}</p>
+                        <p class="card-text  text-truncate ">{{ unescape (truncate .Content 200) }} </p>
+                        
+                        <a href="/blog/post/{{.Slug}}" class="btn btn-primary btn-sm">Read More</a>
+                        <div class="mt-2">
+                            {{if .Tags}}
+                                <span class="badge bg-secondary">Tags:</span>
+                                {{range .Tags}}
+                                    <a href="/blog/tag/{{.Slug}}" class="badge">{{.Name}}</a>
+                                {{else}}
+                                    <!-- No tags found -->
+                                {{end}}
+                            {{end}}
+                            {{if .Categories}}
+                                <span class="badge bg-secondary">Categories:</span>
+                                {{range .Categories}}
+                                    <a href="/blog/category/{{.Slug}}" class="badge">{{.Name}}</a>
+                                {{else}}
+                                    <!-- No categories found -->
+                                {{end}}
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+
+
+
+
+
+<div class="row mb-2">
+    <div class="col-md-12">
+        {{if gt .CurrentPage 1}}
+            <a href="/blog/{{.PrevPage}}" class="btn btn-primary px-3 me-2">Previous</a>
+        {{end}}
+
+        {{if lt .CurrentPage .TotalPagesInt }}
+            <a href="/blog/{{.NextPage}}" class="btn btn-primary px-3">Next</a>
+        {{end}}
+    </div>
+</div>
+
+<hr>
+
+<div class="row">
+    <div class="col-md-12">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center flex-wrap mb-0 col-12">
+                {{range .TotalPages}}
+                <li class="page-item {{if eq . $.CurrentPage}}active{{end}}">
+                    <a class="page-link" href="/blog/{{.}}">{{.}}</a>
+                </li>
+                {{end}}
+            </ul>
+        </nav>
+    </div>
+</div>

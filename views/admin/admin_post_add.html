@@ -1,0 +1,340 @@
+<div id="result"></div>
+
+<h1>Add Post</h1>
+
+
+<div class="row p-3 mb-3 shadow">
+    <div class="col-7">
+        <form hx-post="/admin/post/add" hx-target="#result">
+            <!-- Title Field -->
+            <div class="mb-3">
+                <label for="title" class="form-label">Title:</label>
+                <input type="text" class="form-control" id="title" name="title" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="content" class="form-label">Content:</label>
+
+                <!-- Create the toolbar container -->
+                <div id="toolbar">
+                    <button class="ql-bold">Bold</button>
+                    <button class="ql-italic">Italic</button>
+                    <button class="ql-underline">Underline</button>
+                    <button class="ql-strike">Strike</button>
+                    <button class="ql-link">Link</button>
+                    <button class="ql-image">Image</button>
+                    <button class="ql-blockquote">Blockquote</button>
+                    <button class="ql-code-block">Code Block</button>
+                    <select class="" id="headingSelect" name="heading">
+                        <option value="1">Heading 1</option>
+                        <option value="2">Heading 2</option>
+                        <option value="3">Heading 3</option>
+                        <option value="4">Heading 4</option>
+                        <option value="5">Heading 5</option>
+                        <option value="6">Heading 6</option>
+                    </select>
+                    <button class="ql-list" value="ordered">Ordered List</button>
+                    <button class="ql-list" value="bullet">Bullet List</button>
+                    <button class="ql-indent" value="-1">Decrease Indent</button>
+                    <button class="ql-indent" value="+1">Increase Indent</button>
+                    <button class="ql-align" value="">Align Left</button>
+                    <button class="ql-align" value="center">Align Center</button>
+                    <button class="ql-align" value="right">Align Right</button>
+                    <button class="ql-align" value="justify">Justify</button>
+                    <button class="ql-clean">Clean</button>
+                </div>
+
+                <!-- Create the editor container -->
+                <div id="editor">
+                    <p>Hello World!</p>
+                    <p>Some initial <strong>bold</strong> text</p>
+                    <p><br /></p>
+                </div>
+                
+                <input type="hidden" id="content_input" name="content">
+            </div>
+
+            <!-- Submit Button... -->
+            <button type="submit" class="btn btn-primary">Edit Post</button>
+
+            <!-- Result... -->
+            <div id="result"></div>
+
+
+
+    </div>
+    <div class="col-3 offset-1">
+
+        <!-- Image Field -->
+        <div class="mb-3">
+
+            <label for="image" class="form-label">Image:</label>
+
+            <input type="text" id="image" name="image" class="form-control" placeholder="Image Link" required>
+            <!--- add button to open a dialog with partial file manager! -->
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal" id="upload-btn"
+            hx-trigger="click" hx-get="/search-files" hx-target="#file-list-conatiner">Open File Manager</button>
+
+        </div>
+
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const uploadBtn = document.getElementById("upload-btn");
+                const imageInput = document.getElementById("image_up");
+                const imagePreview = document.getElementById("image-preview");
+                const imageLinkInput = document.getElementById("image-link");
+
+                uploadBtn.addEventListener("click", function () {
+                    imageInput.click();
+                });
+
+                imageInput.addEventListener("change", function () {
+                    const file = imageInput.files[0];
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        const img = document.createElement("img");
+                        img.src = e.target.result;
+                        img.classList.add("img-fluid");
+                        imagePreview.innerHTML = "";
+                        imagePreview.appendChild(img);
+                    };
+
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            document.getElementById("exampleModal").addEventListener("shown.bs.modal", function () {
+                const uploadBtn = document.getElementById("upload-btn");
+                const imageInput = document.getElementById("image_up");
+                const imagePreview = document.getElementById("image-preview");
+                const imageLinkInput = document.getElementById("image-link");
+
+                uploadBtn.addEventListener("click", function () {
+                    imageInput.click();
+                });
+
+                imageInput.addEventListener("change", function () {
+                    const file = imageInput.files[0];
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        const img = document.createElement("img");
+                        img.src = e.target.result;
+                        img.classList.add("img-fluid");
+                        imagePreview.innerHTML = "";
+                        imagePreview.appendChild(img);
+                    };
+
+                    reader.readAsDataURL(file);
+                });
+            });
+        </script>
+
+
+
+        <!-- Slug Field -->
+        <div class="mb-3">
+            <label for="post_slug" class="form-label">Slug:</label>
+            <input type="text" class="form-control" id="post_slug" name="post_slug" required>
+
+
+        </div>
+
+        <!-- Categories Select with Search -->
+        <div class="mb-3">
+            <label for="categoriesSelect" class="form-label">Categories:</label>
+            <select class="form-select" id="categoriesSelect" name="categories" multiple="multiple">
+                {{ range .Categories }}
+                <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                {{ end }}
+            
+            </select>
+            <input type="hidden" id="categories_input" name="categories_input"> 
+        </div>
+
+        <!-- Tags Select with Search -->
+        <div class="mb-3">
+            <label for="tagsSelect" class="form-label">Tags:</label>
+            <select class="form-select" id="tagsSelect" name="tags" multiple="multiple">
+                {{ range .Tags }}
+                <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                {{ end }}
+            </select>
+            <input type="hidden" id="tags_input" name="tags_input">
+        </div>
+        </form>
+    </div>
+</div>
+
+
+
+<!-- Modal -->
+<div class="modal modal-xl" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">File Manager</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h2 class="display-4 text-primary text-center p-3">File Manager</h2>
+                <div class="container">
+                    <form hx-post="/upload-file"  enctype="multipart/form-data" hx-swap="none" hx-trigger="submit">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Choose File</label>
+                            <input type="file" class="form-control" name="file" id="file">
+                        </div>
+                        <button id="upload-file" class="btn btn-primary" type="submit">Upload File</button> 
+                
+                    </form>
+                
+                    <hr>
+                
+                    <div class="mb-3">
+                        <input type="text" id="search-input-files" placeholder="Search files..."
+                        class="form-control w-50 mx-auto text-center shadow" hx-get="/search-files"
+                        hx-trigger="keyup delay:500ms changed" hx-target="#file-list-conatiner"
+                        hx-vars="query:document.getElementById('search-input-files').value">
+                    </div>
+                
+                    <hr>
+                
+                    <div id="file-list-conatiner"></div>
+                
+                
+                </div>
+    
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Include Select2 CSS -->
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/js/selectize.min.js"
+  integrity="sha512-IOebNkvA/HZjMM7MxL0NYeLYEalloZ8ckak+NDtOViP7oiYzG5vn6WVXyrJDiJPhl4yRdmNAG49iuLmhkUdVsQ=="
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
+<!-- Main Quill library -->
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.js"></script>
+
+<!-- Theme included stylesheets -->
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.snow.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.bubble.css" rel="stylesheet" />
+
+<!-- Initialize Quill editor -->
+<style>
+    .ql-editor.ql-blank::before {
+        color: white;
+    }
+</style>
+
+<script>
+    const quill = new Quill("#editor", {
+
+        modules: {
+            toolbar: '#toolbar'
+        },
+
+        theme: "snow",
+    });
+
+    const quillContent = "{{ .Content }}";
+    quill.root.innerHTML = quillContent;
+
+
+    quill.on('text-change', function () {
+        const contentInput = document.getElementById('content_input');
+        contentInput.value = quill.root.innerHTML;
+    });
+
+    document.querySelector('form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const contentInput = document.getElementById('content_input');
+        contentInput.value = quill.root.innerHTML;
+    });
+
+
+
+</script>
+
+<script>
+
+    var myModal = document.getElementById('myModal')
+    var myInput = document.getElementById('myInput')
+
+    myModal.addEventListener('shown.bs.modal', function () {
+        myInput.focus()
+    })
+
+
+
+
+</script>
+<script>
+    var closeButton = document.getElementById('post_add_close');
+    var success_alert = document.getElementById('post_add_success_alert');
+
+    closeButton.addEventListener('click', function () {
+        success_alert.remove();
+    });
+</script>
+
+
+<script>
+
+    var theme = localStorage.getItem("data-bs-theme");
+
+
+</script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const categoriesSelect = document.getElementById("categoriesSelect");
+        const tagsSelect = document.getElementById("tagsSelect");
+        const categoriesInput = document.getElementById("categories_input");
+        const tagsInput = document.getElementById("tags_input");
+
+        // Initialize selectize for categories and tags
+        $(categoriesSelect).selectize({
+            plugins: ['remove_button'],
+            placeholder: "Select categories",
+            create: false,
+            sortField: 'text',
+            onChange: function(value) {
+                // Update hidden input for categories when the select value changes
+                categoriesInput.value = value.join(','); // Assuming you want to store values as comma-separated
+            }
+        });
+
+        $(tagsSelect).selectize({
+            plugins: ['remove_button'],
+            placeholder: "Select tags",
+            create: false,
+            sortField: 'text',
+            onChange: function(value) {
+                // Update hidden input for tags when the select value changes
+                tagsInput.value = value.join(','); // Assuming you want to store values as comma-separated
+            }
+        });
+
+        htmx.on("clearForm", function (e) {
+            console.log("clearForm");
+            var form = document.querySelector('form');
+            form.reset();
+            quill.root.innerHTML = "";
+            $('#categoriesSelect')[0].selectize.clear(); // Clear selectize field for categories
+            $('#tagsSelect')[0].selectize.clear(); // Clear selectize field for tags
+        });
+    });
+</script>

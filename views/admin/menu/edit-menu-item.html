@@ -1,0 +1,60 @@
+<div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Edit Menu Item</h5>
+        </div>
+        <div class="modal-body">
+
+            <form hx-post="/edit-menu-item/{{ .MenuItem.ID }}" hx-target="#menu-table-container"
+            hx-headers="{'X-No-Cache': 'true'}"
+            hx-swap="none" hx-on::after-request="updateMenuList()">
+                
+                <input type="hidden" name="menu_item_id" value="{{ .MenuItem.ID }}">
+                <div class="mb-3">
+                    <label for="menu_item_title" class="form-label mt-2">Menu Item Title:</label>
+                    <input type="text" class="form-control" id="menu_item_title" name="menu_item_title"
+                        value="{{ .MenuItem.Title }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="menu_item_link" class="form-label mt-2">Menu Item Link:</label>
+                    <input type="text" class="form-control" id="menu_item_link" name="menu_item_link"
+                        value="{{ .MenuItem.Link }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="menu_item_menu" class="form-label mt-2">Menu:</label>
+                    <select class="form-select" id="menu_item_menu" name="menu_item_menu">
+                        {{ range .Menus }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.MenuItemID }} selected {{ end }}>{{ .Title }}</option>
+                        {{ end }}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="item_position" class="form-label mt-2">Item Position:</label>
+                    <input type="number" class="form-control" id="item_position" name="item_position"
+                        value="{{ .MenuItem.Position }}" required>
+                </div>
+                <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Edit Menu Item</button>
+            </form>
+
+
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+</div>
+<script>
+    function updateMenuList() {
+  
+   
+
+        htmx.ajax('GET', '/search-menu', {
+            target: '#menu-table-container',
+            swap: 'innerHTML',
+            headers: {
+                'X-No-Cache': 'true'
+            },
+        });
+        
+    }
+</script>

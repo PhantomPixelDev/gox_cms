@@ -1,0 +1,38 @@
+# GOXCMS Configuration File
+database:
+  driver: postgres
+  sqlite.dsn: "./data/database.sqlite"
+  mysql.dsn: "user:password@tcp(db:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local"
+  postgres.dsn: "user=user password=password dbname=mydatabase host=127.0.0.1 port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+server:
+  host: "127.0.0.1"
+  port: 3000
+  prefork: true
+  body_limit: 50000
+build:
+  mode: production
+app:
+  name: "GoXCMS"
+  version: "0.0.1"
+  domain: "localhost"
+  url: "http://localhost:3000"
+  secret: "change_this_secret"
+  hotload_custom_pages: false
+upload:
+  max_size_mb: 50
+redis:
+  enabled: true
+  host: "127.0.0.1"
+  port: 6379
+  username: ""
+  password: ""
+  db: 0
+  pool_size: 1000
+  min_idle_conns: 10
+  max_conn_age: 0
+cors:
+  allowed_origins: ["http://localhost:3000", "https://localhost:3000"]
+ratelimiter:
+  enabled: true
+  max_requests: 100
+

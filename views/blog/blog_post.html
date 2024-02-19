@@ -1,0 +1,117 @@
+<div class="col-md-12">
+    <!-- if Is Admin SHOW EDIT BUTTON -->
+    {{if .IsAdmin}}
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <a href="/admin/post/edit/{{.Post.ID}}" class="btn btn-primary">Edit Post</a>
+                <hr>
+            </div>
+        </div>
+    </div>
+    {{end}}
+
+    <h1 class="display-4">{{.Title}}</h1>
+
+    <div class="container mb-3">
+        <div class="row">
+            <div class="col-md-12">
+
+                <div class="col-md-12">
+                    <img src="{{.Post.ImageURL}}" class="post-featured-image" alt="{{.Title}}">
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <div style="max-width: 100%; overflow-wrap: break-word;">
+                    {{.Content}}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid">
+
+        <p class="lead">{{.CreatedAt.Format "02 Jan 2006"}}</p>
+
+        {{if .Tags}}
+        <p class="text-muted">Tags:
+            {{range .Tags}}
+            <a href="/blog/tag/{{.Slug}}" class="badge bg-primary ">{{.Name}}</a>
+            {{end}}
+        </p>
+        {{end}}
+
+        {{if .Categories}}
+        <p class="text-muted">Categories:
+            {{range .Categories}}
+            <a href="/blog/category/{{.Slug}}" class="badge bg-primary ">{{.Name}}</a>
+            {{end}}
+        </p>
+        {{end}}
+    </div>
+
+
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="display-4">Comments</h2>
+            <hr>
+        </div>
+
+        <!--- Show A FORM to post a comment if the user is logged in -->
+        {{if .IsLoggedIn }}
+
+        <div class="col-md-12 mb-3 shadow p-3 rounded" id="comment-form"> 
+            <form hx-post="/add-comment" hx-headers='{"X-No-Cache": "true"}' hx-swap="outerHTML" hx-target="#comment-form"> 
+                <div class="mb-3">
+                    <label for="comment" class="form-label">Comment:</label>
+                    <textarea class="form-control" id="comment" name="comment" rows="3" required></textarea>
+                    <input type="hidden" name="post_id" value="{{.Post.ID}}">
+                    <input type="hidden" name="user_id" value="{{.UserID}}">
+                </div>
+                <button type="submit" class="btn btn-primary">Post Comment</button>
+            </form>
+        </div>
+
+        {{else}}
+
+        <div class="col-md-12 mb-3">
+            <div class="alert alert-info" role="alert">
+                Please <a href="/login">login</a> to post a comment.
+            </div>
+
+        </div>
+
+
+        {{end}}
+
+        {{if .Comments}}
+        {{range .Comments}}
+        <div class="comments-container" id="comments-container">
+            <div class="col-md-12 mb-3">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">{{.User.Username }}</h5>
+                        <p class="card-text">{{ unescape .Content }}</p>
+                        <p class="card-text"><small class="text-muted">{{.CreatedAt.Format "02 Jan 2006"}}</small></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{end}}
+        {{else}}
+        <div class="col-md-12">
+            <div class="alert alert-info" role="alert">
+                No comments found.
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>

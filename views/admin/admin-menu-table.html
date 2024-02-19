@@ -1,0 +1,246 @@
+<div id="modals-here" class="modal modal-blur fade" style="display: none" aria-hidden="false" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+
+        <div class="modal-content">
+
+        </div>
+    </div>
+</div>
+
+
+<div class="col mt-3 mb-3">
+    <hr>
+    <div class="row">
+        <!-- Add Menu Form -->
+        <div class="col-6" id="add_menu">
+            <div class="accordion" id="addMenuAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="addMenuHeading">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#addMenuCollapse" aria-expanded="false" aria-controls="addMenuCollapse">
+                            Add Menu
+                        </button>
+                    </h2>
+                    <div id="addMenuCollapse" class="accordion-collapse collapse" aria-labelledby="addMenuHeading" data-bs-parent="#addMenuAccordion">
+                        <div class="accordion-body">
+                            <form hx-post="/add-menu" hx-target="#menu-table-container" hx-headers="{'X-No-Cache': 'true'}"
+                                hx-on::after-request="updateMenuList()" hx-swap="none">
+                                <div class="mb-3">
+                                    <label for="menu_title" class="form-label">Menu Title:</label>
+                                    <input type="text" class="form-control" id="menu_title" name="menu_title" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="menu_primary" class="form-label">Primary Menu:</label>
+                                    <input type="checkbox" class="form-check-input" id="menu_primary" name="menu_primary">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="menu_position" class="form-label">Menu Position:</label>
+                                    <input type="number" class="form-control" id="menu_position" name="menu_position" required>
+                                </div>
+                                <!-- Parent Menu Selection -->
+                                <div class="mb-3">
+                                    <label for="parent_id" class="form-label">Parent Menu (optional):</label>
+                                    <select class="form-select" id="parent_id" name="parent_id">
+                                        <option value="">None (top-level menu)</option>
+                                        {{ range .Menus }}
+                                        <!-- Optionally filter out non-primary menus if they cannot have submenus -->
+                                        <option value="{{ .ID }}">{{ .Title }}</option>
+                                        {{ end }}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Add Menu</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Menu Item Form -->
+        <div class="col-6" id="add_menu_item">
+            <div class="accordion" id="addMenuItemAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="addMenuItemHeading">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#addMenuItemCollapse" aria-expanded="false" aria-controls="addMenuItemCollapse">
+                            Add Menu Item
+                        </button>
+                    </h2>
+                    <div id="addMenuItemCollapse" class="accordion-collapse collapse" aria-labelledby="addMenuItemHeading" data-bs-parent="#addMenuItemAccordion">
+                        <div class="accordion-body">
+                            <form hx-post="/add-menu-item" hx-target="#menu-table-container" hx-headers="{'X-No-Cache': 'true'}"
+                                hx-on::after-request="updateMenuList()" hx-swap="none">
+                                <div class="mb-3">
+                                    <label for="menu_item_title" class="form-label">Menu Item Title:</label>
+                                    <input type="text" class="form-control" id="menu_item_title" name="menu_item_title" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="menu_item_link" class="form-label">Menu Item Link:</label>
+                                    <input type="text" class="form-control" id="menu_item_link" name="menu_item_link" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="menu_item_menu" class="form-label">Menu:</label>
+                                    <select class="form-select" id="menu_item_menu" name="menu_item_menu">
+                                        {{ range .Menus }}
+                                        <option value="{{ .ID }}">{{ .Title }}</option>
+                                        {{ end }}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="item_position" class="form-label">Item Position:</label>
+                                    <input type="number" class="form-control" id="item_position" name="item_position" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Add Menu Item</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <hr>
+
+    <!-- Display Menus -->
+    {{ range .Menus }}
+    <div class="card mb-3 mt-3 {{ if .Primary }}border-primary{{ end }}" id="menu-{{ .ID }}">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>{{ .Title }} {{ if .Primary }}(Primary){{ end }} - Position: {{ .Position }}</span>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary btn-primary" hx-get="/edit-menu/{{ .ID }}" hx-trigger="click" data-bs-toggle="modal" data-bs-target="#modals-here" hx-target="#modals-here" hx-headers='{"X-No-Cache": "true"}'
+                >Edit</button>
+               
+
+
+                <button class="btn btn-sm btn-outline-danger" hx-delete="/delete-menu/{{ .ID }}"
+                    hx-confirm="Are you sure?" hx-swap="outerHTML">Delete</button>
+            </div>
+        </div>
+        <div class="card-body">
+            {{ if or .MenuItems .SubMenus }}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Link</th>
+                        <th>Position</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .MenuItems }}
+                    <tr id="menu-item-{{ .ID }}">
+                        <td><strong>{{ .Title }}</strong></td>
+                        <td><a href="{{ .Link }}">{{ .Link }}</a></td>
+                        <td>{{ .Position }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-secondary btn-primary me-2 px-2"
+                                hx-get="/edit-menu-item/{{ .ID }}" hx-trigger="click" hx-target="#modals-here"
+                                data-bs-toggle="modal" data-bs-target="#modals-here" hx-headers='{"X-No-Cache": "true"}'>Edit</button>
+                            <button hx-delete="/delete-menu-item/{{ .ID }}" class="btn btn-sm btn-outline-danger me-2 px-2"
+                                hx-confirm="Are you sure?" hx-swap="outerHTML">Delete</button>
+                        </td>
+                    </tr>
+                    {{ end }}
+
+                    {{ range .SubMenus }}
+                    <tr>
+                        <td colspan="4"><strong>{{ .Title }}</strong> (Submenu) - Position: {{ .Position }}</td>
+                    </tr>
+                    {{ range .MenuItems }}
+                    <tr id="sbmenu-item-{{ .ID }}">
+                        <td><strong>{{ .Title }}</strong></td>
+                        <td><a href="{{ .Link }}">{{ .Link }}</a></td>
+                        <td>{{ .Position }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-secondary btn-primary me-2 px-2"
+                                hx-get="/edit-menu-item/{{ .ID }}" hx-trigger="click" hx-target="#modals-here"
+                                data-bs-toggle="modal" data-bs-target="#modals-here" hx-headers='{"X-No-Cache": "true"}'>Edit</button>
+                            <button hx-delete="/delete-menu-item/{{ .ID }}" class="btn btn-sm btn-outline-danger me-2 px-2"
+                                hx-confirm="Are you sure?" hx-swap="outerHTML">Delete</button>
+                        </td>
+                    </tr>
+                    {{ end }}
+                    <tr>
+                        <td colspan="4">
+                            <button hx-delete="/remove-submenu/{{ .ID }}" class="btn btn-sm btn-outline-danger px-2 mt-2"
+                                hx-confirm="Are you sure?" hx-swap="#menu-{{ .ID }}">Remove Submenu</button>
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+            {{ else }}
+            <p>No items or submenus available.</p>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+    
+</div>
+
+
+
+
+<!-- Add Pagination -->
+
+<div id="pagination-container" class="col-12 d-flex justify-content-center">
+
+    {{ $totalPages := .TotalPages }}
+    {{ $currentPage := .CurrentPage }}
+
+    {{ $searchQuery := .SearchQuery }}
+
+    <!-- ... Other variables ... -->
+
+    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
+            <!-- ... Other pagination links prev and next ... -->
+
+            <!--- add prev and next buttons -->
+            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
+
+                <a class="page-link" href="/search-menu?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-menu?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-target="#menu-table-container">
+                    Previous
+                </a>
+
+            </li>
+
+
+            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
+
+                <a class="page-link" href="/search-menu?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-menu?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-target="#menu-table-container">
+                    Next
+                </a>
+
+            </li>
+
+            {{ range $i := sequence 1 $totalPages }}
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+
+                <a class="page-link" href="/search-menu?page={{$i}}&query={{$searchQuery}}"
+                    hx-get="/search-menu?page={{$i}}&query={{$searchQuery}}" hx-target="#menu-table-container">
+                    {{$i}}
+                </a>
+
+            </li>
+            {{ end }}
+        </ul>
+    </nav>
+</div>
+
+
+<script>
+    function updateMenuList() {
+
+        htmx.ajax('GET', '/search-menu', {
+            target: '#menu-table-container',
+            swap: 'innerHTML',
+            headers: {
+                'X-No-Cache': 'true'
+            },
+        });
+        
+    }
+</script>

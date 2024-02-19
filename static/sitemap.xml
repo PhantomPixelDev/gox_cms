@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url>
+<loc>/</loc>
+</url>
+<url>
+<loc>/blog</loc>
+</url>
+<url>
+<loc>/login</loc>
+</url>
+<url>
+<loc>/register</loc>
+</url>
+<url>
+<loc>/blog/post/test</loc>
+</url>
+<url>
+<loc>/user/2</loc>
+</url>
+<url>
+<loc>/blog/category/test-cat</loc>
+</url>
+<url>
+<loc>/blog/tag/tag1</loc>
+</url>
+</urlset>

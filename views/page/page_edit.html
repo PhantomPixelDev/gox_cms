@@ -1,0 +1,22 @@
+<div class="container py-5">
+    <form id="editCustomPageForm" class="needs-validation" hx-post="/edit-custompage" hx-target="#responseContainer" hx-swap="outerHTML" novalidate>
+        <input type="hidden" id="id" name="id" value="{{.ID}}"> <!-- Assuming you pass the page ID here -->
+        <div class="mb-3">
+            <label for="title" class="form-label">Title:</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{.Title}}" required>
+            <div class="invalid-feedback">Please provide a title.</div>
+        </div>
+        <div class="mb-3">
+            <label for="content" class="form-label">Content:</label>
+            <textarea class="form-control" id="content" name="content" required>{{.Content}}</textarea>
+            <div class="invalid-feedback">Please provide content.</div>
+        </div>
+        <div class="mb-3">
+            <label for="slug" class="form-label">Slug:</label>
+            <input type="text" class="form-control" id="slug" name="slug" value="{{.Slug}}" required>
+            <div class="invalid-feedback">Please provide a slug.</div>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Custom Page</button>
+    </form>
+    <div id="responseContainer"></div>    
+</div>

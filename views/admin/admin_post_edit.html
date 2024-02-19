@@ -1,0 +1,217 @@
+<h1>Edit Post with ID: {{ .PostID }}</h1>
+
+
+
+<div class="row shadow p-3 mb-5 rounded">
+    <div class="col-md-9">
+        <form hx-post="/admin/post/edit" hx-target="#result">
+            
+                <input type="hidden" id="id" name="id" value="{{ .PostID }}">
+
+            <div class="mb-3">
+                <label for="title" class="form-label">Title:</label>
+                <input type="text" class="form-control" id="title" name="title" value="{{ .PostTitle }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="content" class="form-label">Content:</label>
+
+                <!-- Create the toolbar container -->
+                <div id="toolbar">
+                    <button class="ql-bold">Bold</button>
+                    <button class="ql-italic">Italic</button>
+                    <button class="ql-underline">Underline</button>
+                    <button class="ql-strike">Strike</button>
+                    <button class="ql-link">Link</button>
+                    <button class="ql-image">Image</button>
+                    <button class="ql-blockquote">Blockquote</button>
+                    <button class="ql-code-block">Code Block</button>
+                    <select class="" id="headingSelect" name="heading">
+                        <option value="1">Heading 1</option>
+                        <option value="2">Heading 2</option>
+                        <option value="3">Heading 3</option>
+                        <option value="4">Heading 4</option>
+                        <option value="5">Heading 5</option>
+                        <option value="6">Heading 6</option>
+                    </select>
+                    <button class="ql-list" value="ordered">Ordered List</button>
+                    <button class="ql-list" value="bullet">Bullet List</button>
+                    <button class="ql-indent" value="-1">Decrease Indent</button>
+                    <button class="ql-indent" value="+1">Increase Indent</button>
+                    <button class="ql-align" value="">Align Left</button>
+                    <button class="ql-align" value="center">Align Center</button>
+                    <button class="ql-align" value="right">Align Right</button>
+                    <button class="ql-align" value="justify">Justify</button>
+                    <button class="ql-clean">Clean</button>
+                </div>
+
+                <!-- Create the editor container -->
+                <div id="editor">
+                    <p>Hello World!</p>
+                    <p>Some initial <strong>bold</strong> text</p>
+                    <p><br /></p>
+                </div>
+                <input type="hidden" id="content_input" name="content">
+            </div>
+
+            <!-- Submit Button... -->
+            <button type="submit" class="btn btn-primary">Edit Post</button>
+
+                        
+
+            <!-- Result... -->
+            <div id="result"></div>
+
+    </div>
+    <div class="col-md-3">
+
+       
+        <div class="mb-3">
+        <!-- Publish/Unpublish Button -->
+        <button id="post-status-button-{{.PostID}}"  
+            class="btn {{if .Published}}btn-secondary{{else}}btn-success{{end}}" 
+            hx-post="/toggle-post-status" 
+            hx-vals='{"id": "{{.PostID}}"}' 
+            hx-target="#post-status-button-{{.PostID}}" 
+            hx-swap="outerHTML" 
+            hx-confirm="Are you sure you want to change the status of this post?">
+            {{if .Published}}Unpublish{{else}}Publish{{end}}
+        </button>
+
+        <a href="/blog/post/{{.PostSlug}}" class="btn btn btn-primary">🔍</a>
+
+         <!-- Image URL Field -->
+        <hr>
+            <label for="image" class="form-label">Image URL:</label>
+            <input type="text" class="form-control" id="image" name="image" value="{{ .PostImage }}" required>
+        </div>
+
+
+
+        <!-- Slug Field -->
+        <div class="mb-3">
+            <label for="post_slug" class="form-label">Slug:</label>
+            <input type="text" class="form-control" id="post_slug" name="post_slug" value="{{ .PostSlug }}" required>
+
+        </div>
+
+        <!-- Categories Select with Search -->
+        <div class="mb-3">
+            <label for="categoriesSelect" class="form-label">Categories:</label>
+            <select class="form-select form-select-sm" id="categoriesSelect" name="categories" multiple="multiple">
+                {{ range .Categories }}
+                <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                {{ end }}
+            </select>
+            <input type="hidden" id="categories_input" name="categories_input">
+        </div>
+
+        <!-- Tags Select with Search -->
+        <div class="mb-3">
+            <label for="tagsSelect" class="form-label">Tags:</label>
+            <select class="form-select form-select-sm" id="tagsSelect" name="tags" multiple="multiple">
+                {{ range .Tags }}
+                <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                {{ end }}
+            </select>
+            <input type="hidden" id="tags_input" name="tags_input">
+        </div>
+        </form>
+    </div>
+</div>
+
+<!-- Include Bootstrap 5 CSS -->
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/js/selectize.min.js"
+  integrity="sha512-IOebNkvA/HZjMM7MxL0NYeLYEalloZ8ckak+NDtOViP7oiYzG5vn6WVXyrJDiJPhl4yRdmNAG49iuLmhkUdVsQ=="
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
+<!-- Main Quill library -->
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.js"></script>
+
+<!-- Theme included stylesheets -->
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.snow.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.bubble.css" rel="stylesheet" />
+
+<!-- Initialize Selectize -->
+<script>
+    $(document).ready(function () {
+        // Initialize selectize for categories and tags with event handlers to update hidden inputs
+        const categoriesSelect = $('#categoriesSelect').selectize({
+            placeholder: "Select categories",
+            create: false,
+            sortField: 'text',
+            plugins: ['remove_button'],
+            onChange: updateCategoriesInput
+        });
+    
+        const tagsSelect = $('#tagsSelect').selectize({
+            placeholder: "Select tags",
+            create: false,
+            sortField: 'text',
+            plugins: ['remove_button'],
+            onChange: updateTagsInput
+        });
+    
+        // Function to update hidden input for categories
+        function updateCategoriesInput(value) {
+            $('#categories_input').val(value.join(','));
+        }
+    
+        // Function to update hidden input for tags
+        function updateTagsInput(value) {
+            $('#tags_input').val(value.join(','));
+        }
+    
+        // Pre-select the values for categories and tags based on the post's current categories and tags
+        var categories = JSON.parse('{{ .PostCats }}');
+        var tags = JSON.parse('{{ .PostTags }}');
+    
+        var categoryValues = categories.map(function(category) {
+            return category.id;
+        });
+    
+        var tagValues = tags.map(function(tag) {
+            return tag.id;
+        });
+    
+        var categoriesSelectize = categoriesSelect[0].selectize;
+        categoriesSelectize.setValue(categoryValues);
+    
+        var tagsSelectize = tagsSelect[0].selectize;
+        tagsSelectize.setValue(tagValues);
+    });
+    
+</script>
+
+
+
+
+<script>
+
+
+
+    const quill = new Quill("#editor", {
+
+        modules: {
+            toolbar: '#toolbar'
+        },
+
+        theme: "snow",
+    });
+
+    const quillContent = "{{ .PostContent }}";
+    quill.root.innerHTML = quillContent;
+    quill.on('text-change', function () {
+        const contentInput = document.getElementById('content_input');
+        contentInput.value = quill.root.innerHTML;
+    });
+
+
+    
+
+</script>

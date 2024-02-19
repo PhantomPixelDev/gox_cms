@@ -1,0 +1,60 @@
+<table class="table table-striped table-hover table-bordered table-responsive-md align-middle">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Post ID</th>
+            <th>Content</th>
+            <th>Created</th>
+            <th>Change Status</th>
+            <th>Delete</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Comments}}
+        <tr id="comment-row-{{.ID}}">
+            <td>{{.ID}}</td>
+            <td>{{.PostID}}</td>
+            <td>{{ unescape (truncate .Content 200) }} </td>
+            <td>{{.CreatedAt.Format "02 Jan 2006"}}</td>
+            <td>
+                <button id="comment-status-button-{{.ID}}" class="btn {{if eq .Status "approved"}}btn-secondary{{else}}btn-success{{end}}" hx-post="/toggle-comment-status/{{.ID}}" hx-target="#comment-status-button-{{.ID}}" hx-headers='{"X-No-Cache": "true"}' hx-confirm="Are you sure you want to change the status of this comment?" hx-swap="outerHTML">
+                    {{if eq .Status "approved"}}Unapprove{{else}}Approve{{end}}
+                </button>
+            </td>
+            <td>
+                <button class="btn btn-danger" hx-delete="/delete-comment/{{.ID}}" hx-confirm="Are you sure you want to delete this comment?" hx-target="#comment-row-{{.ID}}" hx-swap="#comment-row-{{.ID}}">Delete</button>
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+
+<div id="pagination-container" class="col-12 d-flex justify-content-center">
+    {{ .TotalPages }}
+    {{ .CurrentPage }}
+    {{ .SearchQuery }}
+    {{ $totalPages := .TotalPages }}
+    {{ $currentPage := .CurrentPage }}
+    {{ $searchQuery := .SearchQuery }}
+    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
+            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
+                <a class="page-link" href="/search-comments?page={{sub $currentPage 1}}&query={{$searchQuery}}" hx-get="/search-comments?page={{sub $currentPage 1}}&query={{$searchQuery}}" hx-target="#user-table-container">
+                    Previous
+                </a>
+            </li>
+            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
+                <a class="page-link" href="/search-comments?page={{add $currentPage 1}}&query={{$searchQuery}}" hx-get="/search-comments?page={{add $currentPage 1}}&query={{$searchQuery}}" hx-target="#user-table-container">
+                    Next
+                </a>
+            </li>
+            {{ range $i := sequence 1 $totalPages }}
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+                <a class="page-link" href="/search-comments?page={{$i}}&query={{$searchQuery}}" hx-get="/search-comments?page={{$i}}&query={{$searchQuery}}" hx-target="#user-table-container">
+                    {{$i}}
+                </a>
+            </li>
+            {{ end }}
+        </ul>
+    </nav>
+</div>

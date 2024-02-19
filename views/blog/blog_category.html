@@ -1,0 +1,49 @@
+<div class="col-md-12">
+    <h1 class="display-4 mb-4">CATEGORY: {{.Title}}</h1>
+    <hr>
+    {{range .Posts}}
+    <div class="post mb-5">
+        <div class="row">
+            <div class="col-md-2 border border-dark">
+                <img src=" {{.ImageURL}}" class="img-fluid rounded-start" alt="{{.Title}}">
+            </div>
+            <div class="col-md-10">
+                <h2 class="h5 mb-2">{{.Title}}</h2>
+                <p class="text-muted small mb-2">{{.CreatedAt.Format "02 Jan 2006"}}</p>
+                <p class="small text-truncate">{{ unescape (truncate .Content 200) }}</p>
+                <a href="/blog/post/{{.Slug}}" class="btn btn-sm btn-outline-primary">Read More</a>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+<!-- Pagination and Navigation -->
+<div class="row mb-2">
+    <div class="col-md-12">
+        {{if gt .CurrentPage 1}}
+            <a href="/blog/category/{{.Slug}}/{{.PrevPage}}" class="btn btn-primary px-3 me-2">Previous</a>
+        {{end}}
+        
+        {{if lt .CurrentPage .TotalPagesInt}}
+            <a href="/blog/category/{{.Slug}}/{{.NextPage}}" class="btn btn-primary px-3">Next</a>
+        {{end}}
+    </div>
+</div>
+
+<hr>
+
+<!-- Pagination Links -->
+<div class="row">
+    <div class="col-md-12">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center flex-wrap mb-0 col-12">
+                {{range .TotalPages}}
+                <li class="page-item {{if eq . $.CurrentPage}}active{{end}}">
+                    <a class="page-link" href="/blog/category/{{$.Slug}}/{{.}}">{{.}}</a>
+                </li>
+                {{end}}
+            </ul>
+        </nav>
+    </div>
+</div>

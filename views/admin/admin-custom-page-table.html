@@ -1,0 +1,97 @@
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover table-bordered table-responsive-md align-middle">
+  
+        <thead>
+            <tr>
+                <td>ID</td>
+                <th>Page Name</th>
+                <th>Slug</th>
+                <th>Preview</th>
+                <th>Edit</th>
+                <th>Delete</th>
+
+            </tr>
+        </thead>
+        <tbody>
+            {{range .CustomPages}}
+            <tr id="custompage-row-{{.ID}}">
+                <td>{{.ID}}</td>
+                <td>{{.Title }}</td>
+                <td>{{.Slug}}</td>
+                <td>
+                    <a href="/{{.Slug}}" class="btn btn-primary" target="_blank">🔍</a>
+                    
+                </td>
+                <td>
+                    <a href="/edit-custompage/{{.ID}}" class="btn btn-warning" target="_blank">✏️</a>
+                </td>
+                <td>
+                    <button class="btn btn-danger" hx-delete="/delete-custompage/{{.ID}}" 
+                    hx-confirm="Are you sure you want to delete this custom page?" hx-target="#custompage-row-{{.ID}}"
+                    hx-swap="#custompage-row-{{.ID}}">Delete</button>
+                </td>
+            </tr>
+            {{end}}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+
+
+
+<div id="pagination-container" class="col-12 d-flex justify-content-center">
+        
+    {{ $totalPages := .TotalPages }}
+    {{ $currentPage := .CurrentPage  }}
+  
+    {{ $searchQuery := .SearchQuery }}
+
+    <!-- ... Other variables ... -->
+
+    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
+            <!-- ... Other pagination links prev and next ... -->
+
+            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
+              
+                <a class="page-link" href="/search-custompages?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-custompages?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-target="#custompage-table-container">
+                    Previous
+                </a>
+               
+            </li>
+
+
+            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
+             
+                <a class="page-link" href="/search-custompages?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-custompages?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-target="#custompage-table-container">
+                    Next
+                </a>
+         
+            </li>
+
+            
+            <!-- Dynamically set hx-get based on whether it's a search result -->
+            {{ range $i := sequence 1 $totalPages }}
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+               
+                <a class="page-link" href="/search-custompages?page={{$i}}&query={{$searchQuery}}"
+                   hx-get="/search-custompages?page={{$i}}&query={{$searchQuery}}"
+                   hx-target="#custompage-table-container">
+                    {{$i}}
+                </a>
+               
+            </li>
+            {{ end }}
+        </ul>
+    </nav>
+</div>
+
+

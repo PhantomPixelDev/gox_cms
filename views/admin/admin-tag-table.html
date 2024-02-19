@@ -1,0 +1,78 @@
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered table-responsive-md align-middle">
+
+        <thead>
+            <tr>
+                <td>ID</td>
+                <th>Tag Name</th>
+                <th>Slug</th>
+                <th>Used Times</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Tags}}
+            <tr id="tag-row-{{.ID}}">
+                <td>{{.ID}}</td>
+                <td>{{.Name}}</td>
+                <td>{{.Slug}}</td>
+                <td>{{.PostsCount }}</td>
+                <td>
+                    <button class="btn btn-danger" hx-delete="/delete-tag" hx-vals='{"id": "{{.ID}}"}'
+                        hx-confirm="Are you sure you want to delete this tag?" hx-target="#tag-row-{{.ID}}"
+                        hx-swap="#tag-row-{{.ID}}">Delete</button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+
+<div id="pagination-container">
+
+    {{ $totalPages := .TotalPages }}
+    {{ $currentPage := .CurrentPage }}
+    {{ $isSearch := .IsSearch }}
+    {{ $searchQuery := .SearchQuery }}
+
+
+    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
+            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
+              
+                <a class="page-link" href="/search-tags?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-tags?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-target="#tag-table-container">
+                    Previous
+                </a>
+               
+            </li>
+
+
+            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
+          
+                <a class="page-link" href="/search-tags?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-tags?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-target="#tag-table-container">
+                    Next
+                </a>
+             
+           
+            </li>
+
+            {{ range $i := sequence 1 $totalPages }}
+
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+                
+                <a class="page-link" href="/search-tags?page={{$i}}&query={{$searchQuery}}"
+                    hx-get="/search-tags?page={{$i}}&query={{$searchQuery}}" hx-target="#tag-table-container">
+                    {{$i}}
+                </a>
+            </li>
+            {{ end }}
+
+        </ul>
+    </nav>
+</div>

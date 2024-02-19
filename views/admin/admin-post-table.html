@@ -1,0 +1,133 @@
+<div class="table-responsive">
+    <table class="table table-striped table-hover table-bordered table-responsive-md align-middle">
+
+        <thead>
+            <tr>
+                <td>ID</td>
+                <th>Title</th>
+                <th>Categories</th>
+                <th>Tags</th>
+                <th>Created</th>
+                <th>Delete</th>
+                <th>Status</th>
+                <td>View</td>
+                <td>Edit</td>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Posts}}
+            <tr id="post-row-{{.ID}}">
+
+                <td>{{.ID}}</td>
+                <td>{{ truncate .Title 20 }}</td>
+
+                <td>
+                    {{range $index, $category := .Categories}}
+                    {{if lt $index 3}}
+                    {{.Name}}
+                    {{else if eq $index 3}}
+                    ...
+                    {{end}}
+                    {{end}}
+                </td>
+                <td>
+                    {{range $index, $tag := .Tags}}
+                    {{if lt $index 3}}
+                    {{.Name}}
+                    {{else if eq $index 3}}
+                    ...
+                    {{end}}
+                    {{end}}
+                </td>
+                <td>{{.CreatedAt.Format "02 Jan 2006"}}</td>
+
+                <td>
+                    <button class="btn btn-danger" hx-delete="/delete-post/{{.ID}}"
+                        hx-confirm="Are you sure you want to delete this post?" hx-target="#post-row-{{.ID}}"
+                        hx-swap="#post-row-{{.ID}}">Delete</button>
+                </td>
+
+
+                <td>
+
+                    <button id="post-status-button-{{.ID}}"
+                        class="btn {{if .Published}}btn-secondary{{else}}btn-success{{end}}"
+                        hx-post="/toggle-post-status" hx-vals='{"id": "{{.ID}}"}'
+                        hx-target="#post-status-button-{{.ID}}" hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'
+                        hx-confirm="Are you sure you want to change the status of this post?">
+                        {{if .Published}}Unpublish{{else}}Publish{{end}}
+                    </button>
+
+                </td>
+
+                <td>
+                    <a href="/blog/post/{{.Slug}}" class="btn btn btn-primary">🔍</a>
+                </td>
+
+                <td>
+                    <a href="/admin/post/edit/{{.ID}}" class="btn btn btn-warning">✏️</a>
+                </td>
+
+
+            </tr>
+            {{end}}
+        </tbody>
+
+    </table>
+
+</div>
+
+
+
+
+
+<div id="pagination-container" class="col-12 d-flex justify-content-center">
+
+    {{ $totalPages := .TotalPages }}
+    {{ $currentPage := .CurrentPage }}
+
+    {{ $searchQuery := .SearchQuery }}
+
+    <!-- ... Other variables ... -->
+
+    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
+            <!-- ... Other pagination links prev and next ... -->
+
+            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
+
+                <a class="page-link" href="/search-posts?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-posts?page={{sub $currentPage 1}}&query={{$searchQuery}}"
+                    hx-headers='{"X-No-Cache": "true"}' hx-target="#post-table-container">
+                    Previous
+                </a>
+
+            </li>
+
+
+            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
+
+                <a class="page-link" href="/search-posts?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-get="/search-posts?page={{add $currentPage 1}}&query={{$searchQuery}}"
+                    hx-headers='{"X-No-Cache": "true"}' hx-target="#post-table-container">
+                    Next
+                </a>
+
+            </li>
+
+
+            <!-- Dynamically set hx-get based on whether it's a search result -->
+            {{ range $i := sequence 1 $totalPages }}
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+
+                <a class="page-link" href="/search-posts?page={{$i}}&query={{$searchQuery}}"
+                    hx-get="/search-posts?page={{$i}}&query={{$searchQuery}}" hx-headers='{"X-No-Cache": "true"}'
+                    hx-target="#post-table-container">
+                    {{$i}}
+                </a>
+
+            </li>
+            {{ end }}
+        </ul>
+    </nav>
+</div>

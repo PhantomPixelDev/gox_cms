@@ -1,0 +1,178 @@
+<div class="my-3">
+    <form id="websiteSettingsForm" hx-post="/update-settings" hx-target="#answer"
+    hx-headers='{"X-No-Cache": "true"}'
+    hx-on::after-swap="updateSettingsForm()" 
+        class="rounded" enctype="multipart/form-data ">
+
+        <div class="card mb-3 mt-3 rounded">
+            <div class="card-header">Basic Information</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name:</label>
+                    <input type="text" class="form-control" id="name" name="name" placeholder="Website Name"
+                        value="{{.SettingsAdmin.Name}}">
+                </div>
+                <div class="mb-3">
+                    <label for="tagline" class="form-label">Tagline:</label>
+                    <input type="text" class="form-control" id="tagline" name="tagline" placeholder="Website Tagline"
+                        value="{{.SettingsAdmin.Tagline}}">
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email:</label>
+                    <input type="email" class="form-control" id="email" name="email" placeholder="contact@example.com"
+                        value="{{.SettingsAdmin.Email}}">
+                </div>
+                <div class="mb-3">
+                    <label for="phone" class="form-label">Phone:</label>
+                    <input type="tel" class="form-control" id="phone" name="phone" placeholder="+1234567890"
+                        value="{{.SettingsAdmin.Phone}}">
+                </div>
+                <div class="mb-3">
+                    <label for="address" class="form-label">Address:</label>
+                    <input type="text" class="form-control" id="address" name="address" placeholder="123, Street, City"
+                        value="{{.SettingsAdmin.Address}}">
+                </div>
+                <div class="mb-3">
+                    <label for="about" class="form-label">About:</label>
+                    <textarea class="form-control" id="about" name="about"
+                        placeholder="About the company...">{{.SettingsAdmin.About}}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Themes -->
+        <div class="card mb-3 mt-3 shadow rounded">
+           
+            <div class="card-header">Theme.SettingsAdmin</div>
+            <div class="card-body">
+                <div class="mb-3">
+              
+                    <label for="theme" class="form-label">Theme:</label>
+                    <select class="form-select" id="theme" name="theme">
+                        <option value="">Select a theme...</option><!-- Debugging output -->
+                     
+                        {{range .Themes}}
+                        <option value="{{.}}" {{if eq . $.SettingsAdmin.Theme}} selected {{end}}>{{.}}</option>
+                        {{end}}
+
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Social Media Links -->
+        <div class="card mb-3 mt-3 shadow rounded">
+            <div class="card-header">Social Media Links</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="facebookUrl" class="form-label">Facebook URL:</label>
+                    <input type="url" class="form-control" id="facebookUrl" name="facebookUrl"
+                        placeholder="https://facebook.com/yourpage" value="{{.SettingsAdmin.FacebookURL}}">
+                </div>
+                <div class="mb-3">
+                    <label for="twitterUrl" class="form-label">Twitter URL:</label>
+                    <input type="url" class="form-control" id="twitterUrl" name="twitterUrl"
+                        placeholder="https://twitter.com/yourpage" value="{{.SettingsAdmin.TwitterURL}}">
+                </div>
+                <div class="mb-3">
+                    <label for="linkedinUrl" class="form-label">LinkedIn URL:</label>
+                    <input type="url" class="form-control" id="linkedinUrl" name="linkedinUrl"
+                        placeholder="https://linkedin.com/in/yourprofile" value="{{.SettingsAdmin.LinkedInURL}}">
+                </div>
+            </div>
+        </div>
+
+        <!-- SEO.SettingsAdmin -->
+        <div class="card mb-3 mt-3 shadow rounded">
+            <div class="card-header">SEO.SettingsAdmin</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="seoKeywords" class="form-label">SEO Keywords:</label>
+                    <input type="text" class="form-control" id="seoKeywords" name="seoKeywords"
+                        placeholder="keyword1, keyword2, ..." value="{{.SettingsAdmin.SEOKeywords}}">
+                </div>
+                <div class="mb-3">
+                    <label for="seoDescription" class="form-label">SEO Description:</label>
+                    <textarea class="form-control" id="seoDescription" name="seoDescription"
+                        placeholder="Brief description for SEO...">{{.SettingsAdmin.SEODescription}}</textarea>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="card mb-3 mt-3 shadow rounded">
+            <div class="card-header">Additional Settings</div>
+            <div class="card-body">
+                <!-- Logo URL -->
+                <div class="mb-3">
+                    <label for="logo_url" class="form-label">Logo URL:</label>
+                    <input type="url" class="form-control" id="logo_url" name="logo_url" placeholder="https://example.com/logo.png" value="{{.SettingsAdmin.LogoURL}}">
+                </div>
+        
+                <!-- Favicon URL -->
+                <div class="mb-3">
+                    <label for="favicon_url" class="form-label">Favicon URL:</label>
+                    <input type="url" class="form-control" id="favicon_url" name="favicon_url" placeholder="https://example.com/favicon.ico" value="{{.SettingsAdmin.FaviconURL}}">
+                </div>
+        
+                <!-- Analytics ID -->
+                <div class="mb-3">
+                    <label for="analytics_id" class="form-label">Analytics ID:</label>
+                    <input type="text" class="form-control" id="analytics_id" name="analytics_id" placeholder="UA-XXXXX-Y" value="{{.SettingsAdmin.AnalyticsID}}">
+                </div>
+        
+                <!-- Footer Text -->
+                <div class="mb-3">
+                    <label for="footer_text" class="form-label">Footer Text:</label>
+                    <textarea class="form-control" id="footer_text" name="footer_text" placeholder="Copyright text and other information">{{.SettingsAdmin.FooterText}}</textarea>
+                </div>
+        
+                <!-- Contact Email -->
+                <div class="mb-3">
+                    <label for="contact_email" class="form-label">Contact Email:</label>
+                    <input type="email" class="form-control" id="contact_email" name="contact_email" placeholder="contact@example.com" value="{{.SettingsAdmin.ContactEmail}}">
+                </div>
+        
+                <!-- Privacy Policy -->
+                <div class="mb-3">
+                    <label for="privacy_policy" class="form-label">Privacy Policy URL:</label>
+                    <input type="url" class="form-control" id="privacy_policy" name="privacy_policy" placeholder="https://example.com/privacy-policy" value="{{.SettingsAdmin.PrivacyPolicy}}">
+                </div>
+        
+                <!-- Terms Of Service -->
+                <div class="mb-3">
+                    <label for="terms_of_service" class="form-label">Terms Of Service URL:</label>
+                    <input type="url" class="form-control" id="terms_of_service" name="terms_of_service" placeholder="https://example.com/terms-of-service" value="{{.SettingsAdmin.TermsOfService}}">
+                </div>
+        
+                <!-- Language -->
+                <div class="mb-3">
+                    <label for="language" class="form-label">Language:</label>
+                    <input type="text" class="form-control" id="language" name="language" placeholder="English" value="{{.SettingsAdmin.Language}}">
+                </div>
+        
+                <!-- Locale -->
+                <div class="mb-3">
+                    <label for="locale" class="form-label">Locale:</label>
+                    <input type="text" class="form-control" id="locale" name="locale" placeholder="en_US" value="{{.SettingsAdmin.Locale}}">
+                </div>
+        
+                <!-- Time Zone -->
+                <div class="mb-3">
+                    <label for="timezone" class="form-label">Time Zone:</label>
+                    <input type="text" class="form-control" id="timezone" name="timezone" placeholder="America/New_York" value="{{.SettingsAdmin.TimeZone}}">
+                </div>
+            </div>
+        </div>
+
+  
+
+        <button type="submit" class="btn btn-primary">Update.SettingsAdmin</button>
+    </form>
+</div>
+
+<!-- Path: goxcms/views/website_settings.html -->
+<div id="answer">
+    <!-- This is where the response will be rendered -->
+</div>
+
