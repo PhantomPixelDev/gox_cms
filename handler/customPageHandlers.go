@@ -13,12 +13,12 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App) error {
 	title := c.FormValue("title")
 	content := c.FormValue("content")
 	slug := c.FormValue("slug")
+	template := c.FormValue("template")
 
-	if title == "" || content == "" || slug == "" {
-		return c.SendString("Missing required fields: title, content, slug")
+	if title == "" || content == "" || slug == "" || template == "" { // Check if required fields are missing
+		return c.SendString("Missing required fields: title, content, slug, template")
 	}
 
-	// Check if slug or title already exists
 	var existingPage model.CustomPage
 	result := db.Where("slug = ? OR title = ?", slug, title).First(&existingPage)
 	if result.Error == nil {
@@ -26,17 +26,19 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App) error {
 	}
 
 	customPage := model.CustomPage{
-		Title:   title,
-		Content: content,
-		Slug:    slug,
+		Title:    title,
+		Content:  content,
+		Slug:     slug,
+		Template: template,
 	}
 
 	result = db.Create(&customPage)
 	if result.Error != nil {
+		ShowToastError(c, "Error adding custom page: "+result.Error.Error())
 		return c.Status(fiber.StatusInternalServerError).SendString(result.Error.Error())
 	}
 
-	return ShowToastError(c, "Custom Page Added - Restart server to see changes")
+	return ShowToast(c, "Custom Page Added - Restart server to see changes")
 
 }
 
@@ -78,6 +80,7 @@ func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	title := c.FormValue("title")
 	content := c.FormValue("content")
 	slug := c.FormValue("slug")
+	template := c.FormValue("template")
 
 	// convert id to int
 	idInt, err := strconv.Atoi(id)
@@ -89,14 +92,15 @@ func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 		return c.SendString("No ID provided")
 	}
 
-	if id == "" || title == "" || content == "" || slug == "" {
-		return c.SendString("Missing required fields: id, title, content, slug")
+	if id == "" || title == "" || content == "" || slug == "" || template == "" {
+		return c.SendString("Missing required fields: id, title, content, slug, template")
 	}
 
 	customPage := model.CustomPage{
-		Title:   title,
-		Content: content,
-		Slug:    slug,
+		Title:    title,
+		Content:  content,
+		Slug:     slug,
+		Template: template,
 	}
 
 	result := db.Model(&model.CustomPage{}).Where("id = ?", id).Updates(customPage)

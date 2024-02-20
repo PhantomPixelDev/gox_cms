@@ -24,11 +24,6 @@ func (p *LoggerPlugin) Setup(app *fiber.App, db *gorm.DB) error {
 		return c.Next()
 	})
 
-	/// add path loaderio-422dc4c70ddacc89acd6a63f82d42134 and return loaderio-422dc4c70ddacc89acd6a63f82d42134 to verify domain
-	app.Get("/loaderio-422dc4c70ddacc89acd6a63f82d42134", func(c *fiber.Ctx) error {
-		return c.SendString("loaderio-422dc4c70ddacc89acd6a63f82d42134")
-	})
-
 	return nil
 }
 

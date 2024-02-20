@@ -1,6 +1,6 @@
 # GOXCMS Configuration File
 database:
-  driver: postgres
+  driver: sqlite
   sqlite.dsn: "./data/database.sqlite"
   mysql.dsn: "user:password@tcp(db:3306)/mydb?charset=utf8mb4&parseTime=True&loc=Local"
   postgres.dsn: "user=user password=password dbname=mydatabase host=127.0.0.1 port=5432 sslmode=disable TimeZone=Asia/Shanghai"
@@ -21,7 +21,7 @@ app:
 upload:
   max_size_mb: 50
 redis:
-  enabled: true
+  enabled: false
   host: "127.0.0.1"
   port: 6379
   username: ""

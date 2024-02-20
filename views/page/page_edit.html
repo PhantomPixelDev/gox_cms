@@ -12,6 +12,15 @@
             <div class="invalid-feedback">Please provide content.</div>
         </div>
         <div class="mb-3">
+            <label for="template" class="form-label">Template:</label>
+            <select id="template" name="template" class="form-select" required>
+                <option value="page" {{if eq .Template "page"}}selected{{end}}>page</option>
+                <option value="page_sidebar" {{if eq .Template "page_sidebar"}}selected{{end}}>page_sidebar</option>
+                <option value="page_fullwidth" {{if eq .Template "page_fullwidth"}}selected{{end}}>page_fullwidth</option>
+            </select>
+        </div>
+     
+        <div class="mb-3">
             <label for="slug" class="form-label">Slug:</label>
             <input type="text" class="form-control" id="slug" name="slug" value="{{.Slug}}" required>
             <div class="invalid-feedback">Please provide a slug.</div>

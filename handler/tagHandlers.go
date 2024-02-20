@@ -131,10 +131,15 @@ func AddTag(c *fiber.Ctx, db *gorm.DB) error {
 	slug := c.FormValue("tag_slug")
 
 	var tag model.Tag
-	db.Where("name = ?", name).First(&tag)
+	db.Where("name = ?", name).Or("slug = ?", slug).First(&tag)
 
 	if tag.ID != 0 {
-		return ShowToastError(c, "Tag already exists")
+		if tag.Name == name {
+			return ShowToastError(c, "Tag name already exists")
+		}
+		if tag.Slug == slug {
+			return ShowToastError(c, "Tag with the slug already exists")
+		}
 	}
 
 	db.Create(&model.Tag{

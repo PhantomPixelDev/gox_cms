@@ -8,6 +8,16 @@
             <label for="content" class="form-label">Content:</label>
             <textarea id="content" name="content" class="form-control" required></textarea>
         </div>
+        
+        <div class="mb-3">
+            <label for="template" class="form-label">Template:</label>
+            <select id="template" name="template" class="form-select" required>
+                <option value="page">page</option>
+                <option value="page_sidebar">page_sidebar</option>
+                <option value="page_fullwidth">page_fullwidth</option>
+            </select>
+        </div>
+
         <div class="mb-3">
             <label for="slug" class="form-label">Slug:</label>
             <input type="text" id="slug" name="slug" class="form-control" required>

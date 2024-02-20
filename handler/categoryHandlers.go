@@ -87,10 +87,14 @@ func AddCategory(c *fiber.Ctx, db *gorm.DB) error {
 	slug := c.FormValue("category_slug")
 
 	var category model.Category
-	db.Where("name = ?", name).First(&category)
+	db.Where("name = ?", name).Or("slug = ?", slug).First(&category)
 
 	if category.ID != 0 {
-		return ShowToastError(c, "Category already exists")
+		if category.Name == name {
+			return ShowToastError(c, "Category name already exists")
+		} else if category.Slug == slug {
+			return ShowToastError(c, "Category slug already exists")
+		}
 	}
 
 	db.Create(&model.Category{

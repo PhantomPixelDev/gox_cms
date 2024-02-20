@@ -440,7 +440,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 				return c.Next()
 			}
 			// Render the custom page with the custom page data
-			return c.Render("page/page", fiber.Map{
+			return c.Render("page/"+customPage.Template, fiber.Map{
 				"Title":    customPage.Title,
 				"Content":  customPage.Content,
 				"Settings": c.Locals("Settings"),
@@ -458,7 +458,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 			println("Custom Page Route Created:", customPage.Slug)
 			app.Get("/"+customPage.Slug, func(cp model.CustomPage) func(*fiber.Ctx) error {
 				return func(c *fiber.Ctx) error {
-					return c.Render("page/page", fiber.Map{
+					return c.Render("page/"+cp.Template, fiber.Map{
 						"Title":    cp.Title,
 						"Content":  cp.Content,
 						"Settings": c.Locals("Settings"),
@@ -467,11 +467,6 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 			}(customPage))
 		}
 	}
-
-	/// add loaderio-422dc4c70ddacc89acd6a63f82d42134 for domain verification
-	app.Get("/loaderio-422dc4c70ddacc89acd6a63f82d42134", func(c *fiber.Ctx) error {
-		return c.SendString("loaderio-422dc4c70ddacc89acd6a63f82d42134")
-	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
 
@@ -704,10 +699,11 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		}
 
 		return c.Render("page/page_edit", fiber.Map{
-			"Title":   customPage.Title,
-			"Content": customPage.Content,
-			"ID":      customPage.ID,
-			"Slug":    customPage.Slug,
+			"Title":    customPage.Title,
+			"Content":  customPage.Content,
+			"ID":       customPage.ID,
+			"Slug":     customPage.Slug,
+			"Template": customPage.Template,
 		}, "main")
 	})
 

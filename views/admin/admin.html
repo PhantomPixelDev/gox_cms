@@ -10,8 +10,8 @@
     <li class="nav-item">
         <a class="nav-link" id="post-tab" data-bs-toggle="tab" href="#post" role="tab" aria-controls="post"
             hx-get="/search-posts" hx-trigger="click" hx-target="#post-table-container" hx-swap="innerHTML"
-                        hx-headers='{"X-No-Cache": "true"}'
-            load-indicator="dots" aria-selected="false"><i class="bi bi-journal-text"></i> Posts </a>
+            hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false"><i
+                class="bi bi-journal-text"></i> Posts </a>
 
     </li>
 
@@ -19,31 +19,31 @@
     <li class="nav-item">
         <a class="nav-link" id="tags-tab" data-bs-toggle="tab" href="#tags" role="tab" aria-controls="tags"
             hx-get="/search-tags" hx-trigger="click" hx-target="#tag-table-container" hx-swap="innerHTML"
-                        hx-headers='{"X-No-Cache": "true"}'
-            load-indicator="dots" aria-selected="false"><i class="bi bi-tag"></i> Tags</a>
+            hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false"><i class="bi bi-tag"></i>
+            Tags</a>
     </li>
 
     <li class="nav-item">
         <a class="nav-link" id="categories-tab" data-bs-toggle="tab" href="#categories" role="tab"
             hx-get="/search-categories" hx-trigger="click" hx-target="#category-table-container" hx-swap="innerHTML"
-                        hx-headers='{"X-No-Cache": "true"}'
-            load-indicator="dots" aria-controls="categories" aria-selected="false"><i class="bi bi-grid"></i>
+            hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-controls="categories"
+            aria-selected="false"><i class="bi bi-grid"></i>
             Categories</a>
     </li>
 
     <li class="nav-item">
         <a class="nav-link" id="comments-tab" data-bs-toggle="tab" href="#comments" role="tab" hx-get="/search-comments"
-                        hx-headers='{"X-No-Cache": "true"}'
-            hx-trigger="click" hx-target="#comment-table-container" hx-swap="innerHTML" load-indicator="dots"
-            aria-controls="comments" aria-selected="false"><i class="bi bi-chat-dots"></i> Comments</a>
+            hx-headers='{"X-No-Cache": "true"}' hx-trigger="click" hx-target="#comment-table-container"
+            hx-swap="innerHTML" load-indicator="dots" aria-controls="comments" aria-selected="false"><i
+                class="bi bi-chat-dots"></i> Comments</a>
 
     </li>
 
     <li class="nav-item">
         <a class="nav-link" id="custompages-tab" data-bs-toggle="tab" href="#custompages" role="tab"
             hx-get="/search-custompages" hx-trigger="click" hx-target="#custompage-table-container" hx-swap="innerHTML"
-                        hx-headers='{"X-No-Cache": "true"}'
-            load-indicator="dots" aria-controls="custompages" aria-selected="false"><i class="bi bi-file-earmark"></i>
+            hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-controls="custompages"
+            aria-selected="false"><i class="bi bi-file-earmark"></i>
             Custom Pages</a>
 
     </li>
@@ -52,8 +52,8 @@
     <li class="nav-item">
         <a class="nav-link" id="menu-tab" data-bs-toggle="tab" href="#menu" role="tab" aria-controls="menu"
             hx-get="/search-menu" hx-trigger="click" hx-target="#menu-table-container" hx-swap="innerHTML"
-            hx-headers='{"X-No-Cache": "true"}'
-            load-indicator="dots" aria-selected="false"><i class="bi bi-list"></i> Menu</a>
+            hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false"><i class="bi bi-list"></i>
+            Menu</a>
     </li>
 
 
@@ -61,18 +61,17 @@
     <li class="nav-item">
         <a class="nav-link" id="settings-tab" data-bs-toggle="tab" href="#settings" role="tab" aria-controls="settings"
             hx-get="/admin-settings" hx-trigger="click" hx-target="#settings-container" hx-swap="innerHTML"
-            hx-headers='{"X-No-Cache": "true"}'
-            load-indicator="dots" aria-selected="false">
+            hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false">
             <i class="bi bi-gear"></i> Settings
         </a>
     </li>
 
-    
+
     <li class="nav-item">
         <a class="nav-link" id="filemanager-tab" data-bs-toggle="tab" href="#filemanager" role="tab"
             hx-get="/search-files" hx-trigger="click" hx-target="#file-list-conatiner" hx-swap="innerHTML"
-                        hx-headers='{"X-No-Cache": "true"}'
-            load-indicator="dots" aria-controls="filemanager" aria-selected="false"><i class="bi bi-folder"></i> File
+            hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-controls="filemanager"
+            aria-selected="false"><i class="bi bi-folder"></i> File
             Manager</a>
     </li>
 </ul>
@@ -83,8 +82,7 @@
     <div class="tab-pane fade mt-3 show active" id="table" role="tabpanel" aria-labelledby="table-tab">
         <h2 class="text-primary mt-3">Users</h2>
         <input type="text" id="search-input" placeholder="Search users..." class="form-control" hx-get="/search-users"
-            hx-trigger="keyup delay:500ms changed" hx-target="#user-table-container"
-                        hx-headers='{"X-No-Cache": "true"}'
+            hx-trigger="keyup delay:500ms changed" hx-target="#user-table-container" hx-headers='{"X-No-Cache": "true"}'
             hx-vars="query:document.getElementById('search-input').value">
         <div id="user-table-container"></div>
     </div>
@@ -99,7 +97,7 @@
                     <a href="/admin/post/add" class="btn btn-primary" target="_blank">
                         Add New Post
                     </a>
-                    
+
                 </div>
             </div>
 
@@ -153,7 +151,8 @@
                         <div class="modal-body bg-dark">
                             <div class="row mt-4">
                                 <div class="col-12">
-                                    <form hx-post="/add-tag" hx-trigger="submit" hx-swap="none" hx-headers='{"X-No-Cache": "true"}'>
+                                    <form hx-post="/add-tag" hx-trigger="submit" hx-swap="none"
+                                        hx-headers='{"X-No-Cache": "true"}' hx-on::after-request="searchTags()">
                                         <div class="row g-3">
                                             <div class="col-md-6">
                                                 <label for="tag_name" class="form-label">Tag Name:</label>
@@ -167,7 +166,8 @@
                                             </div>
                                         </div>
                                         <div class="mt-3">
-                                            <button type="submit" class="btn btn-primary">Add Tag</button>
+                                            <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Add
+                                                Tag</button>
                                         </div>
                                     </form>
                                 </div>
@@ -178,6 +178,8 @@
             </div>
         </div>
     </div>
+
+
 
     <div class="tab-pane fade mt-3" id="categories" role="tabpanel" aria-labelledby="categories-tab">
         <div class="container">
@@ -199,7 +201,8 @@
                     <input type="text" id="search-input-category" class="form-control"
                         placeholder="Search categories..." aria-label="Search categories" hx-get="/search-categories"
                         hx-trigger="keyup delay:500ms changed" hx-target="#category-table-container"
-                        hx-vars="query:document.getElementById('search-input-category').value" hx-headers='{"X-No-Cache": "true"}'>
+                        hx-vars="query:document.getElementById('search-input-category').value"
+                        hx-headers='{"X-No-Cache": "true"}'>
 
                 </div>
             </div>
@@ -220,7 +223,8 @@
                         <div class="modal-body">
                             <div class="row mt-4">
                                 <div class="col-12">
-                                    <form hx-post="/add-category" hx-trigger="submit" hx-swap="none" hx-headers='{"X-No-Cache": "true"}'>
+                                    <form hx-post="/add-category" hx-trigger="submit" hx-swap="none"
+                                        hx-headers='{"X-No-Cache": "true"}' hx-on::after-request="searchCategories()">
                                         <div class="row g-3">
                                             <div class="col-md-6">
                                                 <label for="category_name" class="form-label">Category Name:</label>
@@ -234,7 +238,7 @@
                                             </div>
                                         </div>
                                         <div class="mt-3">
-                                            <button type="submit" class="btn btn-primary">Add Category</button>
+                                            <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Add Category</button>
                                         </div>
 
                                     </form>
@@ -249,18 +253,6 @@
         </div>
     </div>
 
-    <script>
-
-        /// using htmx after category is added or tag is added refresh the search results by triggering the search input
-        document.getElementById('search-input-category').addEventListener('htmx:afterSwap', function (event) {
-            document.getElementById('search-input-category').dispatchEvent(new Event('input'));
-        });
-
-        document.getElementById('search-input-tag').addEventListener('htmx:afterSwap', function (event) {
-            document.getElementById('search-input-tag').dispatchEvent(new Event('input'));
-        });
-
-    </script>
 
     <div class="tab-pane fade mt-3" id="comments" role="tabpanel" aria-label="comments-tab">
         <h2 class="text-primary mt-3">Comments</h2>
@@ -273,17 +265,27 @@
     </div>
 
     <div class="tab-pane fade mt-3" id="custompages" role="tabpanel" aria-label="custompages-tab">
-        <h2 class="text-primary mt-3">Custom Pages</h2>
-
-
+        <div class="row justify-content-between">
+            <div class="col">
+   
+                <h2 class="text-primary mt-3">Custom Pages</h2>
+            </div>
+            <div class="col-auto">
+                <a href="/add-custompage" class="btn btn-primary mt-3" target="_blank">
+                    Add New Custom Page 
+                </a>
+            </div>
+        </div>
+     
 
         <input type="text" id="search-input-custompage" placeholder="Search custom pages..." class="form-control"
             hx-get="/search-custompages" hx-trigger="keyup delay:500ms changed" hx-target="#custompage-table-container"
-            hx-vars="query:document.getElementById('search-input-custompage').value" hx-headers='{"X-No-Cache": "true"}'>
+            hx-vars="query:document.getElementById('search-input-custompage').value"
+            hx-headers='{"X-No-Cache": "true"}'>
 
         <div class="col-md-12">
             <div id="custompage-table-container"></div>
-            <a href="/add-custompage" class="btn btn-primary mt-3">Add Custom Page</a>
+  
         </div>
 
     </div>
@@ -291,11 +293,11 @@
     <!-- Menu management -->
     <div class="tab-pane fade mt-3" id="menu" role="tabpanel" aria-label="menu-tab">
         <h2 class="text-primary mt-3">Menu</h2>
-        
+
         <input type="text" id="search-input-menu" placeholder="Search menu items..." class="form-control"
-        hx-get="/search-menu" hx-trigger="keyup delay:500ms changed" hx-target="#menu-table-container"
-        hx-vars="query:document.getElementById('search-input-menu').value" hx-headers='{"X-No-Cache": "true"}'
-        hx-swap="innerHTML">
+            hx-get="/search-menu" hx-trigger="keyup delay:500ms changed" hx-target="#menu-table-container"
+            hx-vars="query:document.getElementById('search-input-menu').value" hx-headers='{"X-No-Cache": "true"}'
+            hx-swap="innerHTML">
 
 
         <div class="container">
@@ -304,15 +306,16 @@
             </div>
         </div>
 
- 
+
     </div>
 
     <!-- Settings and File Manager -->
 
     <div class="tab-pane fade mt-3" id="settings" role="tabpanel" aria-labelledby="settings-tab">
         <h2 class="text-primary mt-3">Website Settings</h2>
-        <div hx-get="/admin-settings" hx-target="#settings-container" hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}'></div>
-        
+        <div hx-get="/admin-settings" hx-target="#settings-container" hx-swap="innerHTML"
+            hx-headers='{"X-No-Cache": "true"}'></div>
+
         <div id="settings-container"></div>
 
     </div>
@@ -322,8 +325,7 @@
             <h2 class="text-primary mt-3">File Manager</h2>
 
             <form hx-post="/upload-file" enctype="multipart/form-data" hx-swap="none" hx-trigger="submit"
-                hx-headers='{"X-No-Cache": "true"}' 
-                hx-on::after-request="updateFileList()" >
+                hx-headers='{"X-No-Cache": "true"}' hx-on::after-request="updateFileList()">
                 <div class="mb-3">
                     <label for="file" class="form-label">Choose File</label>
                     <input type="file" class="form-control" name="file" id="file">
@@ -338,7 +340,7 @@
             <div class="mb-3">
                 <input type="text" id="search-input-files" placeholder="Search files..." class="form-control"
                     hx-get="/search-files" hx-trigger="keyup delay:500ms changed" hx-target="#file-list-conatiner"
-                                hx-headers='{"X-No-Cache": "true"}'
+                    hx-headers='{"X-No-Cache": "true"}'
                     hx-vars="query:document.getElementById('search-input-files').value">
             </div>
 
@@ -352,7 +354,7 @@
 
 
 <script>
-    
+
     function updateFileList() {
         htmx.ajax('GET', '/search-files', {
             target: '#file-list-conatiner',
@@ -371,6 +373,22 @@
             },
         });
     }
+    function searchTags() {
+        htmx.ajax('GET', '/search-tags', {
+            target: '#tag-table-container',
+            headers: {
+                'X-No-Cache': 'true'
+            },
+        });
+    }
 
+    function searchCategories() {
+            htmx.ajax('GET','/search-categories', {
+                target: '#category-table-container',
+                headers: {
+                    'X-No-Cache': 'true'
+                }
+            });
+        }
 
 </script>
