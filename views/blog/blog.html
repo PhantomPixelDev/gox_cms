@@ -1,44 +1,41 @@
 <div class="row">
     {{range .Posts}}
-    <div class="col-md-6">
-        <div class="card mb-4 shadow-lg">
-            <div class="row g-0">
-                <div class="col-lg-4">
-                    {{if .ImageURL}}
-                    <img src="{{.ImageURL}}" class="img-fluid w-100 h-100 rounded-start" alt="{{.Title}}">
-                    {{else}}
-                    <img src="https://picsum.photos/seed/picsum/1200/600" class="img-fluid rounded-start" alt="{{.Title}}">
-                    {{end}}
-                </div>
-                <div class="col-lg-8">
-                    <div class="card-body">
-                        <h5 class="card-title">{{.Title}}</h5>
-                        <p class="card-text text-muted small">{{.CreatedAt.Format "02 Jan 2006"}}</p>
-                        <p class="card-text  text-truncate ">{{ unescape (truncate .Content 200) }} </p>
-                        
-                        <a href="/blog/post/{{.Slug}}" class="btn btn-primary btn-sm">Read More</a>
-                        <div class="mt-2">
-                            {{if .Tags}}
-                                <span class="badge bg-secondary">Tags:</span>
-                                {{range .Tags}}
-                                    <a href="/blog/tag/{{.Slug}}" class="badge">{{.Name}}</a>
-                                {{else}}
-                                    <!-- No tags found -->
-                                {{end}}
-                            {{end}}
-                            {{if .Categories}}
-                                <span class="badge bg-secondary">Categories:</span>
-                                {{range .Categories}}
-                                    <a href="/blog/category/{{.Slug}}" class="badge">{{.Name}}</a>
-                                {{else}}
-                                    <!-- No categories found -->
-                                {{end}}
-                            {{end}}
-                        </div>
-                    </div>
-                </div>
+    <div class="col-sm-12 col-md-6 col-lg-6 mb-4"> 
+        <div class="card mb-4 shadow-lg rounded-3 h-100 d-flex flex-row">
+            <!-- Image Container -->
+            <div class="image-container" style="flex: 0 0 33%; background-image: url('{{if .ImageURL}}{{.ImageURL}}{{else}}https://picsum.photos/seed/picsum/1200/600{{end}}'); background-size: cover; background-position: center; border-top-left-radius: .3rem; border-bottom-left-radius: .3rem;">
+              <!-- Intentionally left blank to use as a background image container -->
             </div>
-        </div>
+            
+            <!-- Content Container -->
+            <div class="card-body d-flex flex-column" style="flex: 1;">
+              <h5 class="card-title">{{.Title}}</h5>
+              <p class="card-text text-muted small">{{.CreatedAt.Format "02 Jan 2006"}}</p>
+              <p class="card-text flex-grow-1">{{ removeHTML (truncate .Content 200) }}</p>
+              <a href="/blog/post/{{.Slug}}" class="btn btn-primary btn-sm align-self-start">Read More</a>
+              <hr>
+              <div class="mt-2">
+                <!-- Tags and Categories -->
+                {{if .Tags}}
+                <span class="badge bg-primary me-2">Tags:</span>
+                {{range .Tags}}
+                <a href="/blog/tag/{{.Slug}}" class="badge bg-secondary me-2">{{.Name}}</a>
+                {{end}}
+                {{else}}
+                <!-- No tags found -->
+                {{end}}
+
+                {{if .Categories}}
+                <span class="badge bg-primary me-2">Categories:</span>
+                {{range .Categories}}
+                <a href="/blog/category/{{.Slug}}" class="badge bg-secondary me-2">{{.Name}}</a>
+                {{end}}
+                {{else}}
+                <!-- No categories found -->
+                {{end}}
+              </div>
+            </div>
+          </div>
     </div>
     {{end}}
 </div>

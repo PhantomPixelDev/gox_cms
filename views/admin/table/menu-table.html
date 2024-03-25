@@ -199,7 +199,8 @@
 
                 <a class="page-link" href="/search-menu?page={{sub $currentPage 1}}&query={{$searchQuery}}"
                     hx-get="/search-menu?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#menu-table-container">
+                    hx-target="#menu-table-container"
+                    hx-headers='{"X-No-Cache": "true"}'>
                     Previous
                 </a>
 
@@ -210,7 +211,8 @@
 
                 <a class="page-link" href="/search-menu?page={{add $currentPage 1}}&query={{$searchQuery}}"
                     hx-get="/search-menu?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#menu-table-container">
+                    hx-target="#menu-table-container"
+                    hx-headers='{"X-No-Cache": "true"}'>
                     Next
                 </a>
 
@@ -220,7 +222,9 @@
             <li class="page-item {{if eq $i $currentPage}}active{{end}}">
 
                 <a class="page-link" href="/search-menu?page={{$i}}&query={{$searchQuery}}"
-                    hx-get="/search-menu?page={{$i}}&query={{$searchQuery}}" hx-target="#menu-table-container">
+                    hx-get="/search-menu?page={{$i}}&query={{$searchQuery}}"
+                    hx-target="#menu-table-container"
+                    hx-headers='{"X-No-Cache": "true"}'>
                     {{$i}}
                 </a>
 

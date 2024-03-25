@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary">
     <div class="container">
         <a class="navbar-brand logo" href="/">GOXCMS</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
@@ -9,9 +9,6 @@
         <div hx-get="/get-primary-menu?timestamp={{timestamp}}" hx-cache="none" hx-target="#primaryNavItems"
             hx-swap="outerHTML" hx-trigger="load" hx-headers='{"X-No-Cache": "true"}'></div>
         <div id="primaryNavItems"></div>
-
-
-
     </div>
 </nav>
 

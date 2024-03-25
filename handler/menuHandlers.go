@@ -302,7 +302,7 @@ func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
 		Count(&totalMatchingCount)
 	totalPages := int(math.Ceil(float64(totalMatchingCount) / float64(pageSize)))
 
-	return c.Render("admin/admin-menu-table", fiber.Map{
+	return c.Render("admin/table/menu-table", fiber.Map{
 		"Menus":       menus, // No need to separate and recombine by primary status for ordering
 		"TotalPages":  totalPages,
 		"CurrentPage": pageInt,

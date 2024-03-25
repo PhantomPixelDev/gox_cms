@@ -170,7 +170,7 @@ func SearchCategories(c *fiber.Ctx, db *gorm.DB) error {
 		Count(&totalMatchingCount)
 	totalPages := int(math.Ceil(float64(totalMatchingCount) / float64(pageSize)))
 
-	return c.Render("admin/admin-category-table", fiber.Map{
+	return c.Render("admin/table/category-table", fiber.Map{
 		"Categories":  categories,
 		"TotalPages":  totalPages,
 		"CurrentPage": pageInt,

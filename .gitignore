@@ -23,3 +23,12 @@ config/config.yaml
 go.mod
 go.sum
 data/database.sqlite
+data/database.sqlite
+static/uploads/b8hZ3RHiZ5login_EpxxSB0MXw.png
+static/sitemap.xml
+data/database.sqlite
+static/sitemap.xml
+static/uploads/*
+/tmp/*
+
+.vscode/settings.json

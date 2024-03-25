@@ -17,31 +17,7 @@
 
                 <!-- Create the toolbar container -->
                 <div id="toolbar">
-                    <button class="ql-bold">Bold</button>
-                    <button class="ql-italic">Italic</button>
-                    <button class="ql-underline">Underline</button>
-                    <button class="ql-strike">Strike</button>
-                    <button class="ql-link">Link</button>
-                    <button class="ql-image">Image</button>
-                    <button class="ql-blockquote">Blockquote</button>
-                    <button class="ql-code-block">Code Block</button>
-                    <select class="" id="headingSelect" name="heading">
-                        <option value="1">Heading 1</option>
-                        <option value="2">Heading 2</option>
-                        <option value="3">Heading 3</option>
-                        <option value="4">Heading 4</option>
-                        <option value="5">Heading 5</option>
-                        <option value="6">Heading 6</option>
-                    </select>
-                    <button class="ql-list" value="ordered">Ordered List</button>
-                    <button class="ql-list" value="bullet">Bullet List</button>
-                    <button class="ql-indent" value="-1">Decrease Indent</button>
-                    <button class="ql-indent" value="+1">Increase Indent</button>
-                    <button class="ql-align" value="">Align Left</button>
-                    <button class="ql-align" value="center">Align Center</button>
-                    <button class="ql-align" value="right">Align Right</button>
-                    <button class="ql-align" value="justify">Justify</button>
-                    <button class="ql-clean">Clean</button>
+                
                 </div>
 
                 <!-- Create the editor container -->
@@ -242,12 +218,22 @@
 
 <script>
     const quill = new Quill("#editor", {
-
         modules: {
-            toolbar: '#toolbar'
+            toolbar: [
+                [{ header: "1" }, { header: "2" }, { header: [3, 4, 5, 6] }, { font: [] }],
+                [{ size: [] }],
+                ["bold", "italic", "underline", "strike", "blockquote"],
+                [{ list: "ordered" }, { list: "bullet" }, { indent: "-1" }, { indent: "+1" }],
+                ["link", "image", "video"],
+                ["clean"],
+                ["code-block"],
+                [{ color: [] }, { background: [] }], // Add color and background options
+                [{ align: [] }], // Add alignment options
+                ["formula"], // Add formula option
+                ["emoji"] // Add emoji option
+            ]
         },
-
-        theme: "snow",
+        theme: "snow"
     });
 
     const quillContent = "{{ .Content }}";

@@ -5,12 +5,12 @@ import (
 	handlers "goxcms/handler"
 	"goxcms/model"
 	"goxcms/plugin_system"
-	"goxcms/plugins/latest_posts_plugin"
 	html2 "html"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -58,23 +58,37 @@ func main() {
 	setupRoutes(app, db, store)
 
 	// generate sitemap
-	generateSiteMap(app, db)
+	generateSiteMap(db)
 
 	createBasicWebsiteInfo(db)
 
 	// setup cors
 
 	app.Use(cors.New(cors.Config{
-		AllowCredentials: true,
+		AllowCredentials: viper.GetBool("cors.allow_credentials"),
 		AllowOrigins:     viper.GetString("cors.allow_origins"),
 	}))
 
-	// Register plugins here
-	plugin_system.RegisterPlugin(&latest_posts_plugin.LatestPostsPlugin{})
+	// Register plugins
+	plugins_list_to_register := plugin_system.PluginList()
 
-	//plugin_system.RegisterPlugin(&logger_plugin.LoggerPlugin{})
+	for _, plugin := range plugins_list_to_register {
+		plugin_system.RegisterPlugin(plugin, db)
+	}
 
 	plugin_system.InitializePlugins(app, db)
+
+	plugin_system.AddPluginManagerRoutes(app, db)
+
+	// 404 Handler
+	app.Use(func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotFound).Render("404", fiber.Map{
+			"Title":    "404",
+			"Settings": c.Locals("Settings"),
+		}, "main")
+	})
+
+	// Start server
 
 	host := viper.GetString("server.host")
 	port := viper.GetString("server.port")
@@ -85,6 +99,7 @@ func main() {
 func setupStore(app *fiber.App) *session.Store {
 	var store *session.Store
 
+	// Redis configuration
 	if viper.GetBool("redis.enabled") {
 		redisStorage := redis.New(redis.Config{
 			Host:     viper.GetString("redis.host"),
@@ -98,10 +113,11 @@ func setupStore(app *fiber.App) *session.Store {
 		store = session.New(session.Config{
 			Expiration:     24 * time.Hour,
 			CookieHTTPOnly: true,
-			CookieSecure:   runtime.GOOS != "windows",
+			CookieSecure:   !isWindows(),
 			Storage:        redisStorage,
 		})
 
+		// Use Redis storage for caching
 		app.Use(cache.New(cache.Config{
 			Next: func(c *fiber.Ctx) bool {
 				return c.Get("X-No-Cache") == "true"
@@ -109,14 +125,14 @@ func setupStore(app *fiber.App) *session.Store {
 			Expiration: 30 * time.Minute,
 			Storage:    redisStorage,
 		}))
-	} else {
-
+	} else { // In-memory storage
 		store = session.New(session.Config{
 			Expiration:     24 * time.Hour,
 			CookieHTTPOnly: true,
-			CookieSecure:   runtime.GOOS != "windows",
+			CookieSecure:   !isWindows(),
 		})
 
+		// Use in-memory storage for caching
 		app.Use(cache.New(cache.Config{
 			Next: func(c *fiber.Ctx) bool {
 				return c.Get("X-No-Cache") == "true"
@@ -130,6 +146,7 @@ func setupStore(app *fiber.App) *session.Store {
 		log.Fatal("Store is nil")
 	}
 
+	// Middleware to retrieve session
 	app.Use(func(c *fiber.Ctx) error {
 		sess, err := store.Get(c)
 		if err != nil {
@@ -140,6 +157,11 @@ func setupStore(app *fiber.App) *session.Store {
 	})
 
 	return store
+}
+
+// Check if the OS is Windows
+func isWindows() bool {
+	return runtime.GOOS == "windows"
 }
 
 func setupRateLimiter(app *fiber.App, store *session.Store) {
@@ -162,6 +184,19 @@ func setupRateLimiter(app *fiber.App, store *session.Store) {
 }
 
 func initConfig() {
+
+	/// check for "restart" file and delete it
+	file := "./restart"
+	if _, err := os.Stat(file); err == nil {
+		println("Restart file exists, deleting it")
+		err := os.Remove(file)
+		if err != nil {
+			println("Error deleting restart file")
+		}
+	}
+
+	// Load config
+
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./config")
@@ -172,6 +207,7 @@ func initConfig() {
 
 	viper.AutomaticEnv()
 
+	// Set default values
 	viper.SetDefault("server.host", "localhost")
 	viper.SetDefault("server.port", "3000")
 	viper.SetDefault("server.prefork", false)
@@ -192,9 +228,16 @@ func initConfig() {
 	viper.SetDefault("server.body_limit", 10)
 	viper.SetDefault("app.hotload_custom_pages", false)
 
+	// Print Redis status if enabled
 	if viper.GetBool("redis.enabled") {
 		println("REDIS ENABLED")
 	}
+}
+
+// addForeignKeyConstraint creates a forfeign key constraint between two tables
+func addForeignKeyConstraint(db *gorm.DB, table1, column1, table2, column2 string) {
+	db.Migrator().CreateConstraint(table1, column1)
+	db.Migrator().CreateConstraint(table2, column2)
 }
 
 func initDB() *gorm.DB {
@@ -245,38 +288,52 @@ func initDB() *gorm.DB {
 		&model.CustomPage{},
 		&model.File{},
 		&model.Comment{},
+		&model.Role{},
+		&model.Plugin{},
 	)
 
-	//// add foreign key constraints
-	db.Migrator().CreateConstraint(&model.Post{}, "CategoryID")
-	db.Migrator().CreateConstraint(&model.Post{}, "TagID")
-	db.Migrator().CreateConstraint(&model.Post{}, "UserID")
-	db.Migrator().CreateConstraint(&model.Post{}, "MenuID")
-	db.Migrator().CreateConstraint(&model.Post{}, "MenuItemID")
-	db.Migrator().CreateConstraint(&model.Post{}, "CustomPageID")
+	// addAllForeignKeyConstraints adds all foreign key constraints
 
-	//// add foreign key constraints
-	db.Migrator().CreateConstraint(&model.Category{}, "PostID")
-	db.Migrator().CreateConstraint(&model.Category{}, "TagID")
+	addForeignKeyConstraint(db, "Post", "CategoryID", "Category", "ID")
+	addForeignKeyConstraint(db, "Post", "TagID", "Tag", "ID")
+	addForeignKeyConstraint(db, "Post", "UserID", "User", "ID")
+	addForeignKeyConstraint(db, "Post", "MenuID", "Menu", "ID")
+	addForeignKeyConstraint(db, "Post", "MenuItemID", "MenuItem", "ID")
+	addForeignKeyConstraint(db, "Post", "CustomPageID", "CustomPage", "ID")
 
-	/// comments foreign key constraints
-	db.Migrator().CreateConstraint(&model.Comment{}, "UserID")
-	db.Migrator().CreateConstraint(&model.Comment{}, "PostID")
+	addForeignKeyConstraint(db, "Category", "PostID", "Post", "ID")
+	addForeignKeyConstraint(db, "Category", "TagID", "Tag", "ID")
+
+	addForeignKeyConstraint(db, "Comment", "UserID", "User", "ID")
+	addForeignKeyConstraint(db, "Comment", "PostID", "Post", "ID")
+
+	addForeignKeyConstraint(db, "Tag", "PostID", "Post", "ID")
+
+	addForeignKeyConstraint(db, "Menu", "MenuItemID", "MenuItem", "ID")
+
+	addForeignKeyConstraint(db, "MenuItem", "MenuID", "Menu", "ID")
+
+	addForeignKeyConstraint(db, "CustomPage", "PostID", "Post", "ID")
+
+	addForeignKeyConstraint(db, "File", "PostID", "Post", "ID")
+
+	addForeignKeyConstraint(db, "BasicWebsiteInfo", "PostID", "Post", "ID")
+
+	addForeignKeyConstraint(db, "User", "RoleID", "Role", "ID")
+	addForeignKeyConstraint(db, "User", "PostID", "Post", "ID")
+	addForeignKeyConstraint(db, "User", "CommentID", "Comment", "ID")
+
+	addForeignKeyConstraint(db, "Role", "UserID", "User", "ID")
 
 	return db
 }
 
+// setupEngine initializes and configures the HTML template engine.
 func setupEngine() *html.Engine {
-	var engine *html.Engine = nil
-
-	engine = html.New("./views", ".html")
+	engine := html.New("./views", ".html")
 
 	engine.AddFunc("timestamp", func() string {
 		return fmt.Sprintf("?v=%d", time.Now().Unix())
-	})
-
-	engine.AddFunc("unescape", func(s string) template.HTML {
-		return template.HTML(s)
 	})
 
 	engine.AddFunc("truncate", func(s string, length int) string {
@@ -286,25 +343,16 @@ func setupEngine() *html.Engine {
 		return s
 	})
 
-	engine.AddFunc(
-		// add unescape function
-		"unescape", func(s string) template.HTML {
-			return template.HTML(s)
-		},
-	)
-
 	engine.AddFunc("add", func(a, b int) int {
 		return a + b
 	})
-
-	/// add sub functions
 
 	engine.AddFunc("sub", func(a, b int) int {
 		return a - b
 	})
 
 	engine.AddFunc("sequence", func(start, end int) []int {
-		var seq []int
+		seq := make([]int, 0, end-start+1)
 		for i := start; i <= end; i++ {
 			seq = append(seq, i)
 		}
@@ -319,22 +367,32 @@ func setupEngine() *html.Engine {
 	})
 
 	engine.AddFunc("count_post", func(value []model.Post) int {
-		/// get the count of posts in the tag array
+		count := 0
 		for _, post := range value {
-			return len(post.Tags)
+			count += len(post.Tags)
 		}
-		return 0
-
+		return count
 	})
 
+	engine.AddFunc("escape", func(s string) template.HTML {
+		return template.HTML(html2.EscapeString(s))
+	})
+
+	engine.AddFunc("unescape", func(s string) template.HTML {
+		return template.HTML(html2.UnescapeString(s))
+	})
+
+	/// add removeHTML function for removing html tags from string and return plain text for meta description and keywords
 	engine.AddFunc("removeHTML", func(s string) string {
-		return html2.EscapeString(s)
+		content := html2.UnescapeString(s)
+		regeExp := "<[^>]*>"
+		re := regexp.MustCompile(regeExp)
+		content = re.ReplaceAllString(content, "")
+		return content
 	})
 
 	return engine
-
 }
-
 func setupFiberApp() *fiber.App {
 
 	engine := setupEngine()
@@ -479,7 +537,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 	})
 
 	/// clear cache route
-	app.Post("/clear-cache", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/clear-cache", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		store.Reset()
 
@@ -523,7 +581,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		return handlers.Logout(c)
 	})
 
-	app.Get("/admin-settings", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Get("/admin-settings", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		settings_cms := model.BasicWebsiteInfo{}
 
@@ -542,12 +600,12 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 
 	})
 
-	app.Post("/update-settings", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/update-settings", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		return handlers.UpdateSettings(c, db)
 	})
 
-	app.Post("/toggle-post-status", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/toggle-post-status", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		return handlers.TogglePostStatus(c, db)
 	})
@@ -556,7 +614,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		return handlers.AdminSearchPosts(c, db)
 	})
 
-	app.Delete("/delete-post/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-post/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AdminDeletePost(c, db)
 	})
 
@@ -564,58 +622,58 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		return handlers.SearchTag(c, db)
 	})
 
-	app.Delete("/delete-tag", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-tag", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteTag(c, db)
 	})
 
 	/// add tag
-	app.Post("/add-tag", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/add-tag", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AddTag(c, db)
 	})
 
 	/// add menu
-	app.Post("/add-menu", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/add-menu", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AddMenu(c, db)
 
 	})
 
 	// add menu item to menu
-	app.Post("/add-menu-item", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/add-menu-item", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AddMenuItem(c, db)
 	})
 
 	// delete menu item
-	app.Delete("/delete-menu-item/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-menu-item/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteMenuItem(c, db)
 	})
 
 	// delete menu
-	app.Delete("/delete-menu/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-menu/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteMenu(c, db)
 	})
 
 	// edit menu
-	app.Post("/edit-menu/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/edit-menu/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.EditMenu(c, db)
 	})
 
 	/// remove submenu from menu
-	app.Delete("/remove-submenu/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/remove-submenu/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.RemoveSubmenuFromMenu(c, db)
 	})
 
 	// edit menu item
-	app.Post("/edit-menu-item/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/edit-menu-item/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.EditMenuItem(c, db)
 	})
 
 	/// create get view for edit menu and menu item return modal htmx view
-	app.Get("/edit-menu/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Get("/edit-menu/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.EditMenuView(c, db)
 	})
 
 	/// create get view for edit menu and menu item return modal htmx view
-	app.Get("/edit-menu-item/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Get("/edit-menu-item/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.EditMenuItemView(c, db)
 	})
 
@@ -627,26 +685,25 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		return handlers.GetPrimaryMenuRender(c, db)
 	})
 
-	app.Get("/search-users", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Get("/search-users", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.SearchUsers(c, db)
 	})
 
-	/// add comments table for admin view
-	app.Get("/search-comments", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Get("/search-comments", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.SearchCommentsView(c, db)
 	})
 
 	/// toggle comment status#
-	app.Post("/toggle-comment-status/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/toggle-comment-status/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.ToggleCommentStatus(c, db)
 	})
 
 	/// delete comment
-	app.Delete("/delete-comment/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-comment/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteComment(c, db)
 	})
 
-	app.Delete("/delete-user/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-user/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteUser(c, db)
 	})
 
@@ -654,24 +711,22 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		return handlers.SearchCategories(c, db)
 	})
 
-	app.Post("/add-category", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/add-category", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AddCategory(c, db)
 	})
 
-	app.Delete("/delete-category", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-category", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteCategory(c, db)
 	})
 
-	app.Get("/search-custompages", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Get("/search-custompages", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.SearchCustomPages(c, db)
 	})
 
-	/// add custom page
-	app.Post("/add-custompage", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/add-custompage", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AddCustomPage(c, db, app)
 	})
 
-	/// get view for add custom page
 	app.Get("/add-custompage", func(c *fiber.Ctx) error {
 		if c.Locals("isAdmin") == false {
 			return c.Redirect("/")
@@ -682,7 +737,6 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		}, "main")
 	})
 
-	/// edit custom page
 	app.Get("/edit-custompage/:id", func(c *fiber.Ctx) error {
 		if c.Locals("isAdmin") == false {
 			return c.Redirect("/")
@@ -707,29 +761,28 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		}, "main")
 	})
 
-	app.Post("/edit-custompage", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/edit-custompage", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.EditCustomPage(c, db)
 	})
 
-	/// delete custom page
-	app.Delete("/delete-custompage/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-custompage/:id", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteCustomPage(c, db)
 	})
 
-	app.Get("/search-files", func(c *fiber.Ctx) error {
+	app.Get("/search-files", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
+
 		return handlers.SearchFiles(c, db)
 	})
 
-	/// add blog comment to post
 	app.Post("/add-comment", handlers.IsLoggedIn, func(c *fiber.Ctx) error {
 		return handlers.AddComment(c, db)
 	})
 
-	app.Post("/upload-file", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Post("/upload-file", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.UploadFile(c, db)
 	})
 
-	app.Delete("/delete-file", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Delete("/delete-file", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteFile(c, db)
 	})
 
@@ -737,7 +790,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		return handlers.BlogPage(c, db)
 	})
 
-	app.Get("/admin/post/add", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Get("/admin/post/add", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		var categories []model.Category
 		var tags []model.Tag
@@ -748,9 +801,8 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		c.Set("HX-Trigger", "Action: addPost")
 
 		html_basic_test := "<p>Write your post here</p>"
-		// Render the view with the categories and tags
 
-		return c.Render("admin/admin_post_add", fiber.Map{
+		return c.Render("admin/post/post_add", fiber.Map{
 			"Title":      "Add Post",
 			"Categories": categories,
 			"Tags":       tags,
@@ -786,13 +838,25 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		return handlers.BlogTagPage(c, db)
 	})
 
-	app.Get("/admin", handlers.IsAdmin, func(c *fiber.Ctx) error {
+	app.Get("/admin", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
+
+		plugins := plugin_system.GetPlugins()
+		pluginData := make([]map[string]interface{}, 0, len(plugins))
+		for _, plugin := range plugins {
+			pluginData = append(pluginData, map[string]interface{}{
+				"Name":    plugin.Name(),
+				"Enabled": plugin.Enabled(db),
+				"Author":  plugin.Author(),
+				"Version": plugin.Version(),
+			})
+		}
 
 		return c.Render("admin/admin", fiber.Map{
 			"Title":      "Admin Panel",
 			"IsAdmin":    c.Locals("isAdmin"),
 			"IsLoggedIn": c.Locals("isLoggedin"),
 			"Settings":   c.Locals("Settings"),
+			"Plugins":    pluginData,
 		}, "main")
 	})
 
@@ -802,8 +866,8 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 
 }
 
-func generateSiteMap(app *fiber.App, db *gorm.DB) {
-	baseURL := viper.GetString("base_url")
+func generateSiteMap(db *gorm.DB) {
+	baseURL := viper.GetString("app.url")
 
 	pages := []string{
 		"/",
@@ -915,7 +979,6 @@ func createBasicWebsiteInfo(db *gorm.DB) {
 	}
 
 	println("Basic website info created successfully")
-	/// create a default user admin if not exists
 	var user model.User
 	hashed_password, err := handlers.HashPassword("admin1234")
 	if err != nil {

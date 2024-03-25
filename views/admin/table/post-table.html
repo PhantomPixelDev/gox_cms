@@ -1,6 +1,5 @@
-<div class="table-responsive">
-    <table class="table table-striped table-hover table-bordered table-responsive-md align-middle">
-
+<div class="table-responsive mt-3">
+    <table class="table table-hover table-bordered table-responsive-md align-middle">
         <thead>
             <tr>
                 <td>ID</td>
@@ -42,16 +41,15 @@
                 <td>{{.CreatedAt.Format "02 Jan 2006"}}</td>
 
                 <td>
-                    <button class="btn btn-danger" hx-delete="/delete-post/{{.ID}}"
+                    <button class="btn btn-sm btn-danger" hx-delete="/delete-post/{{.ID}}"
                         hx-confirm="Are you sure you want to delete this post?" hx-target="#post-row-{{.ID}}"
                         hx-swap="#post-row-{{.ID}}">Delete</button>
                 </td>
 
-
                 <td>
 
                     <button id="post-status-button-{{.ID}}"
-                        class="btn {{if .Published}}btn-secondary{{else}}btn-success{{end}}"
+                        class="btn btn-sm {{if .Published}}btn-secondary{{else}}btn-success{{end}}"
                         hx-post="/toggle-post-status" hx-vals='{"id": "{{.ID}}"}'
                         hx-target="#post-status-button-{{.ID}}" hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'
                         hx-confirm="Are you sure you want to change the status of this post?">
@@ -61,13 +59,12 @@
                 </td>
 
                 <td>
-                    <a href="/blog/post/{{.Slug}}" class="btn btn btn-primary">🔍</a>
+                    <a href="/blog/post/{{.Slug}}" class="btn btn-sm btn-primary">🔍</a>
                 </td>
 
                 <td>
-                    <a href="/admin/post/edit/{{.ID}}" class="btn btn btn-warning">✏️</a>
+                    <a href="/admin/post/edit/{{.ID}}" class="btn btn-sm btn-warning">✏️</a>
                 </td>
-
 
             </tr>
             {{end}}

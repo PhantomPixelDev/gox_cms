@@ -118,7 +118,7 @@ func SearchTag(c *fiber.Ctx, db *gorm.DB) error {
 		Count(&totalMatchingCount)
 	totalPages := int(math.Ceil(float64(totalMatchingCount) / float64(pageSize)))
 
-	return c.Render("admin/admin-tag-table", fiber.Map{
+	return c.Render("admin/table/tag-table", fiber.Map{
 		"Tags":        tags,
 		"TotalPages":  totalPages,
 		"CurrentPage": pageInt,

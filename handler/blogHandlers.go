@@ -118,7 +118,7 @@ func AdminEditBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 	/// convert post ID so can print in Template as string
 	postIDStr := strconv.Itoa(int(post.ID))
 
-	return c.Render("admin/admin_post_edit", fiber.Map{
+	return c.Render("admin/post/post_edit", fiber.Map{
 		"Title":       "Edit Post",
 		"PostTitle":   post.Title,
 		"PostSlug":    post.Slug,
@@ -258,7 +258,7 @@ func AdminSearchPosts(c *fiber.Ctx, db *gorm.DB) error {
 		Count(&count)
 	totalPages := int(math.Ceil(float64(count) / float64(pageSize)))
 
-	return c.Render("admin/admin-post-table", fiber.Map{
+	return c.Render("admin/table/post-table", fiber.Map{
 		"Posts":       posts,
 		"TotalPages":  totalPages,
 		"CurrentPage": pageInt,

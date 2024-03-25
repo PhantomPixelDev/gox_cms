@@ -285,14 +285,14 @@ func HashPassword(password string) (string, error) {
 
 func IsAdmin(c *fiber.Ctx) error {
 	if c.Locals("isAdmin") == false {
-		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
+		return c.Status(fiber.StatusUnauthorized).Redirect("/login")
 	}
 	return c.Next()
 }
 
 func IsLoggedIn(c *fiber.Ctx) error {
 	if c.Locals("isLoggedin") == false {
-		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
+		return c.Status(fiber.StatusUnauthorized).Redirect("/login")
 	}
 	return c.Next()
 }

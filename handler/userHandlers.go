@@ -32,7 +32,7 @@ func SearchUsers(c *fiber.Ctx, db *gorm.DB) error {
 		Count(&count)
 	totalPages := int(math.Ceil(float64(count) / float64(pageSize)))
 
-	return c.Render("admin/admin-user-table", fiber.Map{
+	return c.Render("admin/table/user-table", fiber.Map{
 		"Users":       users,
 		"TotalPages":  totalPages,
 		"CurrentPage": pageInt,

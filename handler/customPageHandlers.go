@@ -67,7 +67,7 @@ func SearchCustomPages(c *fiber.Ctx, db *gorm.DB) error {
 		Count(&count)
 	totalPages := int(math.Ceil(float64(count) / float64(pageSize)))
 
-	return c.Render("admin/admin-custom-page-table", fiber.Map{
+	return c.Render("admin/table/custom-page-table", fiber.Map{
 		"CustomPages": custom_pages,
 		"TotalPages":  totalPages,
 		"CurrentPage": pageInt,

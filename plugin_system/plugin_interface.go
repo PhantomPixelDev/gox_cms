@@ -11,4 +11,7 @@ type Plugin interface {
 	Setup(app *fiber.App, db *gorm.DB) error
 	Teardown() error
 	Name() string
+	Author() string
+	Version() string
+	Enabled(db *gorm.DB) bool
 }

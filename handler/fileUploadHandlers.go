@@ -18,81 +18,84 @@ const (
 )
 
 func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
+    file, err := c.FormFile("file")
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).SendString("Cannot read file: " + err.Error())
+    }
 
-	file, err := c.FormFile("file")
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("Cannot read file" + err.Error())
-	}
+    // Validate file size
+    if file.Size > MaxFileSize {
+        return c.Status(fiber.StatusBadRequest).SendString("File size exceeds the limit")
+    }
 
-	// Validate file size
-	if file.Size > MaxFileSize {
-		return c.Status(fiber.StatusBadRequest).SendString("File size exceeds the limit")
-	}
+    // Validate file type based on extension
+    fileType := filepath.Ext(file.Filename)
+    if !isValidFileType(fileType) {
+        return c.Status(fiber.StatusBadRequest).SendString("File type not allowed")
+    }
 
-	// Validate file type
-	fileType := filepath.Ext(file.Filename)
-	allowedTypes := map[string]bool{
-		".jpg":  true,
-		".jpeg": true,
-		".png":  true,
-		".gif":  true,
-	}
+    // Check file content type from header
+    if !isValidContentType(file.Header.Get("Content-Type")) {
+        return c.Status(fiber.StatusBadRequest).SendString("Invalid content type")
+    }
 
-	if !allowedTypes[fileType] {
-		return c.Status(fiber.StatusBadRequest).SendString("File type not allowed")
-	}
+    // Generate a random string for the filename to ensure uniqueness
+    randomString := generateRandomFilenameString(10)
+    filename := randomString + fileType
 
-	validContentTypes := []string{"image/jpeg", "image/png", "image/gif", "image/jpg"}
-	contentType := file.Header.Get("Content-Type")
-	isValidContentType := false
-	for _, validType := range validContentTypes {
-		if validType == contentType {
-			isValidContentType = true
-			break
-		}
-	}
+    // Save the file to the disk
+    if err := c.SaveFile(file, filepath.Join(UploadDir, filename)); err != nil {
+        return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to disk")
+    }
 
-	if !isValidContentType {
-		return c.Status(fiber.StatusBadRequest).SendString("Invalid content type")
-	}
+    // Represent the file in the database
+    fileModel := model.File{
+        Name: filename,
+        Path: "/static/uploads/" + filename, // Save the path to the file
+    }
 
-	// Generate a random string for the filename
-	randomString := generateRandomFilenameString(10)
-
-	filename := randomString + file.Filename // Generate a random filename
-
-	// Save the file to the disk
-	if err := c.SaveFile(file, filepath.Join(UploadDir, filename)); err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to disk")
-	}
-
-	// Represent the file in the database
-	fileModel := model.File{
-		Name: filename,
-		Path: "/static/uploads/" + filename, // Save the path to the file
-	}
-
-	// Save file reference to the database
-	if err := db.Create(&fileModel).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to database")
-	}
-
-	ShowToast(c, "File uploaded successfully")
-
-	c.Status(fiber.StatusOK)
-
-	return nil
-
+    // Save file reference to the database
+    if err := db.Create(&fileModel).Error; err != nil {
+        return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to database")
+    }
+	c.SendStatus(fiber.StatusOK)
+	ShowToast(c, "File uploaded successfully") 
+    // Respond with success message
+    return nil
 }
 
+// Check if file type is allowed
+func isValidFileType(fileType string) bool {
+    allowedTypes := map[string]bool{
+        ".jpg":  true,
+        ".jpeg": true,
+        ".png":  true,
+        ".gif":  true,
+    }
+    return allowedTypes[fileType]
+}
+
+// Check if content type is allowed
+func isValidContentType(contentType string) bool {
+    validContentTypes := []string{"image/jpeg", "image/png", "image/gif", "image/jpg"}
+    for _, validType := range validContentTypes {
+        if validType == contentType {
+            return true
+        }
+    }
+    return false
+}
+
+// Generate random filename string
 func generateRandomFilenameString(length int) string {
-	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(b)
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    randomString := make([]byte, length)
+    for i := range randomString {
+        randomString[i] = charset[rand.Intn(len(charset))]
+    }
+    return string(randomString)
 }
+
 
 func DeleteFile(c *fiber.Ctx, db *gorm.DB) error {
 	filename := c.FormValue("name")
@@ -115,36 +118,46 @@ func DeleteFile(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	ShowToast(c, "File deleted successfully")
-
-	return c.SendStatus(fiber.StatusOK)
+	c.SendStatus(fiber.StatusOK)
+	return nil
 
 }
 
+// SearchFiles searches for files based on a query and returns the results.
 func SearchFiles(c *fiber.Ctx, db *gorm.DB) error {
-
-	var files []model.File
-	searchQuery := c.Query("query")
+	searchQuery := c.Query("query", "")
 	page := c.Query("page", "1")
-	//convert page to int
 	pageInt, err := strconv.Atoi(page)
 	if err != nil || pageInt < 1 {
 		pageInt = 1
 	}
-	pageSize := 10 // Default page size
+	pageSize := 10
 
-	db.Where("name LIKE ?", "%"+searchQuery+"%").
-		Order("created_at DESC"). // Sort by created_at column in descending order
-		Limit(pageSize).
-		Offset((pageInt - 1) * pageSize).
-		Find(&files)
-
+	var files []model.File
 	var totalMatchingCount int64
-	db.Model(&model.File{}).
-		Where("name LIKE ?", "%"+searchQuery+"%").
-		Count(&totalMatchingCount)
+
+	if searchQuery != "" {
+		db.Model(&model.File{}).
+			Where("name LIKE ?", "%"+searchQuery+"%").
+			Count(&totalMatchingCount)
+
+		db.Where("name LIKE ?", "%"+searchQuery+"%").
+			Order("created_at DESC").
+			Offset((pageInt - 1) * pageSize).
+			Limit(pageSize).
+			Find(&files)
+	} else {
+		db.Model(&model.File{}).
+			Count(&totalMatchingCount)
+
+		db.Order("created_at DESC").
+			Offset((pageInt - 1) * pageSize).
+			Limit(pageSize).
+			Find(&files)
+	}
+
 	totalPages := int(math.Ceil(float64(totalMatchingCount) / float64(pageSize)))
 
-	//// render data as HTML and send it to the client using HTMX
 	return c.Render("partials/file-manager", fiber.Map{
 		"Files":       files,
 		"TotalPages":  totalPages,

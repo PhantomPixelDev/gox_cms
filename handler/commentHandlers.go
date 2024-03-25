@@ -85,7 +85,7 @@ func SearchCommentsView(c *fiber.Ctx, db *gorm.DB) error {
 		TotalPages = 1
 	}
 
-	return c.Render("admin/admin-comments-table", fiber.Map{
+	return c.Render("admin/table/comments-table", fiber.Map{
 		"Comments":    comments,
 		"CurrentPage": currentPage,
 		"TotalPages":  TotalPages,

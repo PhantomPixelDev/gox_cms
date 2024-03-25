@@ -1,96 +1,73 @@
-<!-- Create Table for "Files":       fileList, -->
-
-
-
-    <div class="table-responsive">
-        <table class="table table-sm">
-            
-            <thead>
-                <tr>
-                    <td>ID</td>
-                    <td>Preview</td>
-                    <th>File Name</th>
-                    <th>File Type</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .Files}}
-                <tr id="file-row-{{.ID}}">
-                    <td>{{.ID}}</td>
-                    <td>
-                        <img src="{{.Path}}" alt="Image Preview" class="image-fluid image-filemanger ">
-                    </td>
-                    <td>{{.Name }}</td>
-                    <td>{{.Extension }}</td>
-                    <td>
+    <div class="row">
+        {{range .Files}}
+        <div class="col-md-4 col-sm-12 col-lg-4 mb-3" id="file-row-{{.ID}}">
+            <div class="card shadow" >
+                <div class="card-img-container">
+                    <img src="{{.Path}}" alt="Image Preview" class="card-img-top" style="height: 100px; object-fit: cover;">
+                </div>
+                <div class="card-body">
+                    <p class="card-title">{{ truncate .Name 20 }}</p>
+                    <div class="btn-group btn-group-sm" role="group">
                         <a href="{{.Path}}" class="btn btn-primary" target="_blank">🔍</a>
-                        <button class="btn btn-danger" hx-delete="/delete-file"
+                        <button class="btn btn-sm btn-danger" hx-delete="/delete-file"
                             hx-vals='{"name": "{{.Name}}"}'
-                            hx-confirm="Are you sure you want to delete this file?" hx-target="#file-row-{{.ID}}"
-                            hx-swap="#file-row-{{.ID}}"
+                            hx-confirm="Are you sure you want to delete this file?"
+                    
                             hx-on::after-request="updateFileList()">Delete</button>
-                        
-                     
-                        <button class="btn btn-secondary" onclick="copyToClipboard('{{.Path}}')" >Copy URL</button>
-                    </td>
-                </tr>
-                {{end}}
-
-            </tbody>
-    
-        </table>
-        
-    </div>
-
-
-
+                       
+                        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('{{.Path}}')">Copy URL</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{end}}
+    </div> 
 
 
 <div id="pagination-container">
 
     {{ $totalPages := .TotalPages }}
     {{ $currentPage := .CurrentPage }}
-    {{ $isSearch := .IsSearch }}
     {{ $searchQuery := .SearchQuery }}
-
 
     <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
         <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
             <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
-              
+                {{ if ne $currentPage 1 }}
                 <a class="page-link" href="/search-files?page={{sub $currentPage 1}}&query={{$searchQuery}}"
                     hx-get="/search-files?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#file-list-conatiner">
+                    hx-target="#file-list-conatiner"
+                    hx-headers='{"X-No-Cache": "true"}'>
                     Previous
                 </a>
-               
+                {{ else }}
+                <span class="page-link disabled">Previous</span>
+                {{ end }}
             </li>
 
-
             <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
-          
+                {{ if ne $currentPage $totalPages }}
                 <a class="page-link" href="/search-files?page={{add $currentPage 1}}&query={{$searchQuery}}"
                     hx-get="/search-files?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#file-list-conatiner">
+                    hx-target="#file-list-conatiner"
+                    hx-headers='{"X-No-Cache": "true"}'>
                     Next
                 </a>
-             
-           
+                {{ else }}
+                <span class="page-link disabled">Next</span>
+                {{ end }}
             </li>
 
             {{ range $i := sequence 1 $totalPages }}
-
             <li class="page-item {{if eq $i $currentPage}}active{{end}}">
-                
                 <a class="page-link" href="/search-files?page={{$i}}&query={{$searchQuery}}"
                     hx-get="/search-files?page={{$i}}&query={{$searchQuery}}"
-                    hx-target="#file-list-conatiner">
+                    hx-target="#file-list-conatiner"
+                    hx-headers='{"X-No-Cache": "true"}'>
                     {{$i}}
                 </a>
             </li>
             {{ end }}
-
         </ul>
     </nav>
 </div>
@@ -103,19 +80,25 @@
         el.select();
         document.execCommand('copy');
         document.body.removeChild(el);
-        const toastElement2 = document.getElementById("toast");
-        const toastBody2 = document.getElementById("toast-body");
-      
-
-        const toast22 = new bootstrap.Toast(toastElement, { delay: 2000 });
-
-
-        message123 = "URL Copied to Clipboard";
-        toastBody2.innerHTML = message123
-
-        toast22.show();
+        
+        /// send showToast using htmx to trigger htmx.on showToast
+        htmx.trigger(document.body, 'showToast', {
+            details: 'URL Copied to Clipboard',
+        });
 
 
+        
+
+
+    }
+
+    function updateFileList() {
+        htmx.ajax('GET', '/search-files', {
+            target: '#file-list-conatiner',
+            headers: {
+                'X-No-Cache': 'true'
+            },
+        });
     }
 
 

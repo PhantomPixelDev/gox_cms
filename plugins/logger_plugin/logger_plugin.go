@@ -35,3 +35,15 @@ func (p *LoggerPlugin) Teardown() error {
 func (p *LoggerPlugin) Name() string {
 	return "LoggerPlugin"
 }
+
+func (p *LoggerPlugin) Author() string {
+	return "Ashba22"
+}
+
+func (p *LoggerPlugin) Version() string {
+	return "1.0"
+}
+
+func (p *LoggerPlugin) Enabled(db *gorm.DB) bool {
+	return true
+}

@@ -1,0 +1,5 @@
+PluginName: "LatestPostsPlugin"
+PackageName: "latest_posts_plugin"
+Author: "Ashba22"
+Version: "1.0"
+Enabled: false

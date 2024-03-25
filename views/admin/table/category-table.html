@@ -1,6 +1,5 @@
-<div class="table-responsive">
-    <table class="table table-striped table-hover table-bordered table-responsive-md align-middle">
-
+<div class="table-responsive mt-3">
+    <table class="table table-hover table-bordered table-responsive-md align-middle">
         <thead>
             <tr>
                 <td>ID</td>
@@ -18,7 +17,7 @@
                 <td>{{.Slug}}</td>
                 <td>{{.PostsCount }}</td>
                 <td>
-                    <button class="btn btn-danger" hx-delete="/delete-category" hx-vals='{"id": "{{.ID}}"}' hx-confirm="Are you sure you want to delete this category?"  hx-target="#category-row-{{.ID}}" hx-swap="#category-row-{{.ID}}">Delete</button>
+                    <button class="btn btn-sm btn-danger" hx-delete="/delete-category" hx-vals='{"id": "{{.ID}}"}' hx-confirm="Are you sure you want to delete this category?"  hx-target="#category-row-{{.ID}}" hx-swap="#category-row-{{.ID}}">Delete</button>
                 </td>
             </tr>
             {{end}}
@@ -52,7 +51,8 @@
               
                 <a class="page-link" href="/search-categories?page={{sub $currentPage 1}}&query={{$searchQuery}}"
                     hx-get="/search-categories?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#category-table-container">
+                    hx-target="#category-table-container"
+                    hx-headers='{"X-No-Cache": "true"}'>
                     Previous
                 </a>
       
@@ -63,7 +63,8 @@
               
                 <a class="page-link" href="/search-categories?page={{add $currentPage 1}}&query={{$searchQuery}}"
                     hx-get="/search-categories?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#category-table-container">
+                    hx-target="#category-table-container"
+                    hx-headers='{"X-No-Cache": "true"}'>
                     Next
                 </a>
 
@@ -76,7 +77,8 @@
                
                 <a class="page-link" href="/search-categories?page={{$i}}&query={{$searchQuery}}"
                    hx-get="/search-categories?page={{$i}}&query={{$searchQuery}}"
-                   hx-target="#category-table-container">
+                   hx-target="#category-table-container"
+                   hx-headers='{"X-No-Cache": "true"}'>
                     {{$i}}
                 </a>
              
