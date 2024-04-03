@@ -9,8 +9,7 @@ func PluginList() []Plugin {
 	plugin_list := []Plugin{
 
 		&latest_posts_plugin.LatestPostsPlugin{},
-		&logger_plugin.LoggerPlugin{}, // add your pl
-		// Add your pl
+		&logger_plugin.LoggerPlugin{},
 
 		/// add plugins here
 		// comment to disable plugin

@@ -44,20 +44,8 @@ func main() {
 	db := initDB()
 
 	// setup fiber app
-	app := setupFiberApp()
+	app := setupFiberApp(db)
 
-	// setup store and cache
-	store := setupStore(app)
-
-	//store.Reset() // Clear all sessions
-
-	// setup rate limiter
-	setupRateLimiter(app, store)
-
-	// setup routes
-	setupRoutes(app, db, store)
-
-	// generate sitemap
 	generateSiteMap(db)
 
 	createBasicWebsiteInfo(db)
@@ -68,17 +56,6 @@ func main() {
 		AllowCredentials: viper.GetBool("cors.allow_credentials"),
 		AllowOrigins:     viper.GetString("cors.allow_origins"),
 	}))
-
-	// Register plugins
-	plugins_list_to_register := plugin_system.PluginList()
-
-	for _, plugin := range plugins_list_to_register {
-		plugin_system.RegisterPlugin(plugin, db)
-	}
-
-	plugin_system.InitializePlugins(app, db)
-
-	plugin_system.AddPluginManagerRoutes(app, db)
 
 	// 404 Handler
 	app.Use(func(c *fiber.Ctx) error {
@@ -184,16 +161,6 @@ func setupRateLimiter(app *fiber.App, store *session.Store) {
 }
 
 func initConfig() {
-
-	/// check for "restart" file and delete it
-	file := "./restart"
-	if _, err := os.Stat(file); err == nil {
-		println("Restart file exists, deleting it")
-		err := os.Remove(file)
-		if err != nil {
-			println("Error deleting restart file")
-		}
-	}
 
 	// Load config
 
@@ -393,7 +360,7 @@ func setupEngine() *html.Engine {
 
 	return engine
 }
-func setupFiberApp() *fiber.App {
+func setupFiberApp(db *gorm.DB) *fiber.App {
 
 	engine := setupEngine()
 
@@ -427,6 +394,11 @@ func setupFiberApp() *fiber.App {
 		Index:  "index.html", // Optional: default file to serve
 		MaxAge: 3600,         // Set cache control max age for browser caching
 	}
+	store := setupStore(app)
+
+	setupRateLimiter(app, store)
+
+	setupRoutes(app, db, store, engine) // engine is the html engine
 
 	app.Use("/static", filesystem.New(fsConfig))
 
@@ -438,10 +410,21 @@ func setupFiberApp() *fiber.App {
 		},
 	)
 
+	// Register plugins
+	plugins_list_to_register := plugin_system.PluginList()
+
+	for _, plugin := range plugins_list_to_register {
+		plugin_system.RegisterPlugin(plugin, db)
+	}
+
+	plugin_system.InitializePlugins(app, db)
+
+	plugin_system.AddPluginManagerRoutes(app, db)
+
 	return app
 }
 
-func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
+func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html.Engine) {
 
 	app.Use(handlers.AuthStatusMiddleware(db))
 
@@ -518,7 +501,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 				return func(c *fiber.Ctx) error {
 					return c.Render("page/"+cp.Template, fiber.Map{
 						"Title":    cp.Title,
-						"Content":  cp.Content,
+						"Content":  template.HTML(cp.Content),
 						"Settings": c.Locals("Settings"),
 					}, "main")
 				}
@@ -724,7 +707,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 	})
 
 	app.Post("/add-custompage", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
-		return handlers.AddCustomPage(c, db, app)
+		return handlers.AddCustomPage(c, db, app, engine)
 	})
 
 	app.Get("/add-custompage", func(c *fiber.Ctx) error {
@@ -758,6 +741,7 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 			"ID":       customPage.ID,
 			"Slug":     customPage.Slug,
 			"Template": customPage.Template,
+			"Settings": c.Locals("Settings"),
 		}, "main")
 	})
 
@@ -790,6 +774,26 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 		return handlers.BlogPage(c, db)
 	})
 
+	app.Get("/blog/post/:slug", func(c *fiber.Ctx) error {
+		return handlers.BlogPostPage(c, db)
+	})
+
+	app.Get("/blog/category/:slug/:page?", func(c *fiber.Ctx) error {
+		return handlers.BlogCategoryPage(c, db)
+	})
+
+	app.Get("/blog/tag/:slug/:page?", func(c *fiber.Ctx) error {
+		return handlers.BlogTagPage(c, db)
+	})
+
+	app.Get("/admin/post/edit/:post_id", func(c *fiber.Ctx) error {
+		return handlers.AdminEditBlogPost(c, db)
+	})
+
+	app.Post("/admin/post/edit", func(c *fiber.Ctx) error {
+		return handlers.AdminUpdateBlogPost(c, db)
+	})
+
 	app.Get("/admin/post/add", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		var categories []model.Category
@@ -816,26 +820,6 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 	app.Post("/admin/post/add", func(c *fiber.Ctx) error {
 
 		return handlers.AdminAddBlogPost(c, db)
-	})
-
-	app.Get("/admin/post/edit/:post_id", func(c *fiber.Ctx) error {
-		return handlers.AdminEditBlogPost(c, db)
-	})
-
-	app.Post("/admin/post/edit", func(c *fiber.Ctx) error {
-		return handlers.AdminUpdateBlogPost(c, db)
-	})
-
-	app.Get("/blog/post/:slug", func(c *fiber.Ctx) error {
-		return handlers.BlogPostPage(c, db)
-	})
-
-	app.Get("/blog/category/:slug/:page?", func(c *fiber.Ctx) error {
-		return handlers.BlogCategoryPage(c, db)
-	})
-
-	app.Get("/blog/tag/:slug/:page?", func(c *fiber.Ctx) error {
-		return handlers.BlogTagPage(c, db)
 	})
 
 	app.Get("/admin", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {

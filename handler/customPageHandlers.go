@@ -6,10 +6,34 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
 	"gorm.io/gorm"
 )
 
-func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App) error {
+func RenderCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App, slug string, engine *html.Engine) {
+	var customPage model.CustomPage
+	result := db.Where("slug = ?", slug).First(&customPage)
+	if result.Error != nil {
+		c.Status(fiber.StatusNotFound)
+		c.SendString("Custom Page not found" + result.Error.Error())
+		return
+	}
+
+	app.Get("/"+slug, func(c *fiber.Ctx) error {
+		/// reload the engine to reflect changes
+		engine.Load()
+
+		return c.Render("custom/"+customPage.Template, fiber.Map{
+			"Title":   customPage.Title,
+			"Content": customPage.Content,
+		})
+	})
+
+	/// reload the engine to reflect changes
+
+}
+
+func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App, engine *html.Engine) error {
 	title := c.FormValue("title")
 	content := c.FormValue("content")
 	slug := c.FormValue("slug")
@@ -22,7 +46,7 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App) error {
 	var existingPage model.CustomPage
 	result := db.Where("slug = ? OR title = ?", slug, title).First(&existingPage)
 	if result.Error == nil {
-		return c.SendString("Slug or title already exists")
+		return c.SendString("Slug or title alreasdy exists")
 	}
 
 	customPage := model.CustomPage{
@@ -31,6 +55,8 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App) error {
 		Slug:     slug,
 		Template: template,
 	}
+
+	//RenderCustomPage(c, db, app, slug, engine)
 
 	result = db.Create(&customPage)
 	if result.Error != nil {
