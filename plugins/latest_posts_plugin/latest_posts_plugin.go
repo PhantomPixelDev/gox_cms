@@ -6,6 +6,7 @@ import (
 	"html/template"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
 	"gorm.io/gorm"
 )
 
@@ -18,7 +19,7 @@ const (
 	Enabled    = false
 )
 
-func (p *LatestPostsPlugin) Setup(app *fiber.App, db *gorm.DB) error {
+func (p *LatestPostsPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) error {
 	fmt.Println("LatestPosts Plugin setup")
 	app.Get("/latest_posts_plugin", func(c *fiber.Ctx) error {
 		/// if plugin is not enabled return 404
@@ -72,6 +73,17 @@ func (p *LatestPostsPlugin) Name() string {
 
 func (p *LatestPostsPlugin) Author() string {
 	return Author
+}
+func (p *LatestPostsPlugin) DefaultSettings() map[string]string {
+	return map[string]string{}
+}
+
+func (p *LatestPostsPlugin) Settings(db *gorm.DB) map[string]string {
+	plugin := &model.Plugin{}
+	db.Where("name = ?", PluginName).First(plugin)
+	return map[string]string{
+		"Enabled": fmt.Sprintf("%t", plugin.Enabled),
+	}
 }
 
 func (p *LatestPostsPlugin) Version() string {

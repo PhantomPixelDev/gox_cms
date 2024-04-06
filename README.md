@@ -26,6 +26,8 @@ To get started with GoX CMS:
 2. Navigate into the project directory: `cd gox_cms`
 3. Initialize the module: `go mod init goxcms`
 4. Download the necessary dependencies: `go mod tidy`
-5. Run the application: `go run main.go`
+5. Rename the `config-example` file to `config` located in the `config` folder.
+6. Adjust the configuration settings in the `config` file according to your preferences.
+7. Run the application: `go run main.go` or build and run `go build main.go && ./main`
 
 Explore the code, experiment with changes, and don't hesitate to break things. Your discoveries and creations are what make this project thrive.
