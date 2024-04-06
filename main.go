@@ -417,7 +417,7 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 		plugin_system.RegisterPlugin(plugin, db)
 	}
 
-	plugin_system.InitializePlugins(app, db)
+	plugin_system.InitializePlugins(app, db, engine)
 
 	plugin_system.AddPluginManagerRoutes(app, db)
 

@@ -1,12 +1,14 @@
 package plugin_system
 
 import (
+	"encoding/json"
 	"fmt"
 	handlers "goxcms/handler"
 	"goxcms/model"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
 	"gorm.io/gorm"
 )
 
@@ -17,9 +19,21 @@ func RegisterPlugin(plugin Plugin, db *gorm.DB) {
 	pluginDB := model.Plugin{}
 	db.Where("name = ?", plugin.Name()).First(&pluginDB)
 	if pluginDB.ID == 0 {
-		db.Create(&model.Plugin{Name: plugin.Name(), Author: plugin.Author(), Version: plugin.Version()})
+		default_settings := plugin.DefaultSettings()
+		converted_settings := make(map[string]string)
+		for key, value := range default_settings {
+			converted_settings[key] = value
+		}
 
+		settingsJSON, err := json.Marshal(converted_settings)
+		if err != nil {
+			log.Printf("Error marshaling settings: %v", err)
+			return
+		}
+
+		db.Create(&model.Plugin{Name: plugin.Name(), Author: plugin.Author(), Version: plugin.Version(), Enabled: plugin.Enabled(db), Settings: string(settingsJSON)})
 	}
+
 	for _, p := range plugins {
 		if p.Name() == plugin.Name() {
 			return
@@ -29,13 +43,13 @@ func RegisterPlugin(plugin Plugin, db *gorm.DB) {
 	plugins = append(plugins, plugin)
 }
 
-func InitializePlugins(app *fiber.App, db *gorm.DB) {
+func InitializePlugins(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 	for _, plugin := range plugins {
 		/// Initialize plugin that are in the database and are enabled only
 		pluginDB := model.Plugin{}
 		db.Where("name = ?", plugin.Name()).First(&pluginDB)
 		if pluginDB.Enabled {
-			if err := plugin.Setup(app, db); err != nil {
+			if err := plugin.Setup(app, db, engine); err != nil {
 				log.Printf("Error setting up plugin %s: %v", plugin.Name(), err)
 			}
 		}

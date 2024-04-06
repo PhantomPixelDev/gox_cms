@@ -454,6 +454,7 @@
                                     <div class="card-text">
                                         <p class="text-muted">Author: {{.Author}}</p>
                                         <p class="text-muted">Version: {{.Version}}</p>
+                                        <p class="text-muted">Description: {{.Description}}</p>
                                     </div>
                                 </div>
                                 <div class="card-footer">
@@ -461,8 +462,8 @@
                                         hx-get="/admin/plugins/enable/{{.Name}}" hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'
                                         hx-confirm="Are you sure you want to {{ if .Enabled }}disable{{ else }}enable{{ end }} this plugin?"
                                         hx-target="#plugin-{{.Name}}">{{ if .Enabled }}Disable{{ else }}Enable{{ end }}</button>
-                                    <button class="btn btn-primary mt-2" hx-get="/plugin/{{.Name}}/settings" hx-trigger="click"
-                                        hx-target="#settings-container" hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}'>Settings</button>
+                                    <a class="btn btn-primary mt-2" href="/{{.Name}}/admin/settings" target="_blank">Settings</a>
+
                                 </div>
                             </div>
                         </div>

@@ -34,3 +34,5 @@ static/uploads/*
 
 .vscode/settings.json
 static/sitemap.xml
+main
+.DS_Store

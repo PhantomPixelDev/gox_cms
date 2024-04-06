@@ -121,7 +121,7 @@ func GetCommentStatusButton(comment model.Comment) string {
 
 	if comment.Status == "approved" {
 		button = `<button id="comment-status-button-` + commentID + `"
-					class="btn btn-secondary"
+					class="btn btn-secondary btn-sm"
 					hx-post="/toggle-comment-status/` + commentID + `" 
 					hx-target="#comment-status-button-` + commentID + `" hx-headers='{"X-No-Cache": "true"}'
 					hx-confirm="Are you sure you want to change the status of this comment?"
@@ -130,7 +130,7 @@ func GetCommentStatusButton(comment model.Comment) string {
 				</button>`
 	} else {
 		button = `<button id="comment-status-button-` + commentID + `"
-					class="btn btn-success"
+					class="btn btn-success btn-sm"
 					hx-post="/toggle-comment-status/` + commentID + `" 
 					hx-target="#comment-status-button-` + commentID + `" hx-headers='{"X-No-Cache": "true"}'
 					hx-confirm="Are you sure you want to change the status of this comment?"

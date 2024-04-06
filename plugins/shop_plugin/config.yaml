@@ -1,0 +1,5 @@
+PluginName: "ShopPlugin"
+PackageName: "shop_plugin"
+Author: "Ashba22"
+Version: "1.0"
+Enabled: false
