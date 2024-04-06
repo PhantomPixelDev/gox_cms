@@ -31,3 +31,7 @@ To get started with GoX CMS:
 7. Run the application: `go run main.go` or build and run `go build main.go && ./main`
 
 Explore the code, experiment with changes, and don't hesitate to break things. Your discoveries and creations are what make this project thrive.
+
+
+### TODO 
+CSRF Token

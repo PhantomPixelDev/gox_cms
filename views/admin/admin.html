@@ -81,10 +81,12 @@
             </li>
  
             <li class="nav-item">
-                <a class="nav-link" id="plugins-tab" data-bs-toggle="tab" href="#plugins" role="tab"
-                    aria-controls="plugins" hx-get="/search-plugins" hx-trigger="click" hx-target="#plugins-container"
-                    hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}' load-indicator="dots"
-                    aria-selected="false"><i class="bi bi-puzzle"></i> Plugins</a>
+    
+                <a class="nav-link" id="plugins-tab" data-bs-toggle="tab" href="#plugins" role="tab" aria-controls="plugins"
+                    hx-get="/search-plugins" hx-trigger="click" hx-target="#plugins-container" hx-swap="innerHTML"
+                    hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false">
+                    <i class="bi bi-puzzle"></i> Plugins / Enabled: <span class="text-success">{{.EnabledPlugins}}</span>
+                </a>
 
             </li>
             </ul>

@@ -835,12 +835,16 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 			})
 		}
 
+		var enabled_plugins int64
+		db.Model(&model.Plugin{}).Where("enabled = ?", true).Count(&enabled_plugins)
+
 		return c.Render("admin/admin", fiber.Map{
-			"Title":      "Admin Panel",
-			"IsAdmin":    c.Locals("isAdmin"),
-			"IsLoggedIn": c.Locals("isLoggedin"),
-			"Settings":   c.Locals("Settings"),
-			"Plugins":    pluginData,
+			"Title":          "Admin Panel",
+			"IsAdmin":        c.Locals("isAdmin"),
+			"IsLoggedIn":     c.Locals("isLoggedin"),
+			"Settings":       c.Locals("Settings"),
+			"Plugins":        pluginData,
+			"EnabledPlugins": enabled_plugins,
 		}, "main")
 	})
 

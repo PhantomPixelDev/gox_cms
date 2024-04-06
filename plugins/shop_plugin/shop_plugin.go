@@ -128,16 +128,35 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 		}, "main")
 	})
 
-	/// product page
-	app.Get("/product/:name", func(c *fiber.Ctx) error {
+	// shop main page route ///
+	app.Get("/shop", func(c *fiber.Ctx) error {
 		/// if plugin is not enabled return 404
 		if !p.Enabled(db) {
 			return c.Status(fiber.StatusNotFound).SendString("Plugin not enabled")
 		}
 
-		productName := c.Params("name")
+		products := []Product{}
+		if err := db.Find(&products).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Error fetching products")
+		}
+
+		return c.Render("plugins/shop_plugin/shop", fiber.Map{
+			"Title":    "Shop",
+			"Products": products,
+			"Settings": c.Locals("Settings"),
+		}, "main")
+	})
+
+	/// product page
+	app.Get("/product/:id", func(c *fiber.Ctx) error {
+		/// if plugin is not enabled return 404
+		if !p.Enabled(db) {
+			return c.Status(fiber.StatusNotFound).SendString("Plugin not enabled")
+		}
+
+		productID, _ := strconv.Atoi(c.Params("id"))
 		product := Product{}
-		if err := db.Where("name = ?", productName).First(&product).Error; err != nil {
+		if err := db.First(&product, productID).Error; err != nil {
 			return c.Status(fiber.StatusNotFound).SendString("Product not found")
 		}
 
