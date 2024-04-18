@@ -1,0 +1,66 @@
+<div class="row">
+    {{range .Products }}
+    <div class="col-md-4">
+        <div class="card" id="{{.ID}}">
+            <img src="{{.Picture}}" class="card-img-top" alt="{{.Name}}">
+            <div class="card-body">
+                <h5 class="card-title">{{.Name}}</h5>
+                <p class="card-text">{{.Description}}</p>
+                <p class="card-text">{{.Price}}</p>
+                <a href="/product/{{.ID}}" class="btn btn-primary">View</a>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+<!-- Pagination -->
+
+<div id="pagination-container" class="col-12 d-flex justify-content-center">
+        
+    {{ $totalPages := .TotalPages }}
+    {{ $currentPage := .CurrentPage  }}
+  
+    {{ $searchQuery := .SearchQuery }}
+
+    <!-- ... Other variables ... -->
+
+    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
+            <!-- ... Other pagination links prev and next ... -->
+
+            <!--- add prev and next buttons -->
+            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
+              
+                <a class="page-link" href="/shop/{{sub $currentPage 1}}/{{$searchQuery}}">
+                    Previous
+                </a>
+      
+            </li>
+
+
+            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
+              
+                <a class="page-link" href="/shop/{{add $currentPage 1}}/{{$searchQuery}}"
+                   >
+                    Next
+                </a>
+
+            </li>
+
+            
+            <!-- Dynamically set hx-get based on whether it's a search result -->
+            {{ range $i := sequence 1 $totalPages }}
+            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
+               
+                <a class="page-link" href="/shop/{{$i}}/{{$searchQuery}}"
+                  >
+                    {{$i}}
+                </a>
+             
+            </li>
+            {{ end }}
+        </ul>
+    </nav>
+</div>
+

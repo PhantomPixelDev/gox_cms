@@ -3,18 +3,213 @@
     Welcome to the shop page. Here you can view all the products in the shop.
 </p>
 
-<div class="row">
-    {{range .Products }}
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">{{.Name}}</h5>
-                <p class="card-text">{{.Description}}</p>
-                <p class="card-text">{{.Price}}</p>
-                <a href="/product/{{.ID}}" class="btn btn-primary">View</a>
-            </div>
-        </div>
-    </div>
-    {{end}}
+<div hx-get="/search-products/{{.CurrentPage}}/{{.SearchQuery}}" hx-target="#products-grid" hx-swap="outerHTML"
+    hx-trigger="load" hx-headers='{"X-No-Cache": "true"}'>
 </div>
 
+
+<div id="search-container" class="d-flex align-items-center mb-3">
+    <label for="search" class="me-2">Search</label>
+    <input type="text" class="form-control me-2" id="search" onkeyup="setTimeout(searchProductsResultsJson, 500)"
+        placeholder="Search for products" value="{{.SearchQuery}}">
+
+    <button type="button" class="btn btn-primary" onclick="searchProducts()">Search</button>
+</div>
+
+
+
+<div id="search-results" class="d-flex flex-column h-100 border border-primary p-3 rounded shadow-lg bg-body"
+    style="max-height: 400px; overflow-y: auto; position: absolute; z-index: 100; display: none !important;">
+</div>
+<style>
+    .product {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .product:hover {
+        cursor: pointer;
+        opacity: 0.3;
+    }
+
+
+
+    .product img {
+        object-fit: cover;
+        margin-right: 10px;
+        width: 100px;
+        height: 100px;
+    }
+
+    .product p {
+        margin: 0;
+    }
+
+    #search-results {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+<script>
+
+
+    /// focus on input field when page loads
+
+    /// move cursor to end of input field
+    var input = document.getElementById("search");
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+
+
+    //// when enter clicked on input field search for products 
+    document.getElementById("search").addEventListener("keyup", function (event) {
+        if (event.key === "Enter") {
+            searchProducts();
+        }
+    });
+
+
+
+    function searchProducts() {
+        var searchQuery = document.getElementById("search").value;
+        var url = "/shop/1/" + encodeURIComponent(searchQuery);
+        window.location.href = url;
+    }
+
+
+    function searchProductsResultsJson() {
+        var searchQuery = document.getElementById("search").value;
+        var url = "/search-products-json/" + encodeURIComponent(searchQuery);
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                var resultsContainer = document.getElementById("search-results");
+                resultsContainer.innerHTML = ""; // Clear previous results
+                /// make it visible 
+                resultsContainer.style.display = "block";
+
+                var count = 0;
+                if (data.length === 0) {
+                    var noResultsElement = document.createElement("p");
+                    noResultsElement.textContent = "No results found";
+                    resultsContainer.appendChild(noResultsElement);
+                }
+
+                data.forEach(product => {
+                    if (count < 20) {
+                        var productElement = document.createElement("div");
+                        productElement.classList.add("product");
+
+                        var imageElement = document.createElement("img");
+                        imageElement.src = product.picture;
+                        imageElement.alt = product.name;
+                        productElement.appendChild(imageElement);
+
+                        var infoElement = document.createElement("div");
+                        infoElement.classList.add("info");
+
+                        var nameElement = document.createElement("p");
+                        nameElement.textContent = product.name;
+                        infoElement.appendChild(nameElement);
+
+                        var priceElement = document.createElement("p");
+                        priceElement.textContent = "Price: $" + product.price;
+                        infoElement.appendChild(priceElement);
+
+                        var descriptionElement = document.createElement("p");
+                        descriptionElement.textContent = "Description: " + product.description;
+                        infoElement.appendChild(descriptionElement);
+
+                        productElement.appendChild(infoElement);
+
+                        productElement.addEventListener("click", function () {
+                            window.location.href = "/product/" + product.id;
+                        });
+
+                        resultsContainer.appendChild(productElement);
+                        count++;
+                    }
+                });
+
+                if (data.length > 20) {
+                    var showMoreButton = document.createElement("button");
+                    showMoreButton.textContent = "Show More";
+                    showMoreButton.classList.add("btn", "btn-primary");
+                    showMoreButton.addEventListener("click", function () {
+                        showMoreProducts(data, count);
+                    });
+                    resultsContainer.appendChild(showMoreButton);
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching search results:", error);
+            });
+    }
+
+    function showMoreProducts(data, count) {
+        var resultsContainer = document.getElementById("search-results");
+
+        for (var i = count; i < count + 20 && i < data.length; i++) {
+            var product = data[i];
+
+            var productElement = document.createElement("div");
+            productElement.classList.add("product");
+
+            var imageElement = document.createElement("img");
+            imageElement.src = product.picture;
+            imageElement.alt = product.name;
+            productElement.appendChild(imageElement);
+
+            var infoElement = document.createElement("div");
+            infoElement.classList.add("info");
+
+            var nameElement = document.createElement("p");
+            nameElement.textContent = product.name;
+            infoElement.appendChild(nameElement);
+
+            var priceElement = document.createElement("p");
+            priceElement.textContent = "Price: $" + product.price;
+            infoElement.appendChild(priceElement);
+
+            var descriptionElement = document.createElement("p");
+            descriptionElement.textContent = "Description: " + product.description;
+            infoElement.appendChild(descriptionElement);
+
+            productElement.appendChild(infoElement);
+
+            productElement.addEventListener("click", function () {
+                window.location.href = "/product/" + product.id;
+            });
+
+
+            resultsContainer.appendChild(productElement);
+        }
+
+        count += 20;
+
+        if (count < data.length) {
+            var showMoreButton = document.createElement("button");
+            showMoreButton.textContent = "Show More";
+            showMoreButton.classList.add("btn", "btn-primary");
+            showMoreButton.addEventListener("click", function () {
+                showMoreProducts(data, count);
+            });
+            resultsContainer.appendChild(showMoreButton);
+            /// remove show more button after it is clicked 
+
+        }
+    }
+    /// after clicking on show more button remove it 
+    document.getElementById("search-results").addEventListener("click", function (event) {
+        if (event.target.tagName === "BUTTON") {
+            event.target.remove();
+        }
+    });
+
+</script>
+
+
+<div id="products-grid" class="row">
+
+</div>

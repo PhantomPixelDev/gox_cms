@@ -6,12 +6,15 @@
 <div class="row">
     <div class="col-md-12">
         <div class="card">
+            <img src="{{.Product.Picture}}" class="card-img-top" alt="{{.Product.Name}}">
             <div class="card-body">
                 <h5 class="card-title">{{.Product.Name}}</h5>
                 <p class="card-text">{{.Product.Description}}</p>
                 <p class="card-text">{{.Product.Price}}</p>
+                <a href="#" class="btn btn-primary">Add to Cart</a>
             </div>
         </div>
     </div>
 </div>
+
 

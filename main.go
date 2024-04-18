@@ -19,6 +19,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -56,6 +57,8 @@ func main() {
 		AllowCredentials: viper.GetBool("cors.allow_credentials"),
 		AllowOrigins:     viper.GetString("cors.allow_origins"),
 	}))
+
+	/// setup csrf config
 
 	// 404 Handler
 	app.Use(func(c *fiber.Ctx) error {
@@ -409,6 +412,21 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 			CacheDuration: 24 * time.Hour,
 		},
 	)
+
+	//app.Use(handlers.ValidateCSRFToken)
+
+	// Middleware to check CSRF token on form submissions
+	csrfMiddleware := csrf.New(csrf.Config{
+		KeyLookup:  "form:csrf",
+		CookieName: "csrf",
+		ContextKey: "csrf",
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			return c.Status(fiber.StatusForbidden).SendString(err.Error())
+		},
+	})
+
+	// Apply CSRF middleware to relevant routes
+	app.Use(csrfMiddleware)
 
 	// Register plugins
 	plugins_list_to_register := plugin_system.PluginList()

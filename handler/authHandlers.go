@@ -10,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -27,15 +28,14 @@ func GenerateJWT(userID uint) (string, error) {
 	return tokenString, err
 }
 
+// Function to validate CSRF token
 func ValidateCSRFToken(c *fiber.Ctx) error {
-	cookie := c.Cookies("csrf")
-	csrfToken := c.FormValue("csrf")
-
-	if cookie != csrfToken {
-		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
+	csrfToken := c.Locals("csrf").(string)
+	submittedToken := c.FormValue("csrf")
+	if csrfToken != submittedToken {
+		return fiber.NewError(fiber.StatusForbidden, "CSRF token mismatch")
 	}
-
-	return c.Next()
+	return nil
 }
 
 func ValidateJWT(c *fiber.Ctx) error {
@@ -113,6 +113,7 @@ func SetJWTTokenCookie(c *fiber.Ctx, tokenString string) {
 	cookie.SameSite = "Lax"
 	cookie.Path = "/"
 	c.Cookie(cookie)
+
 }
 
 func Login(db *gorm.DB, store *session.Store) fiber.Handler {
@@ -160,10 +161,31 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 
 		SetJWTTokenCookie(c, tokenString)
 
+		/// csrf token generation
+		csrfToken := GenerateCSRFToken()
+
+		cookie := new(fiber.Cookie)
+		cookie.Name = "csrf"
+		cookie.Value = csrfToken
+		cookie.HTTPOnly = true
+		cookie.SameSite = "Lax"
+		cookie.Path = "/"
+		c.Cookie(cookie)
+
+		c.Locals("user", user)
+		c.Locals("isLoggedin", true)
+		c.Locals("isAdmin", user.RoleID == uint(2))
+		c.Locals("csrf", csrfToken)
+
 		c.Set("HX-Redirect", "/")
 		c.Status(fiber.StatusOK).SendString("Logged in successfully" + user.Username)
 		return nil
 	}
+}
+
+func GenerateCSRFToken() string {
+	uuid := uuid.New()
+	return uuid.String()
 }
 
 func Logout(c *fiber.Ctx) error {
@@ -176,9 +198,22 @@ func Logout(c *fiber.Ctx) error {
 	cookie.Expires = time.Now().Add(-1 * time.Hour)
 	cookie.HTTPOnly = true
 
+	/// remove the csrf cookie as well
+	csrfCookie := new(fiber.Cookie)
+	csrfCookie.Name = "csrf"
+	csrfCookie.Value = ""
+	csrfCookie.Expires = time.Now().Add(-1 * time.Hour)
+	csrfCookie.HTTPOnly = true
+
+	c.Cookie(csrfCookie)
 	c.Cookie(cookie)
 	c.Locals("user", nil)
 	c.Locals("isLoggedin", false)
+	c.Locals("isAdmin", false)
+	c.Locals("session", nil)
+	c.Locals("csrf", nil)
+	// remove the csrf cookie
+
 	c.Set("HX-Redirect", "/")
 
 	c.Status(fiber.StatusOK).SendString("Logged out successfully")
