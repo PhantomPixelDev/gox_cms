@@ -35,4 +35,8 @@ cors:
 ratelimiter:
   enabled: true
   max_requests: 100
+captcha:
+  enabled: false
+  public_key: ""
+  secret_key: ""
 

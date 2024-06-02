@@ -7,11 +7,36 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/spf13/viper"
 
 	"gorm.io/gorm"
 )
 
 func AddComment(c *fiber.Ctx, db *gorm.DB) error {
+
+	capcha_enabled := viper.GetBool("captcha.enabled")
+	if capcha_enabled {
+
+		hCaptchaResponse := c.FormValue("h-captcha-response")
+
+		println("hCaptchaResponse: ", hCaptchaResponse)
+
+		if hCaptchaResponse == "" {
+			ShowToastError(c, "CAPTCHA verification failed")
+			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
+		}
+
+		valid, err := verifyHCaptcha(hCaptchaResponse)
+		if err != nil {
+			ShowToastError(c, "CAPTCHA verification failed")
+			return c.Status(fiber.StatusInternalServerError).SendString("CAPTCHA verification failed")
+		}
+
+		if !valid {
+			ShowToastError(c, "CAPTCHA verification failed")
+			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
+		}
+	}
 	var comment model.Comment
 
 	// Extract comment data from the form

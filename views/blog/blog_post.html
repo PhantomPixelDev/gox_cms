@@ -70,6 +70,9 @@
                     <input type="hidden" name="post_id" value="{{.Post.ID}}">
                     <input type="hidden" name="user_id" value="{{.UserID}}">
                 </div>
+                {{ if eq .Settings.CaptchaEnabled "true" }}
+                    <div class="h-captcha" data-sitekey="{{.Settings.CaptchaSiteKey}}"></div>
+                {{ end }}
                 <button type="submit" class="btn btn-primary">Post Comment</button>
             </form>
         </div>

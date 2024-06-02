@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"goxcms/model"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-playground/validator/v10"
+	"github.com/go-resty/resty/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/google/uuid"
@@ -15,6 +17,38 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+type HCaptchaResponse struct {
+	Success     bool     `json:"success"`
+	ChallengeTS string   `json:"challenge_ts"`
+	Hostname    string   `json:"hostname"`
+	ErrorCodes  []string `json:"error-codes,omitempty"`
+}
+
+// TODO add keys to settings yaml file!!
+func verifyHCaptcha(hCaptchaResponse string) (bool, error) {
+	client := resty.New()
+	secret := viper.GetString("captcha.secret_key")
+	println("secret: ", secret)
+	resp, err := client.R().
+		SetFormData(map[string]string{
+			"secret":   secret,
+			"response": hCaptchaResponse,
+		}).
+		Post("https://hcaptcha.com/siteverify")
+
+	if err != nil {
+		/// show toast error here
+		return false, err
+	}
+
+	var result HCaptchaResponse
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
+		return false, err
+	}
+
+	return result.Success, nil
+}
 
 var jwtSecretKey = []byte(viper.GetString("app.secret"))
 
@@ -118,6 +152,31 @@ func SetJWTTokenCookie(c *fiber.Ctx, tokenString string) {
 
 func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+
+		capcha_enabled := viper.GetBool("captcha.enabled")
+		if capcha_enabled {
+
+			hCaptchaResponse := c.FormValue("h-captcha-response")
+
+			println("hCaptchaResponse: ", hCaptchaResponse)
+
+			if hCaptchaResponse == "" {
+				ShowToastError(c, "CAPTCHA verification failed")
+				return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
+			}
+
+			valid, err := verifyHCaptcha(hCaptchaResponse)
+			if err != nil {
+				ShowToastError(c, "CAPTCHA verification failed")
+				return c.Status(fiber.StatusInternalServerError).SendString("CAPTCHA verification failed")
+			}
+
+			if !valid {
+				ShowToastError(c, "CAPTCHA verification failed")
+				return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
+			}
+		}
+
 		type loginRequest struct {
 			Username string `json:"username"`
 			Password string `json:"password"`
@@ -223,6 +282,27 @@ func Logout(c *fiber.Ctx) error {
 
 func Register(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+
+		hCaptchaResponse := c.FormValue("h-captcha-response")
+
+		println("hCaptchaResponse: ", hCaptchaResponse)
+
+		if hCaptchaResponse == "" {
+			ShowToastError(c, "CAPTCHA verification failed")
+			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
+		}
+
+		valid, err := verifyHCaptcha(hCaptchaResponse)
+		if err != nil {
+			ShowToastError(c, "CAPTCHA verification failed")
+			return c.Status(fiber.StatusInternalServerError).SendString("CAPTCHA verification failed")
+		}
+
+		if !valid {
+			ShowToastError(c, "CAPTCHA verification failed")
+			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
+		}
+
 		var user model.User
 
 		if err := c.BodyParser(&user); err != nil {

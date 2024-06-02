@@ -3,6 +3,7 @@ package shop_plugin
 import (
 	"encoding/json"
 	"fmt"
+	handlers "goxcms/handler"
 	"goxcms/model"
 	"html/template"
 	"math/rand"
@@ -25,11 +26,11 @@ const (
 )
 
 var defaultSettings = map[string]string{
-	"Shop Name":        "Shop Name",
-	"Shop Description": "Shop Description",
-	"Shop Address":     "Shop Address",
-	"Shop Phone":       "Shop Phone",
-	"Shop Email":       "Shop Email",
+	"shop_name":        "Shop Name",
+	"shop_description": "Shop Description",
+	"shop_address":     "Shop Address",
+	"shop_phone":       "Shop Phone",
+	"shop_email":       "Shop Email",
 }
 
 type Product struct {
@@ -118,6 +119,30 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 	db.AutoMigrate(&Product{})
 	db.AutoMigrate(&ProductCategory{})
 
+	/// check settings if they are empty and add default settings
+	plugin := &model.Plugin{}
+	db.Where("name = ?", PluginName).First(plugin)
+	settings := plugin.Settings
+
+	if settings == "" {
+		println("Empty settings found, adding default settings")
+		defaultSettingsJSON, err := json.Marshal(p.DefaultSettings())
+		if err != nil {
+			fmt.Println("Error marshaling default settings:", err)
+			return err
+		}
+
+		plugin.Settings = string(defaultSettingsJSON)
+		db.Save(&plugin)
+		println("Default settings added")
+	}
+
+	// break point here
+	for key, value := range p.Settings(db) {
+		println("Key: ", key, " Value: ", value)
+	}
+
+	println("ShopPlugin setup done" + settings)
 	// Check if product categories exist, if not, add an example category
 	var productCategories []ProductCategory
 	if err := db.Find(&productCategories).Error; err != nil {
@@ -147,23 +172,90 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 		return p.AddProduct(c, db)
 	})
 
-	app.Get("/ShopPlugin/admin", func(c *fiber.Ctx) error {
+	app.Get("/ShopPlugin/admin/:page?", handlers.IsLoggedIn, handlers.IsAdmin, handlers.AuthStatusMiddleware(db), func(c *fiber.Ctx) error {
 		if !p.Enabled(db) {
 			return c.Status(fiber.StatusNotFound).SendString("Plugin not enabled")
 		}
 
-		products := []Product{}
-		if err := db.Find(&products).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString("Error fetching products")
+		pluginSettings := p.Settings(db)
+		// Pagination parameters
+		limit := 10
+		page := c.Params("page")
+		pageInt, err := strconv.Atoi(page)
+		if err != nil {
+			pageInt = 1
 		}
+		offset := (pageInt - 1) * limit
+
+		// Search query
+		searchQuery := c.Query("search_query")
+
+		// Fetch products based on search query and pagination
+		var products []Product
+		var totalProducts int64
+		query := db.Model(&Product{})
+		if searchQuery != "" {
+			query = query.Where("name LIKE ?", "%"+searchQuery+"%")
+		}
+		query.Count(&totalProducts)
+		totalPages := int(totalProducts / int64(limit))
+		if totalPages == 0 {
+			totalPages = 1
+		}
+		query.Limit(limit).Offset(offset).Find(&products)
 
 		c.Set("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
 
 		return c.Render("plugins/shop_plugin/admin", fiber.Map{
-			"Title":    "Shop Admin",
-			"Products": products,
-			"Settings": c.Locals("Settings"),
+			"Title":          "Shop Admin",
+			"Products":       products,
+			"Settings":       c.Locals("Settings"),
+			"TotalPages":     totalPages,
+			"CurrentPage":    pageInt,
+			"SearchQuery":    searchQuery,
+			"PluginSettings": pluginSettings,
 		}, "main")
+	})
+
+	/// /ShopPlugin/update-settings endpoint
+	app.Post("/ShopPlugin/update-settings", handlers.IsAdmin, handlers.IsLoggedIn, handlers.AuthStatusMiddleware(db), func(c *fiber.Ctx) error {
+		if !p.Enabled(db) {
+			return c.Status(fiber.StatusNotFound).SendString("Plugin not enabled")
+		}
+		println("Updating settings ---- ")
+		/// print the form values to debug
+
+		println("Shop Name: ", c.FormValue("shop_name"))
+		println("Shop Description: ", c.FormValue("shop_description"))
+		println("Shop Address: ", c.FormValue("shop_address"))
+		println("Shop Phone: ", c.FormValue("shop_phone"))
+		println("Shop Email: ", c.FormValue("shop_email"))
+
+		shopName := c.FormValue("shop_name")
+		shopDescription := c.FormValue("shop_description")
+		shopAddress := c.FormValue("shop_address")
+		shopPhone := c.FormValue("shop_phone")
+		shopEmail := c.FormValue("shop_email")
+
+		settings := map[string]string{
+			"shop_name":        shopName,
+			"shop_description": shopDescription,
+			"shop_address":     shopAddress,
+			"shop_phone":       shopPhone,
+			"shop_email":       shopEmail,
+		}
+
+		settingsJSON, err := json.Marshal(settings)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Error updating settings")
+		}
+
+		plugin := &model.Plugin{}
+		db.Where("name = ?", PluginName).First(plugin)
+		plugin.Settings = string(settingsJSON)
+		db.Save(&plugin)
+
+		return c.Redirect("/ShopPlugin/admin")
 	})
 
 	app.Get("/shop/:page?/:search_query?", func(c *fiber.Ctx) error {
@@ -285,21 +377,6 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 		}, "main")
 	})
 
-	app.Get("/ShopPlugin/admin/settings", func(c *fiber.Ctx) error {
-		if !p.Enabled(db) {
-			return c.Status(fiber.StatusNotFound).SendString("Plugin not enabled")
-		}
-
-		pluginSettings := p.Settings(db)
-
-		return c.Render("plugins/shop_plugin/settings", fiber.Map{
-			"Title":          "Shop Plugin Settings",
-			"PluginName":     p.Name(),
-			"Settings":       c.Locals("Settings"),
-			"PluginSettings": pluginSettings,
-		}, "main")
-	})
-
 	println("ShopPlugin setup done")
 	return nil
 }
@@ -328,14 +405,29 @@ func (p *ShopPlugin) DefaultSettings() map[string]string {
 func (p *ShopPlugin) Settings(db *gorm.DB) map[string]string {
 	plugin := &model.Plugin{}
 	db.Where("name = ?", PluginName).First(plugin)
+
 	fmt.Println(PluginName, "settings:", plugin.Settings)
 	settings := plugin.Settings
+
 	if len(settings) == 0 {
+		defaultSettingsJSON, err := json.Marshal(p.DefaultSettings())
+		if err != nil {
+			fmt.Println("Error marshaling default settings:", err)
+			return p.DefaultSettings()
+		}
+
+		plugin.Settings = string(defaultSettingsJSON)
+		db.Save(&plugin)
+
 		return p.DefaultSettings()
 	}
 
 	mappedSettings := make(map[string]string)
-	json.Unmarshal([]byte(settings), &mappedSettings)
+	err := json.Unmarshal([]byte(settings), &mappedSettings)
+	if err != nil {
+		fmt.Println("Error unmarshaling settings:", err)
+		return p.DefaultSettings()
+	}
 
 	return mappedSettings
 }

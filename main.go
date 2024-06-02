@@ -197,6 +197,9 @@ func initConfig() {
 	viper.SetDefault("redis.pool_size", 10)
 	viper.SetDefault("server.body_limit", 10)
 	viper.SetDefault("app.hotload_custom_pages", false)
+	viper.SetDefault("captcha.public_key", "")
+	viper.SetDefault("captcha.secret_key", "")
+	viper.SetDefault("captcha.enabled", false)
 
 	// Print Redis status if enabled
 	if viper.GetBool("redis.enabled") {
@@ -425,9 +428,6 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 		},
 	})
 
-	// Apply CSRF middleware to relevant routes
-	app.Use(csrfMiddleware)
-
 	// Register plugins
 	plugins_list_to_register := plugin_system.PluginList()
 
@@ -438,6 +438,14 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 	plugin_system.InitializePlugins(app, db, engine)
 
 	plugin_system.AddPluginManagerRoutes(app, db)
+
+	// Apply CSRF middleware to relevant routes
+	app.Use(csrfMiddleware)
+	// set captcha config to locals
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("captcha_enabled", viper.GetBool("captcha.enabled"))
+		return c.Next()
+	})
 
 	return app
 }
@@ -451,6 +459,8 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		settings_cms := model.BasicWebsiteInfo{}
 
 		db.First(&settings_cms)
+
+		captcha_enabled := viper.GetBool("captcha.enabled")
 
 		// Map the website settings to a map for easy access
 		settings_cms_db := map[string]string{
@@ -476,6 +486,8 @@ func setupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 			"Language":       settings_cms.Language,
 			"Locale":         settings_cms.Locale,
 			"TimeZone":       settings_cms.TimeZone,
+			"CaptchaEnabled": strconv.FormatBool(captcha_enabled),
+			"CaptchaSiteKey": viper.GetString("captcha.public_key"),
 		}
 
 		c.Locals("Settings", settings_cms_db)

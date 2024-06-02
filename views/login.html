@@ -18,8 +18,10 @@
             <label for="password" class="form-label">Password:</label>
             <input type="password" class="form-control" id="password" name="password" required>
         </div>
-
-        <button type="submit" class="btn btn-primary">
+        {{ if eq .Settings.CaptchaEnabled "true" }}
+            <div class="h-captcha" data-sitekey="{{.Settings.CaptchaSiteKey}}"></div>
+        {{ end }}
+            <button type="submit" class="btn btn-primary">
             Login
         </button>
     </form>

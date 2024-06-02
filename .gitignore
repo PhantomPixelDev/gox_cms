@@ -36,3 +36,4 @@ static/uploads/*
 static/sitemap.xml
 main
 .DS_Store
+static/sitemap.xml
