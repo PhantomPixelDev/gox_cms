@@ -88,20 +88,16 @@
     transform: scale(2.5); /* Add scale on hover */
 }
 
+
 .post-featured-image {
     width: 100%;
     height: 300px;
     object-fit: cover;
     margin-bottom: 20px;
-    border-radius: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.post-featured-image:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
 
 .selectize-control.plugin-dropdown-header .dropdown-header,
 .selectize-dropdown-content {

@@ -379,7 +379,7 @@ func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool) string {
 		htmlMenuString += userControls(false)
 	}
 
-	htmlMenuString += "</div></nav>"
+	htmlMenuString += "</ul></div>"
 
 	return htmlMenuString
 }

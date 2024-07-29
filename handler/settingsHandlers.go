@@ -44,6 +44,7 @@ func updateSettingsFromForm(settings *model.BasicWebsiteInfo, c *fiber.Ctx) mode
 	settings.LogoURL = c.FormValue("logo_url")
 	// For theme, the form uses "theme", so it's correctly mapped
 	settings.Theme = c.FormValue("theme")
+	settings.ContainerClass = c.FormValue("container_class")
 	// Update social media URLs based on your form's input names
 	settings.FacebookURL = c.FormValue("facebookUrl") // Changed from "facebookURL" to match form name attribute
 	settings.TwitterURL = c.FormValue("twitterUrl")   // Changed from "twitter_url" to match form name attribute
@@ -89,5 +90,6 @@ func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 		"Locale":         settings.Locale,
 		"TimeZone":       settings.TimeZone,
 		"SelectedTheme":  settings.SelectedTheme,
+		"ContainerClass": settings.ContainerClass,
 	}
 }

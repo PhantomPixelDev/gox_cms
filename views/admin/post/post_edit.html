@@ -1,99 +1,102 @@
-<h1>Edit Post with ID: {{ .PostID }}</h1>
+<div class="container">
+    <h3>Edit Post with ID: {{ .PostID }}</h3>
+    <hr>
+</div>
 
-
-
-<div class="row shadow p-3 mb-5 rounded">
-    <div class="col-md-9">
-        <form hx-post="/admin/post/edit" hx-target="#result">
-            
-                <input type="hidden" id="id" name="id" value="{{ .PostID }}">
-
-            <div class="mb-3">
-                <label for="title" class="form-label">Title:</label>
-                <input type="text" class="form-control" id="title" name="title" value="{{ .PostTitle }}" required>
-            </div>
-
-            <div class="mb-3">
-                <label for="content" class="form-label">Content:</label>
-
-                <!-- Create the toolbar container -->
-                <div id="toolbar">
-          
-                </div>
+<div class="container">
+    <div class="row shadow mb-5 rounded">
+        <div class="col-md-9">
+            <form hx-post="/admin/post/edit" hx-target="#result">
                 
-
-                <!-- Create the editor container -->
-                <div id="editor">
-                    <p>Hello World!</p>
-                    <p>Some initial <strong>bold</strong> text</p>
-                    <p><br /></p>
+                    <input type="hidden" id="id" name="id" value="{{ .PostID }}">
+    
+                <div class="mb-3">
+                    <label for="title" class="form-label">Title:</label>
+                    <input type="text" class="form-control" id="title" name="title" value="{{ .PostTitle }}" required>
                 </div>
-                <input type="hidden" id="content_input" name="content">
+    
+                <div class="mb-3">
+                    <label for="content" class="form-label">Content:</label>
+    
+                    <!-- Create the toolbar container -->
+                    <div id="toolbar">
+              
+                    </div>
+                    
+    
+                    <!-- Create the editor container -->
+                    <div id="editor">
+                        <p>Hello World!</p>
+                        <p>Some initial <strong>bold</strong> text</p>
+                        <p><br /></p>
+                    </div>
+                    <input type="hidden" id="content_input" name="content">
+                </div>
+    
+                <!-- Submit Button... -->
+                <button type="submit" class="btn btn-primary">Edit Post</button>
+    
+                            
+    
+                <!-- Result... -->
+                <div id="result"></div>
+    
+        </div>
+        <div class="col-md-3">
+    
+           
+            <div class="mb-3">
+            <!-- Publish/Unpublish Button -->
+            <button id="post-status-button-{{.PostID}}"  
+                class="btn {{if .Published}}btn-secondary{{else}}btn-success{{end}}" 
+                hx-post="/toggle-post-status" 
+                hx-vals='{"id": "{{.PostID}}"}' 
+                hx-target="#post-status-button-{{.PostID}}" 
+                hx-swap="outerHTML" 
+                hx-confirm="Are you sure you want to change the status of this post?">
+                {{if .Published}}Unpublish{{else}}Publish{{end}}
+            </button>
+    
+            <a href="/blog/post/{{.PostSlug}}" class="btn btn btn-primary">🔍</a>
+    
+             <!-- Image URL Field -->
+            <hr>
+                <label for="image" class="form-label">Image URL:</label>
+                <input type="text" class="form-control" id="image" name="image" value="{{ .PostImage }}" required>
             </div>
-
-            <!-- Submit Button... -->
-            <button type="submit" class="btn btn-primary">Edit Post</button>
-
-                        
-
-            <!-- Result... -->
-            <div id="result"></div>
-
-    </div>
-    <div class="col-md-3">
-
-       
-        <div class="mb-3">
-        <!-- Publish/Unpublish Button -->
-        <button id="post-status-button-{{.PostID}}"  
-            class="btn {{if .Published}}btn-secondary{{else}}btn-success{{end}}" 
-            hx-post="/toggle-post-status" 
-            hx-vals='{"id": "{{.PostID}}"}' 
-            hx-target="#post-status-button-{{.PostID}}" 
-            hx-swap="outerHTML" 
-            hx-confirm="Are you sure you want to change the status of this post?">
-            {{if .Published}}Unpublish{{else}}Publish{{end}}
-        </button>
-
-        <a href="/blog/post/{{.PostSlug}}" class="btn btn btn-primary">🔍</a>
-
-         <!-- Image URL Field -->
-        <hr>
-            <label for="image" class="form-label">Image URL:</label>
-            <input type="text" class="form-control" id="image" name="image" value="{{ .PostImage }}" required>
+    
+    
+    
+            <!-- Slug Field -->
+            <div class="mb-3">
+                <label for="post_slug" class="form-label">Slug:</label>
+                <input type="text" class="form-control" id="post_slug" name="post_slug" value="{{ .PostSlug }}" required>
+    
+            </div>
+    
+            <!-- Categories Select with Search -->
+            <div class="mb-3">
+                <label for="categoriesSelect" class="form-label">Categories:</label>
+                <select class="form-select form-select-sm" id="categoriesSelect" name="categories" multiple="multiple">
+                    {{ range .Categories }}
+                    <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                    {{ end }}
+                </select>
+                <input type="hidden" id="categories_input" name="categories_input">
+            </div>
+    
+            <!-- Tags Select with Search -->
+            <div class="mb-3">
+                <label for="tagsSelect" class="form-label">Tags:</label>
+                <select class="form-select form-select-sm" id="tagsSelect" name="tags" multiple="multiple">
+                    {{ range .Tags }}
+                    <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                    {{ end }}
+                </select>
+                <input type="hidden" id="tags_input" name="tags_input">
+            </div>
+            </form>
         </div>
-
-
-
-        <!-- Slug Field -->
-        <div class="mb-3">
-            <label for="post_slug" class="form-label">Slug:</label>
-            <input type="text" class="form-control" id="post_slug" name="post_slug" value="{{ .PostSlug }}" required>
-
-        </div>
-
-        <!-- Categories Select with Search -->
-        <div class="mb-3">
-            <label for="categoriesSelect" class="form-label">Categories:</label>
-            <select class="form-select form-select-sm" id="categoriesSelect" name="categories" multiple="multiple">
-                {{ range .Categories }}
-                <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
-                {{ end }}
-            </select>
-            <input type="hidden" id="categories_input" name="categories_input">
-        </div>
-
-        <!-- Tags Select with Search -->
-        <div class="mb-3">
-            <label for="tagsSelect" class="form-label">Tags:</label>
-            <select class="form-select form-select-sm" id="tagsSelect" name="tags" multiple="multiple">
-                {{ range .Tags }}
-                <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
-                {{ end }}
-            </select>
-            <input type="hidden" id="tags_input" name="tags_input">
-        </div>
-        </form>
     </div>
 </div>
 

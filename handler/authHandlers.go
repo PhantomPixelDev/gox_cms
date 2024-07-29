@@ -25,7 +25,6 @@ type HCaptchaResponse struct {
 	ErrorCodes  []string `json:"error-codes,omitempty"`
 }
 
-// TODO add keys to settings yaml file!!
 func verifyHCaptcha(hCaptchaResponse string) (bool, error) {
 	client := resty.New()
 	secret := viper.GetString("captcha.secret_key")

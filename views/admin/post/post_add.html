@@ -1,147 +1,152 @@
 <div id="result"></div>
 
-<h1>Add Post</h1>
+<div class="container">
+    <h3>Add Post</h3>
+    <hr>
+</div>
 
 
-<div class="row p-3 mb-3 shadow">
-    <div class="col-7">
-        <form hx-post="/admin/post/add" hx-target="#result">
-            <!-- Title Field -->
-            <div class="mb-3">
-                <label for="title" class="form-label">Title:</label>
-                <input type="text" class="form-control" id="title" name="title" required>
-            </div>
-
-            <div class="mb-3">
-                <label for="content" class="form-label">Content:</label>
-
-                <!-- Create the toolbar container -->
-                <div id="toolbar">
-                
+<div class="container">
+    <div class="row mb-3 shadow">
+        <div class="col-7">
+            <form hx-post="/admin/post/add" hx-target="#result">
+                <!-- Title Field -->
+                <div class="mb-3">
+                    <label for="title" class="form-label">Title:</label>
+                    <input type="text" class="form-control" id="title" name="title" required>
                 </div>
-
-                <!-- Create the editor container -->
-                <div id="editor">
-                    <p>Hello World!</p>
-                    <p>Some initial <strong>bold</strong> text</p>
-                    <p><br /></p>
+    
+                <div class="mb-3">
+                    <label for="content" class="form-label">Content:</label>
+    
+                    <!-- Create the toolbar container -->
+                    <div id="toolbar">
+                    
+                    </div>
+    
+                    <!-- Create the editor container -->
+                    <div id="editor">
+                        <p>Hello World!</p>
+                        <p>Some initial <strong>bold</strong> text</p>
+                        <p><br /></p>
+                    </div>
+                    
+                    <input type="hidden" id="content_input" name="content">
                 </div>
-                
-                <input type="hidden" id="content_input" name="content">
+    
+                <!-- Submit Button... -->
+                <button type="submit" class="btn btn-primary">Edit Post</button>
+    
+                <!-- Result... -->
+                <div id="result"></div>
+    
+    
+    
+        </div>
+        <div class="col-3 offset-1">
+    
+            <!-- Image Field -->
+            <div class="mb-3">
+    
+                <label for="image" class="form-label">Image:</label>
+    
+                <input type="text" id="image" name="image" class="form-control" placeholder="Image Link" required>
+                <!--- add button to open a dialog with partial file manager! -->
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal" id="upload-btn"
+                hx-trigger="click" hx-get="/search-files" hx-target="#file-list-conatiner">Open File Manager</button>
+    
             </div>
-
-            <!-- Submit Button... -->
-            <button type="submit" class="btn btn-primary">Edit Post</button>
-
-            <!-- Result... -->
-            <div id="result"></div>
-
-
-
-    </div>
-    <div class="col-3 offset-1">
-
-        <!-- Image Field -->
-        <div class="mb-3">
-
-            <label for="image" class="form-label">Image:</label>
-
-            <input type="text" id="image" name="image" class="form-control" placeholder="Image Link" required>
-            <!--- add button to open a dialog with partial file manager! -->
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal" id="upload-btn"
-            hx-trigger="click" hx-get="/search-files" hx-target="#file-list-conatiner">Open File Manager</button>
-
-        </div>
-
-
-
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                const uploadBtn = document.getElementById("upload-btn");
-                const imageInput = document.getElementById("image_up");
-                const imagePreview = document.getElementById("image-preview");
-                const imageLinkInput = document.getElementById("image-link");
-
-                uploadBtn.addEventListener("click", function () {
-                    imageInput.click();
+    
+    
+    
+            <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    const uploadBtn = document.getElementById("upload-btn");
+                    const imageInput = document.getElementById("image_up");
+                    const imagePreview = document.getElementById("image-preview");
+                    const imageLinkInput = document.getElementById("image-link");
+    
+                    uploadBtn.addEventListener("click", function () {
+                        imageInput.click();
+                    });
+    
+                    imageInput.addEventListener("change", function () {
+                        const file = imageInput.files[0];
+                        const reader = new FileReader();
+    
+                        reader.onload = function (e) {
+                            const img = document.createElement("img");
+                            img.src = e.target.result;
+                            img.classList.add("img-fluid");
+                            imagePreview.innerHTML = "";
+                            imagePreview.appendChild(img);
+                        };
+    
+                        reader.readAsDataURL(file);
+                    });
                 });
-
-                imageInput.addEventListener("change", function () {
-                    const file = imageInput.files[0];
-                    const reader = new FileReader();
-
-                    reader.onload = function (e) {
-                        const img = document.createElement("img");
-                        img.src = e.target.result;
-                        img.classList.add("img-fluid");
-                        imagePreview.innerHTML = "";
-                        imagePreview.appendChild(img);
-                    };
-
-                    reader.readAsDataURL(file);
+    
+                document.getElementById("exampleModal").addEventListener("shown.bs.modal", function () {
+                    const uploadBtn = document.getElementById("upload-btn");
+                    const imageInput = document.getElementById("image_up");
+                    const imagePreview = document.getElementById("image-preview");
+                    const imageLinkInput = document.getElementById("image-link");
+    
+                    uploadBtn.addEventListener("click", function () {
+                        imageInput.click();
+                    });
+    
+                    imageInput.addEventListener("change", function () {
+                        const file = imageInput.files[0];
+                        const reader = new FileReader();
+    
+                        reader.onload = function (e) {
+                            const img = document.createElement("img");
+                            img.src = e.target.result;
+                            img.classList.add("img-fluid");
+                            imagePreview.innerHTML = "";
+                            imagePreview.appendChild(img);
+                        };
+    
+                        reader.readAsDataURL(file);
+                    });
                 });
-            });
-
-            document.getElementById("exampleModal").addEventListener("shown.bs.modal", function () {
-                const uploadBtn = document.getElementById("upload-btn");
-                const imageInput = document.getElementById("image_up");
-                const imagePreview = document.getElementById("image-preview");
-                const imageLinkInput = document.getElementById("image-link");
-
-                uploadBtn.addEventListener("click", function () {
-                    imageInput.click();
-                });
-
-                imageInput.addEventListener("change", function () {
-                    const file = imageInput.files[0];
-                    const reader = new FileReader();
-
-                    reader.onload = function (e) {
-                        const img = document.createElement("img");
-                        img.src = e.target.result;
-                        img.classList.add("img-fluid");
-                        imagePreview.innerHTML = "";
-                        imagePreview.appendChild(img);
-                    };
-
-                    reader.readAsDataURL(file);
-                });
-            });
-        </script>
-
-
-
-        <!-- Slug Field -->
-        <div class="mb-3">
-            <label for="post_slug" class="form-label">Slug:</label>
-            <input type="text" class="form-control" id="post_slug" name="post_slug" required>
-
-
+            </script>
+    
+    
+    
+            <!-- Slug Field -->
+            <div class="mb-3">
+                <label for="post_slug" class="form-label">Slug:</label>
+                <input type="text" class="form-control" id="post_slug" name="post_slug" required>
+    
+    
+            </div>
+    
+            <!-- Categories Select with Search -->
+            <div class="mb-3">
+                <label for="categoriesSelect" class="form-label">Categories:</label>
+                <select class="form-select" id="categoriesSelect" name="categories" multiple="multiple">
+                    {{ range .Categories }}
+                    <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                    {{ end }}
+                
+                </select>
+                <input type="hidden" id="categories_input" name="categories_input"> 
+            </div>
+    
+            <!-- Tags Select with Search -->
+            <div class="mb-3">
+                <label for="tagsSelect" class="form-label">Tags:</label>
+                <select class="form-select" id="tagsSelect" name="tags" multiple="multiple">
+                    {{ range .Tags }}
+                    <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                    {{ end }}
+                </select>
+                <input type="hidden" id="tags_input" name="tags_input">
+            </div>
+            </form>
         </div>
-
-        <!-- Categories Select with Search -->
-        <div class="mb-3">
-            <label for="categoriesSelect" class="form-label">Categories:</label>
-            <select class="form-select" id="categoriesSelect" name="categories" multiple="multiple">
-                {{ range .Categories }}
-                <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
-                {{ end }}
-            
-            </select>
-            <input type="hidden" id="categories_input" name="categories_input"> 
-        </div>
-
-        <!-- Tags Select with Search -->
-        <div class="mb-3">
-            <label for="tagsSelect" class="form-label">Tags:</label>
-            <select class="form-select" id="tagsSelect" name="tags" multiple="multiple">
-                {{ range .Tags }}
-                <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
-                {{ end }}
-            </select>
-            <input type="hidden" id="tags_input" name="tags_input">
-        </div>
-        </form>
     </div>
 </div>
 

@@ -4,6 +4,7 @@
     <div class="container">
         <div class="row">
             <div class="col-md-12">
+                <p class="text-muted">Admin Actions:</p>
                 <a href="/admin/post/edit/{{.Post.ID}}" class="btn btn-primary">Edit Post</a>
                 <hr>
             </div>
@@ -11,11 +12,17 @@
     </div>
     {{end}}
 
-    <div class="col-md-12">
-        <img src="{{.Post.ImageURL}}" class="post-featured-image" alt="{{.Title}}">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <img src="{{.Post.ImageURL}}" class="post-featured-image" alt="{{.Title}}">
+                <h1 class="display-4">{{.Title}}</h1>
+            </div>
+        </div>
     </div>
 
-    <h1 class="display-4">{{.Title}}</h1>
+   
+<hr class="my-4">
 
 
     <div class="container">
@@ -28,7 +35,7 @@
         </div>
     </div>
 
-    <div class="container-fluid">
+    <div class="container">
 
         <p class="lead">{{.CreatedAt.Format "02 Jan 2006"}}</p>
 
@@ -111,4 +118,4 @@
         </div>
         {{end}}
     </div>
-</div>
+</div> 

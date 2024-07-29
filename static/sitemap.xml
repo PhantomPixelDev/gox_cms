@@ -1,102 +1,93 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url>
-<loc>http://localhost:3000/</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog</loc>
-</url>
-<url>
-<loc>http://localhost:3000/login</loc>
-</url>
-<url>
-<loc>http://localhost:3000/register</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/post/test</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/post/weqweqweqwe</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/post/kawasakininja215</loc>
-</url>
-<url>
-<loc>http://localhost:3000/user/2</loc>
-</url>
-<url>
-<loc>http://localhost:3000/user/3</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/category/infos</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/category/living</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/category/animals</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/category/1234</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/31231231233123123</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/312312312331231231123</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/3123123123312331231231123</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/3121231233123123312331231231123</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/342341123fffff</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/34fsdfdfd2341123fffff</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/34fsdfdfd23sdfdf41123fffff</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/sdfsdfa34fsdfdfd23sdfdf41123fffff</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/12312312</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/12312312312312</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/123123123123asdfsdff12</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/qweqweqwe</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/we</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/weeqweweqwsdasdasd323123123123123e</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/weeqwe123123123123123weqwsdasdasd323123123123123e</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/fgdfgdfgfgweeqwe123123123123123weqwsdasdasd323123123123123e</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/sdfasdfasdf</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/sd9867324534255fasdfasdf</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/sd98673rrrrrr24534255fasdfasdf</loc>
-</url>
-<url>
-<loc>http://localhost:3000/blog/tag/wwww</loc>
-</url>
+  <url>
+    <loc>http://localhost:3000/blog/post/test</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/post/weqweqweqwe</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/post/kawasakininja215</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/user/2</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/user/3</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/user/4</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/category/infos</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/category/living</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/category/animals</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/category/1234</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/312312312331231231123</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/3123123123312331231231123</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/3121231233123123312331231231123</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/342341123fffff</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/34fsdfdfd2341123fffff</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/34fsdfdfd23sdfdf41123fffff</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/sdfsdfa34fsdfdfd23sdfdf41123fffff</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/12312312</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/12312312312312</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/123123123123asdfsdff12</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/qweqweqwe</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/we</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/weeqweweqwsdasdasd323123123123123e</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/weeqwe123123123123123weqwsdasdasd323123123123123e</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/fgdfgdfgfgweeqwe123123123123123weqwsdasdasd323123123123123e</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/sdfasdfasdf</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/sd9867324534255fasdfasdf</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/sd98673rrrrrr24534255fasdfasdf</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/wwww</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/blog/tag/edrtfvzgbhjnk</loc>
+  </url>
 </urlset>

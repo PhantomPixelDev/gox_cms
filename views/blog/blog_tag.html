@@ -11,7 +11,7 @@
                 <div>
                     <h2 class="h5 mb-2">{{.Title}}</h2>
                     <p class="text-muted small mb-2">{{.CreatedAt.Format "02 Jan 2006"}}</p>
-                    <p class="small text-truncate">{{ removeHTML (truncate .Content 200) }}</p>
+                    <p class="small text-truncate">{{ escape (truncate .Content 200) }}</p>
                 </div>
                 <div>
                     <a href="/blog/post/{{.Slug}}" class="btn btn-sm btn-outline-primary">Read More</a>

@@ -30,6 +30,7 @@ func RenderCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App, slug string, en
 	})
 
 	/// reload the engine to reflect changes
+	engine.Load()
 
 }
 
@@ -39,14 +40,14 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App, engine *html.Engin
 	slug := c.FormValue("slug")
 	template := c.FormValue("template")
 
-	if title == "" || content == "" || slug == "" || template == "" { // Check if required fields are missing
+	if title == "" || content == "" || slug == "" || template == "" {
 		return c.SendString("Missing required fields: title, content, slug, template")
 	}
 
 	var existingPage model.CustomPage
 	result := db.Where("slug = ? OR title = ?", slug, title).First(&existingPage)
 	if result.Error == nil {
-		return c.SendString("Slug or title alreasdy exists")
+		return c.SendString("Slug or title already exists: " + slug)
 	}
 
 	customPage := model.CustomPage{

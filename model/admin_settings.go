@@ -30,4 +30,5 @@ type BasicWebsiteInfo struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	SelectedTheme  string    `json:"selected_theme" default:"cerulean"`
+	ContainerClass string    `json:"container_class" default:"container"`
 }

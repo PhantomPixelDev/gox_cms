@@ -1,14 +1,19 @@
 <div class="row">
     {{range .Products }}
-    <div class="col-md-4">
-        <div class="card" id="{{.ID}}">
+    <div class="col-md-3 mb-2">
+        <div class="card mb-2" id="{{.ID}}">
             <img src="{{.Picture}}" class="card-img-top" alt="{{.Name}}">
-            <div class="card-body">
+            <div class="shadow rounded p-2">
                 <h5 class="card-title">{{.Name}}</h5>
                 <p class="card-text">{{.Description}}</p>
-                <p class="card-text">{{.Price}}</p>
                 <a href="/product/{{.ID}}" class="btn btn-primary">View</a>
+                <a href="/cart/add/{{.ID}}" class="btn btn-primary">
+                    Add to Cart
+                    <i class="bi bi-cart-fill"></i>
+                </a>
+                <p class="text-primary mt-2">Price: ${{.Price}}</p>
             </div>
+
         </div>
     </div>
     {{end}}
@@ -17,50 +22,34 @@
 <!-- Pagination -->
 
 <div id="pagination-container" class="col-12 d-flex justify-content-center">
-        
+
     {{ $totalPages := .TotalPages }}
-    {{ $currentPage := .CurrentPage  }}
-  
+    {{ $currentPage := .CurrentPage }}
+
     {{ $searchQuery := .SearchQuery }}
- 
-    <!-- ... Other variables ... -->
 
-    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+    <nav class="container-fluid d-flex justify-content-center" aria-label="Page navigation example">
         <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
-            <!-- ... Other pagination links prev and next ... -->
-
-            <!--- add prev and next buttons -->
             <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
-              
                 <a class="page-link" href="/shop/{{sub $currentPage 1}}/{{$searchQuery}}">
                     Previous
                 </a>
-      
             </li>
-
-
             <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
-              
-                <a class="page-link" href="/shop/{{add $currentPage 1}}/{{$searchQuery}}"
-                   >
+                <a class="page-link" href="/shop/{{add $currentPage 1}}/{{$searchQuery}}">
                     Next
                 </a>
-
             </li>
 
-            
-            <!-- Dynamically set hx-get based on whether it's a search result -->
-            {{ range $i := sequence 1 $totalPages }}
+            {{ range $i := sequence (sub $currentPage 10) (add $currentPage 10) }}
+            {{ if and (gt $i 0) (le $i $totalPages) }}
             <li class="page-item {{if eq $i $currentPage}}active{{end}}">
-               
-                <a class="page-link" href="/shop/{{$i}}/{{$searchQuery}}"
-                  >
+                <a class="page-link" href="/shop/{{$i}}/{{$searchQuery}}">
                     {{$i}}
                 </a>
-             
             </li>
+            {{ end }}
             {{ end }}
         </ul>
     </nav>
 </div>
-

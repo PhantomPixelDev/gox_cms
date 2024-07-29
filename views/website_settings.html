@@ -59,6 +59,16 @@
                             {{end}}
                         </select>
                     </div>
+                   <!-- Container settings -->
+                    <div class="col-md-6">
+                        <label for="container" class="form-label">Container:</label>
+                        <select class="form-select" id="container_class" name="container_class">
+                            <option value="">Select a container...</option><!-- Debugging output -->
+                            {{range .Containers}}
+                            <option value="{{.}}" {{if eq . $.SettingsAdmin.ContainerClass}} selected {{end}}>{{.}}</option>
+                            {{end}}
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>

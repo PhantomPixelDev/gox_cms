@@ -13,95 +13,108 @@ import (
 )
 
 const (
-	MaxFileSize = 10 * 1024 * 1024 // 10 MB
-	UploadDir   = "./static/uploads"
+	MaxFileSize        = 10 * 1024 * 1024 // 10 MB
+	UploadDir          = "./static/uploads"
+	RandomFilenameSize = 10
+)
+
+var (
+	AllowedFileTypes = map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".gif":  true,
+	}
+
+	AllowedContentTypes = []string{
+		"image/jpeg",
+		"image/png",
+		"image/gif",
+		"image/jpg",
+	}
 )
 
 func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
-    file, err := c.FormFile("file")
-    if err != nil {
-        return c.Status(fiber.StatusBadRequest).SendString("Cannot read file: " + err.Error())
-    }
+	file, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString("Cannot read file: " + err.Error())
+	}
 
-    // Validate file size
-    if file.Size > MaxFileSize {
-        return c.Status(fiber.StatusBadRequest).SendString("File size exceeds the limit")
-    }
+	// Validate file size
+	if file.Size > MaxFileSize {
+		return c.Status(fiber.StatusBadRequest).SendString("File size exceeds the limit")
+	}
 
-    // Validate file type based on extension
-    fileType := filepath.Ext(file.Filename)
-    if !isValidFileType(fileType) {
-        return c.Status(fiber.StatusBadRequest).SendString("File type not allowed")
-    }
+	// Validate file type based on extension
+	fileType := filepath.Ext(file.Filename)
+	if !isValidFileType(fileType) {
+		return c.Status(fiber.StatusBadRequest).SendString("File type not allowed")
+	}
 
-    // Check file content type from header
-    if !isValidContentType(file.Header.Get("Content-Type")) {
-        return c.Status(fiber.StatusBadRequest).SendString("Invalid content type")
-    }
+	// Check file content type from header
+	if !isValidContentType(file.Header.Get("Content-Type")) {
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid content type")
+	}
 
-    // Generate a random string for the filename to ensure uniqueness
-    randomString := generateRandomFilenameString(10)
-    filename := randomString + fileType
+	// Generate a random string for the filename to ensure uniqueness
+	randomString := generateRandomFilenameString(RandomFilenameSize)
+	oldFilename := file.Filename
+	filename := oldFilename[:len(oldFilename)-len(fileType)] + "_" + randomString + fileType
 
-    // Save the file to the disk
-    if err := c.SaveFile(file, filepath.Join(UploadDir, filename)); err != nil {
-        return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to disk")
-    }
+	// Save the file to the disk
 
-    // Represent the file in the database
-    fileModel := model.File{
-        Name: filename,
-        Path: "/static/uploads/" + filename, // Save the path to the file
-    }
+	// Save the file to the disk
+	if err := c.SaveFile(file, filepath.Join(UploadDir, filename)); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to disk")
+	}
 
-    // Save file reference to the database
-    if err := db.Create(&fileModel).Error; err != nil {
-        return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to database")
-    }
+	// Represent the file in the database
+	fileModel := model.File{
+		Name: filename,
+		Path: "/static/uploads/" + filename, // Save the path to the file
+	}
+
+	// Save file reference to the database
+	if err := db.Create(&fileModel).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to database")
+	}
+
+	// Respond with success message
 	c.SendStatus(fiber.StatusOK)
-	ShowToast(c, "File uploaded successfully") 
-    // Respond with success message
-    return nil
+	ShowToast(c, "File uploaded successfully")
+	return nil
 }
 
 // Check if file type is allowed
 func isValidFileType(fileType string) bool {
-    allowedTypes := map[string]bool{
-        ".jpg":  true,
-        ".jpeg": true,
-        ".png":  true,
-        ".gif":  true,
-    }
-    return allowedTypes[fileType]
+	return AllowedFileTypes[fileType]
 }
 
 // Check if content type is allowed
 func isValidContentType(contentType string) bool {
-    validContentTypes := []string{"image/jpeg", "image/png", "image/gif", "image/jpg"}
-    for _, validType := range validContentTypes {
-        if validType == contentType {
-            return true
-        }
-    }
-    return false
+	for _, validType := range AllowedContentTypes {
+		if validType == contentType {
+			return true
+		}
+	}
+	return false
 }
 
 // Generate random filename string
 func generateRandomFilenameString(length int) string {
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    randomString := make([]byte, length)
-    for i := range randomString {
-        randomString[i] = charset[rand.Intn(len(charset))]
-    }
-    return string(randomString)
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	randomString := make([]byte, length)
+	for i := range randomString {
+		randomString[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(randomString)
 }
-
 
 func DeleteFile(c *fiber.Ctx, db *gorm.DB) error {
 	filename := c.FormValue("name")
 	safeFilename := filepath.Base(filename)
-	uploadDir := "./static/uploads"
-	filePath := filepath.Join(uploadDir, safeFilename)
+	filePath := filepath.Join(UploadDir, safeFilename)
+
 	// Check if the file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "File not found"})
@@ -120,18 +133,18 @@ func DeleteFile(c *fiber.Ctx, db *gorm.DB) error {
 	ShowToast(c, "File deleted successfully")
 	c.SendStatus(fiber.StatusOK)
 	return nil
-
 }
 
 // SearchFiles searches for files based on a query and returns the results.
 func SearchFiles(c *fiber.Ctx, db *gorm.DB) error {
 	searchQuery := c.Query("query", "")
 	page := c.Query("page", "1")
+	// validate page number
 	pageInt, err := strconv.Atoi(page)
 	if err != nil || pageInt < 1 {
 		pageInt = 1
 	}
-	pageSize := 10
+	pageSize := 20
 
 	var files []model.File
 	var totalMatchingCount int64

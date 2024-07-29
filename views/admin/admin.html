@@ -1,9 +1,9 @@
-<div class="row">
-    <div class="col-md-3 mt-3">
+<div class="row row-cols-1">
+    <div class="col-md-3">  
         <h6 class="text-primary">Admin Panel</h6>
         <hr>
-
-        <div class="nav flex-column nav-pills shadow" id="admin-tabs" role="tablist">
+        <div class="nav flex-column nav-pills me-3 mb-3"
+        id="admin-tabs" role="tablist">
             <li class="nav-item">
                 <a class="nav-link active" id="table-tab" data-bs-toggle="tab" href="#table" role="tab"
                     aria-controls="table" hx-get="/search-users" hx-trigger="load" load-indicator="dots"
@@ -91,18 +91,13 @@
             </li>
             </ul>
         </div>
-        <hr>
-
-
     </div>
-    <div class="col-md-9 mt-3">
-
+    <div class="col-md-9">
         <!-- Tab panes -->
         <div class="tab-content" id="admin-tabs-content">
             <div class="tab-pane fade show active" id="table" role="tabpanel" aria-labelledby="table-tab">
                 <div class="container">
                     <div class="row justify-content-between">
-
                         <div class="col">
                             <h2 class="text-primary">Users</h2>
                         </div>
@@ -413,7 +408,7 @@
                                     <button id="upload-file" class="btn btn-primary" type="submit">Upload File</button>
                                 </div>
                             </form>
-                            <progress id='progress' value='0' max='100'></progress>
+                            <progress id='progress' class="" value="0" max="100"></progress>
 
                             <script>
                                 htmx.on('#upload-file-form', 'htmx:xhr:progress', function(evt) {
@@ -472,8 +467,10 @@
                     </div>
                 </div>
             </div>
+        </div>
     </div>
 </div>
+
 
 <script>
 

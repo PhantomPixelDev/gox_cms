@@ -1,20 +1,42 @@
-<h1>
-    Product: {{.Product.Name }}
-</h1>
+<div class="container">
 
+    <div class="row">
+        <div class="col-md-8">
+            <div class="product">
+                <img src="{{.Product.Picture}}" class="product-image" alt="{{.Product.Name}}">
+                <div class="product-details">
+                    <p class="product-description">{{.Product.Description}}</p>
 
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <img src="{{.Product.Picture}}" class="card-img-top" alt="{{.Product.Name}}">
-            <div class="card-body">
-                <h5 class="card-title">{{.Product.Name}}</h5>
-                <p class="card-text">{{.Product.Description}}</p>
-                <p class="card-text">{{.Product.Price}}</p>
-                <a href="#" class="btn btn-primary">Add to Cart</a>
+                </div>
             </div>
         </div>
+      
+        <div class="col-md-4">
+            <h1>
+                {{.Product.Name }}
+            </h1>
+            <div class="product-price p-3 shadow rounded align-content-between">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="price">Price: ${{.Product.Price}}</span>
+                 
+                    <a href="/cart/add/{{.Product.ID}}" class="btn btn-primary align-content-end">
+                        Add to Cart
+                        <i class="bi bi-cart-fill"></i>
+                    </a>
+                </div>
+                <div class="quantity-input mt-2 d-flex justify-content-between align-items-center">
+                    <label for="quantity">Quantity:</label>
+                    <input type="number" id="quantity" name="quantity" min="1" value="1">
+                </div>
+            </div>
+
+            <hr>
+           <h3>Related Products</h3>
+           <p>
+                <a href="/product/1">Product 1</a>
+
+           </p>
+        </div>
     </div>
+
 </div>
-
-

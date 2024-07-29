@@ -1,9 +1,9 @@
     <div class="row">
         {{range .Files}}
-        <div class="col-md-4 col-sm-12 col-lg-4 mb-3" id="file-row-{{.ID}}">
+        <div class="flex flex-column col-auto mb-3">
             <div class="card shadow" >
                 <div class="card-img-container">
-                    <img src="{{.Path}}" alt="Image Preview" class="card-img-top" style="height: 100px; object-fit: cover;">
+                    <img src="{{.Path}}" alt="Image Preview" class="card-img-top" style="width: 100%; height: 100px; object-fit: cover;">
                 </div>
                 <div class="card-body">
                     <p class="card-title">{{ truncate .Name 20 }}</p>
@@ -30,7 +30,7 @@
     {{ $currentPage := .CurrentPage }}
     {{ $searchQuery := .SearchQuery }}
 
-    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
+    <nav class="container d-flex justify-content-center" aria-label="paggination">
         <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
             <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
                 {{ if ne $currentPage 1 }}
@@ -84,12 +84,7 @@
         /// send showToast using htmx to trigger htmx.on showToast
         htmx.trigger(document.body, 'showToast', {
             details: 'URL Copied to Clipboard',
-        });
-
-
-        
-
-
+        }); 
     }
 
     function updateFileList() {

@@ -1,62 +1,108 @@
 <main>
     <div class="row">
-        <div class="col-md-8 mt-3">
+        <div class="col-md-9 mt-3">
             <h1 class="display-6">Welcome to GoX CMS Demo!</h1>
+            <p class="lead">A modern, efficient content management system built with Golang and HTMX.</p>
+            <p class="table table-bordered table-responsive-md py-3">
+                <strong>Use the following credentials to access the admin panel:</strong> - 
+                Username: <strong>admin1234</strong> - 
+                Password: <strong>admin1234</strong> 
+            </p>
 
 
-            <table class="table py-3 mb-4 mt-4">
+            <p>Welcome to GoX CMS, a dynamic and innovative content management system designed for developers and
+                content creators. GoX CMS provides a fast, secure, and developer-friendly platform. It leverages
+                Golang's concurrency model and HTMX's client-side enhancements for a seamless and interactive user
+                experience.</p>
+            <p>Whether managing personal projects or experimenting with Golang and HTMX, GoX CMS offers a solid
+                foundation for building and managing content-rich websites. While still in development, GoX CMS invites
+                curious minds and enthusiastic developers to explore its capabilities and provide valuable feedback and
+                contributions.</p>
+            <p>Explore GoX CMS to see how these technologies work together to create a seamless and efficient web
+                development experience. Dive into different sections of the website to learn more about how GoX CMS can
+                enhance your projects. Join us in refining and expanding this platform, making it the go-to choice for
+                developers seeking a modern, efficient CMS solution.</p>
+
+            <h2 class="display-6 py-3">Technologies Used:</h2>
+            <p>
+                GoX CMS integrates a variety of cutting-edge technologies to ensure a robust and efficient web
+                development experience:
+            </p>
+
+            <table class="table table-active table-bordered table-hover table-responsive-md">
                 <thead>
                     <tr>
-                        <th class="text-muted">Demo Admin Credentials:</th>
+                        <th>Technology</th>
+                        <th>Description</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td>Username: <strong>admin1234</strong></td>
+                        <td><i class="bi bi-server"></i> Golang</td>
+                        <td>High-performance server logic with easy concurrency.</td>
                     </tr>
                     <tr>
-                        <td>Password: <strong>admin1234</strong></td>
+                        <td><i class="bi bi-speedometer2"></i> Fiber</td>
+                        <td>Efficient, minimalistic Golang web framework.</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-hdd-stack"></i> GORM</td>
+                        <td>Simplified database operations with ORM.</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-lightning-charge"></i> HTMX</td>
+                        <td>Dynamic content updates without JavaScript.</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-layout-text-window-reverse"></i> Bootstrap 5 & BootsWatch</td>
+                        <td>Responsive design and themes.</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-pencil-square"></i> Quill.js</td>
+                        <td>Enhanced rich text editing capabilities.</td>
+                    </tr>
+                    <tr>
+                        <td><i class="bi bi-hdd-network"></i> Redis</td>
+                        <td>Fast, scalable caching to improve performance.</td>
                     </tr>
                 </tbody>
             </table>
 
-            
-            <p>
-                Welcome to the GoX CMS, a dynamic and innovative content management system designed for developers and content creators alike. 
-            </p>
-            <p>
-                The core philosophy behind GoX CMS is to provide a fast, secure, and developer-friendly platform. Unlike traditional CMS platforms, GoX leverages the concurrency model of Golang and the client-side enhancements of HTMX to offer a seamless and interactive user experience.
-            </p>
-            <p>
-                Whether you're managing personal projects or looking to experiment with Golang and HTMX, GoX CMS provides a solid foundation for building and managing content-rich websites.
-            </p>
-            <p>
-                While still in the development phase and not yet ready for production environments, GoX CMS invites curious minds and enthusiastic developers to explore its capabilities. Your feedback and contributions are invaluable as we work towards a stable release that meets the needs of the community.
-            </p>
+            <div class="cloud-features">
+                <h3 class="display-6 py-3">Features:</h3>
+                <ul>
+                    <li>Secure user authentication and authorization.</li>
+                    <li>Dynamic content updates with HTMX.</li>
+                    <li>Rich text editing with Quill.js.</li>
+                    <li>Efficient database operations with GORM.</li>
+                    <li>Responsive design with Bootstrap 5 and BootsWatch themes.</li>
+                    <li>Fast, scalable caching with Redis.</li>
+                    <li>Real-time collaboration with WebSockets.</li>
+                    <li>Search engine optimization (SEO) friendly.</li>
+                    <li>Multi-language support.</li>
+                </ul>
+            </div>
+            <style>
+                .cloud-features ul {
+                    display: flex;
+                    flex-wrap: wrap;
+                    list-style-type: none;
+                    padding: 0;
+                }
 
+                .cloud-features ul li {
+                    flex: 0 0 50%;
+                    padding: 10px 0;
+                    border-bottom: 1px solid #e0e0e0;
+                }
 
+                .cloud-features ul li:last-child {
+                    border-bottom: none;
+                }
+            </style>
 
-            <h2 class="mt-5 display-6">Technologies Used:</h2>
-            <p>
-                GoX CMS integrates a variety of cutting-edge technologies to ensure a robust and efficient web development experience:
-            </p>
-            <ul class="list-group py-3">
-                <li class="list-group-item"><i class="bi bi-server"></i> Golang: High-performance server logic with easy concurrency.</li>
-                <li class="list-group-item"><i class="bi bi-speedometer2"></i> Fiber: Efficient, minimalistic Golang web framework.</li>
-                <li class="list-group-item"><i class="bi bi-hdd-stack"></i> GORM: Simplified database operations with ORM.</li>
-                <li class="list-group-item"><i class="bi bi-lightning-charge"></i> HTMX: Dynamic content updates without JavaScript.</li>
-                <li class="list-group-item"><i class="bi bi-layout-text-window-reverse"></i> Bootstrap 5 & BootsWatch: Responsive design and themes.</li>
-                <li class="list-group-item"><i class="bi bi-pencil-square"></i> Quill.js: Enhanced rich text editing capabilities.</li>
-                <li class="list-group-item"><i class="bi bi-hdd-network"></i> Redis: Fast, scalable caching to improve performance.</li>
-            </ul>
-            <p>
-                As you explore the GoX CMS, you'll discover how these technologies work together to create a seamless and efficient web development experience. Feel free to dive into the different sections of the website to learn more about how GoX CMS can enhance your projects.
-            </p>
-            <p>
-                Your exploration and feedback are crucial to the growth of GoX CMS. Join us in refining and expanding this platform, making it the go-to choice for developers seeking a modern, efficient CMS solution. Whether through contributing code, reporting bugs, or suggesting features, your involvement is warmly welcomed.
-            </p>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             {{template "partials/sidebar" .}}
         </div>
     </div>

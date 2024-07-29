@@ -95,7 +95,7 @@ func EnableDisablePlugin(pluginName string, db *gorm.DB) error {
 
 // / add route to enable/disable plugin
 func AddPluginManagerRoutes(app *fiber.App, db *gorm.DB) {
-	app.Get("/admin/plugins/enable/:name", handlers.IsLoggedIn, handlers.IsAdmin, enableDisablePluginHandler(db))
+	app.Get("/admin/plugins/enable/:name", handlers.IsAdmin, handlers.IsLoggedIn, enableDisablePluginHandler(db))
 }
 
 func enableDisablePluginHandler(db *gorm.DB) fiber.Handler {

@@ -37,11 +37,11 @@ func (p *LatestPostsPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engi
 			<p class="mb-4">Latest Posts PLUGIN</p>
 			<div class="d-flex flex-wrap justify-content-center">
 				{{range .}}
-				<div class="m-2 bg-light rounded shadow">
+				<div class="m-2 bg-body rounded shadow">
 					<a href="/blog/post/{{.Slug}}" class="text-decoration-none d-block">
 						<img src="{{.ImageURL}}" class="w-100" style="max-height: 200px; object-fit: cover;">
 						<div class="p-3">
-							<h3 style="font-size: 1.2rem; font-weight: bold;">
+							<h3 style="font-size: 1.2rem; font-weight: bold;" class="text-secondary">
 								<a href="/blog/post/{{.Slug}}" class="text-decoration-none">{{.Title}}</a>
 							</h3>
 						</div>
