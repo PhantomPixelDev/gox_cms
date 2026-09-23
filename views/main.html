@@ -87,14 +87,14 @@
 
             htmx.on("showToast", (e) => {
                 message = e.message;
-                toastBody.innerHTML = e.detail.value;
+                toastBody.textContent = e.detail.value;
 
                 toast.show();
             });
 
             htmx.on("ShowToastError", (e) => {
                 message = e.message;
-                toastErrorBody.innerHTML = e.detail.value;
+                toastErrorBody.textContent = e.detail.value;
 
                 toastError.show();
             });

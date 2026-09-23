@@ -1,0 +1,5 @@
+<button id="comment-status-button-{{.ID}}" class="btn btn-sm {{if eq .Status "approved"}}btn-secondary{{else}}btn-success{{end}}"
+    hx-post="/toggle-comment-status/{{.ID}}" hx-target="#comment-status-button-{{.ID}}"
+    hx-confirm="Are you sure you want to change the status of this comment?" hx-swap="outerHTML">
+    {{if eq .Status "approved"}}Unapprove{{else}}Approve{{end}}
+</button>

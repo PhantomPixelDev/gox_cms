@@ -29,14 +29,3 @@ type MenuItem struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
-
-// MenuRepository defines the interface for menu repository operations.
-type MenuRepository interface {
-	FindAll() ([]*Menu, error)
-	FindByID(id uint) (*Menu, error)
-	FindBySlug(slug string) (*Menu, error)
-	Create(menu *Menu) (*Menu, error)
-	Update(menu *Menu) (*Menu, error)
-	Delete(id uint) error
-	FindByParentID(parentID uint) ([]*Menu, error) // Method to find sub-menus
-}

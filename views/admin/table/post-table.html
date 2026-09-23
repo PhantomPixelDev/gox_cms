@@ -48,13 +48,7 @@
 
                 <td>
 
-                    <button id="post-status-button-{{.ID}}"
-                        class="btn btn-sm {{if .Published}}btn-secondary{{else}}btn-success{{end}}"
-                        hx-post="/toggle-post-status" hx-vals='{"id": "{{.ID}}"}'
-                        hx-target="#post-status-button-{{.ID}}" hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'
-                        hx-confirm="Are you sure you want to change the status of this post?">
-                        {{if .Published}}Unpublish{{else}}Publish{{end}}
-                    </button>
+                    {{template "partials/post-status-button" .}}
 
                 </td>
 

@@ -2,8 +2,12 @@ package handlers
 
 import (
 	"goxcms/model"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
 
@@ -26,11 +30,12 @@ func UpdateSettings(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Failed to update settings")
 	}
 
-	// Update settings in locals
-	c.Locals("Settings", MapSettingsToMap(updatedSettings))
+	// Refresh the cached settings and this request's copy.
+	ReloadSiteSettings(db)
+	c.Locals("Settings", SiteSettings(db))
 
 	// Show success message
-	ShowToastError(c, "Settings updated successfully, please clear your cache to see the changes")
+	ShowToast(c, "Settings updated successfully")
 	return c.Status(fiber.StatusOK).SendString("Settings updated successfully")
 }
 
@@ -91,5 +96,45 @@ func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 		"TimeZone":       settings.TimeZone,
 		"SelectedTheme":  settings.SelectedTheme,
 		"ContainerClass": settings.ContainerClass,
+		"CaptchaEnabled": strconv.FormatBool(viper.GetBool("captcha.enabled")),
+		"CaptchaSiteKey": viper.GetString("captcha.public_key"),
 	}
+}
+
+// settingsTTL bounds how stale cached settings can get in another process
+// (prefork or multiple instances) after an update.
+const settingsTTL = 30 * time.Second
+
+var siteSettings struct {
+	sync.RWMutex
+	values   map[string]string
+	loadedAt time.Time
+}
+
+// SiteSettings returns the website settings used by every page, loading them
+// from the database at most once per settingsTTL. The returned map is shared
+// and must not be modified.
+func SiteSettings(db *gorm.DB) map[string]string {
+	siteSettings.RLock()
+	values, fresh := siteSettings.values, time.Since(siteSettings.loadedAt) < settingsTTL
+	siteSettings.RUnlock()
+
+	if values != nil && fresh {
+		return values
+	}
+	return ReloadSiteSettings(db)
+}
+
+// ReloadSiteSettings reads the settings from the database into the cache.
+func ReloadSiteSettings(db *gorm.DB) map[string]string {
+	var settings model.BasicWebsiteInfo
+	db.First(&settings)
+	values := MapSettingsToMap(settings)
+
+	siteSettings.Lock()
+	siteSettings.values = values
+	siteSettings.loadedAt = time.Now()
+	siteSettings.Unlock()
+
+	return values
 }

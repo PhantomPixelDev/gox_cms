@@ -5,8 +5,6 @@ import (
 	"goxcms/model"
 	"strconv"
 
-	"math"
-
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -55,7 +53,7 @@ func BlogCategoryPage(c *fiber.Ctx, db *gorm.DB) error {
 		Where("post_categories.category_id = ? AND posts.published = ?", category.ID, true).
 		Count(&totalPosts)
 
-	totalPages := int(math.Ceil(float64(totalPosts) / float64(postsPerPage)))
+	totalPages := pageCount(totalPosts, postsPerPage)
 
 	if pageNumber > totalPages {
 		return c.Redirect("/blog/category/" + slug + "/1")
@@ -131,20 +129,16 @@ func DeleteCategory(c *fiber.Ctx, db *gorm.DB) error {
 		return ShowToastError(c, "Error deleting category")
 	}
 
-	return ShowToastError(c, "Category deleted successfully")
+	return ShowToast(c, "Category deleted successfully")
 }
 
 func SearchCategories(c *fiber.Ctx, db *gorm.DB) error {
 	// Get the page number and search query from the query parameters
-	page := c.Query("page", "1")
 	pageSize := 10 // Default page size
 	searchQuery := c.Query("query")
 
 	// Convert page string to int
-	pageInt, err := strconv.Atoi(page)
-	if err != nil || pageInt < 1 {
-		pageInt = 1
-	}
+	pageInt := queryPage(c)
 
 	// Search for categories with pagination
 	var categories []model.Category
@@ -168,7 +162,7 @@ func SearchCategories(c *fiber.Ctx, db *gorm.DB) error {
 	db.Model(&model.Category{}).
 		Where("name LIKE ?", "%"+searchQuery+"%").
 		Count(&totalMatchingCount)
-	totalPages := int(math.Ceil(float64(totalMatchingCount) / float64(pageSize)))
+	totalPages := pageCount(totalMatchingCount, pageSize)
 
 	return c.Render("admin/table/category-table", fiber.Map{
 		"Categories":  categories,

@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"goxcms/model"
-	"math"
 	"sort"
 	"strconv"
 
@@ -272,14 +271,10 @@ func EditMenuItemView(c *fiber.Ctx, db *gorm.DB) error {
 func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
 	var menus []model.Menu
 	searchQuery := c.Query("query")
-	page := c.Query("page", "1")
 	pageSize := 10 // Default page size
 
 	// Convert page string to int for pagination calculation
-	pageInt, err := strconv.Atoi(page)
-	if err != nil || pageInt < 1 {
-		pageInt = 1
-	}
+	pageInt := queryPage(c)
 
 	// Search for menus with pagination and order them by position
 	// Ensure to order both menus and their items by their position
@@ -300,7 +295,7 @@ func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
 	db.Model(&model.Menu{}).
 		Where("title LIKE ?", "%"+searchQuery+"%").
 		Count(&totalMatchingCount)
-	totalPages := int(math.Ceil(float64(totalMatchingCount) / float64(pageSize)))
+	totalPages := pageCount(totalMatchingCount, pageSize)
 
 	return c.Render("admin/table/menu-table", fiber.Map{
 		"Menus":       menus, // No need to separate and recombine by primary status for ordering

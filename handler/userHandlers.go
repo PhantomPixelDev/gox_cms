@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"goxcms/model"
-	"math"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,14 +11,9 @@ import (
 func SearchUsers(c *fiber.Ctx, db *gorm.DB) error {
 	var users []model.User
 	searchQuery := c.Query("query")
-	page := c.Query("page", "1")
 	pageSize := 10
 
-	pageInt, err := strconv.Atoi(page)
-
-	if err != nil || pageInt < 1 {
-		pageInt = 1
-	}
+	pageInt := queryPage(c)
 
 	db.Where("username LIKE ?", "%"+searchQuery+"%").
 		Limit(pageSize).
@@ -30,7 +24,7 @@ func SearchUsers(c *fiber.Ctx, db *gorm.DB) error {
 	db.Model(&model.User{}).
 		Where("username LIKE ?", "%"+searchQuery+"%").
 		Count(&count)
-	totalPages := int(math.Ceil(float64(count) / float64(pageSize)))
+	totalPages := pageCount(count, pageSize)
 
 	return c.Render("admin/table/user-table", fiber.Map{
 		"Users":       users,
