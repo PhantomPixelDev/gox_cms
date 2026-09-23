@@ -54,7 +54,7 @@ func AdminAddBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 	post := model.Post{
 		Title: title, Content: content, Slug: slug,
 		ImageURL:   image,
-		UserID:     c.Locals("user").(model.User).ID,
+		UserID:     currentUserID(c),
 		Categories: categories, Tags: tags,
 	}
 
@@ -95,11 +95,6 @@ func AdminAddBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func AdminEditBlogPost(c *fiber.Ctx, db *gorm.DB) error {
-	if c.Locals("isAdmin") == false || c.Locals("isLoggedin") == false {
-		c.Redirect("/")
-		return nil
-	}
-
 	postID, _ := c.ParamsInt("post_id")
 
 	var post model.Post
@@ -359,13 +354,7 @@ func BlogPage(c *fiber.Ctx, db *gorm.DB) error {
 func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
 	slug := c.Params("slug")
 
-	/// get current loged in userID if any
-	userID := uint(0)
-	if c.Locals("isLoggedin") == true {
-
-		userID = c.Locals("user").(model.User).ID
-
-	}
+	userID := currentUserID(c)
 
 	if slug == "" {
 		return c.Redirect("/blog")
@@ -384,7 +373,7 @@ func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
 	db.Preload("User").Where("post_id = ? AND status != ?", post.ID, "pending").Find(&comments)
 
 	// Handle unpublished posts
-	if !post.Published && !c.Locals("isAdmin").(bool) {
+	if !post.Published && !IsTrue(c, "isAdmin") {
 		return c.Status(404).Render("404", fiber.Map{
 			"Title":    "404",
 			"Settings": c.Locals("Settings"),
@@ -472,4 +461,13 @@ func extractIDs(ids string) []uint {
 	}
 
 	return idList
+}
+
+// currentUserID returns the ID of the logged-in user, or 0 for anonymous
+// requests.
+func currentUserID(c *fiber.Ctx) uint {
+	if user, ok := CurrentUser(c); ok {
+		return user.ID
+	}
+	return 0
 }

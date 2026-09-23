@@ -51,7 +51,7 @@ func AddComment(c *fiber.Ctx, db *gorm.DB) error {
 	comment.Status = "pending"
 
 	// Check if the user is authenticated and is the same user as in the form data
-	if uint(userID) != c.Locals("user").(model.User).ID {
+	if uid := currentUserID(c); uid == 0 || uint(userID) != uid {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Unauthorized",
 		})

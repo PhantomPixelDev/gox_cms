@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
@@ -61,6 +62,9 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 		Index:  "index.html",
 		MaxAge: 3600,
 	}
+
+	// Recover from handler panics so one bad request cannot take the server down.
+	app.Use(recover.New())
 
 	store := utils.SetupStore(app)
 

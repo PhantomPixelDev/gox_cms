@@ -455,7 +455,7 @@
                                 </div>
                                 <div class="card-footer">
                                     <button id="plugin-{{.Name}}" class="btn {{ if .Enabled }}btn-danger{{ else }}btn-success{{ end }} mt-2 btn-plugin"
-                                        hx-get="/admin/plugins/enable/{{.Name}}" hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'
+                                        hx-post="/admin/plugins/enable/{{.Name}}" hx-swap="outerHTML"
                                         hx-confirm="Are you sure you want to {{ if .Enabled }}disable{{ else }}enable{{ end }} this plugin?"
                                         hx-target="#plugin-{{.Name}}">{{ if .Enabled }}Disable{{ else }}Enable{{ end }}</button>
                                     <a class="btn btn-primary mt-2" href="/{{.Name}}/admin/settings" target="_blank">Settings</a>

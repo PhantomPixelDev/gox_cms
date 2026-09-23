@@ -125,9 +125,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 
 	app.Get("/register", func(c *fiber.Ctx) error {
 
-		if c.Locals("isLoggedin") == true {
-			c.Redirect("/")
-			return nil
+		if handlers.IsTrue(c, "isLoggedin") {
+			return c.Redirect("/")
 		}
 
 		return c.Render("register", fiber.Map{
@@ -140,9 +139,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 
 	app.Get("/login", func(c *fiber.Ctx) error {
 
-		if c.Locals("isLoggedin") == true {
-			c.Redirect("/")
-			return nil
+		if handlers.IsTrue(c, "isLoggedin") {
+			return c.Redirect("/")
 		}
 
 		return c.Render("login", fiber.Map{
@@ -188,7 +186,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		return handlers.TogglePostStatus(c, db)
 	})
 
-	app.Get("/search-posts", func(c *fiber.Ctx) error {
+	app.Get("/search-posts", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AdminSearchPosts(c, db)
 	})
 
@@ -196,7 +194,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		return handlers.AdminDeletePost(c, db)
 	})
 
-	app.Get("/search-tags", func(c *fiber.Ctx) error {
+	app.Get("/search-tags", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.SearchTag(c, db)
 	})
 
@@ -255,7 +253,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		return handlers.EditMenuItemView(c, db)
 	})
 
-	app.Get("/search-menu", func(c *fiber.Ctx) error {
+	app.Get("/search-menu", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.SearchMenuAdminTable(c, db)
 	})
 
@@ -285,7 +283,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		return handlers.DeleteUser(c, db)
 	})
 
-	app.Get("/search-categories", func(c *fiber.Ctx) error {
+	app.Get("/search-categories", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.SearchCategories(c, db)
 	})
 
@@ -305,20 +303,14 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		return handlers.AddCustomPage(c, db, app, engine)
 	})
 
-	app.Get("/add-custompage", func(c *fiber.Ctx) error {
-		if c.Locals("isAdmin") == false {
-			return c.Redirect("/")
-		}
+	app.Get("/add-custompage", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return c.Render("page/page_add", fiber.Map{
 			"TitleView": "Add Custom Page",
 			"Settings":  c.Locals("Settings"),
 		}, "main")
 	})
 
-	app.Get("/edit-custompage/:id", func(c *fiber.Ctx) error {
-		if c.Locals("isAdmin") == false {
-			return c.Redirect("/")
-		}
+	app.Get("/edit-custompage/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		id, err := c.ParamsInt("id")
 		if err != nil {
@@ -381,11 +373,11 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		return handlers.BlogTagPage(c, db)
 	})
 
-	app.Get("/admin/post/edit/:post_id", func(c *fiber.Ctx) error {
+	app.Get("/admin/post/edit/:post_id", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AdminEditBlogPost(c, db)
 	})
 
-	app.Post("/admin/post/edit", func(c *fiber.Ctx) error {
+	app.Post("/admin/post/edit", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AdminUpdateBlogPost(c, db)
 	})
 
@@ -412,7 +404,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		}, "main")
 	})
 
-	app.Post("/admin/post/add", func(c *fiber.Ctx) error {
+	app.Post("/admin/post/add", handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		return handlers.AdminAddBlogPost(c, db)
 	})

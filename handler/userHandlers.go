@@ -44,7 +44,7 @@ func DeleteUser(c *fiber.Ctx, db *gorm.DB) error {
 	id := c.Params("id")
 	var user model.User
 
-	current_user := c.Locals("user").(model.User)
+	current_user, _ := CurrentUser(c)
 
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
