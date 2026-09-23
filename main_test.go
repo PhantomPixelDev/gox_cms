@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -319,5 +320,145 @@ func TestLoginSetsSessionCookie(t *testing.T) {
 	resp, _ = postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"wrong"}}, token)
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("login with wrong password: got status %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestRegisterWorksWithCaptchaDisabled(t *testing.T) {
+	app, db := newTestApp(t)
+	token := csrfCookie(t, app)
+
+	form := url.Values{
+		"username":   {"newuser"},
+		"password":   {"secret123"},
+		"first_name": {"New"},
+		"last_name":  {"User"},
+	}
+	resp, body := postForm(t, app, "/register", form, token)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("register: got status %d, body %q", resp.StatusCode, body)
+	}
+
+	var user model.User
+	if err := db.Where("username = ?", "newuser").First(&user).Error; err != nil {
+		t.Fatalf("user not created: %v", err)
+	}
+	if user.RoleID != model.RoleUser {
+		t.Fatalf("new user has role %d, want %d", user.RoleID, model.RoleUser)
+	}
+}
+
+func TestPostSlugMustBeUnique(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	first := model.Post{Title: "First", Content: "one", Slug: "first"}
+	second := model.Post{Title: "Second", Content: "two", Slug: "second"}
+	db.Create(&first)
+	db.Create(&second)
+	cat := model.Category{Name: "News", Slug: "news"}
+	db.Create(&cat)
+
+	form := url.Values{"title": {"Dup"}, "content": {"x"}, "post_slug": {"first"}, "image": {"/img.png"}}
+	postForm(t, app, "/admin/post/add", form, token, auth)
+	var count int64
+	db.Model(&model.Post{}).Where("slug = ?", "first").Count(&count)
+	if count != 1 {
+		t.Fatalf("adding a post with a duplicate slug created it (count %d)", count)
+	}
+
+	form = url.Values{"id": {strconv.Itoa(int(second.ID))}, "title": {"Second"}, "content": {"two"}, "post_slug": {"first"}, "image": {"/img.png"}}
+	postForm(t, app, "/admin/post/edit", form, token, auth)
+	db.First(&second, second.ID)
+	if second.Slug != "second" {
+		t.Fatalf("editing a post to a duplicate slug succeeded")
+	}
+
+	form = url.Values{
+		"id": {strconv.Itoa(int(second.ID))}, "title": {"Renamed"}, "content": {"two"},
+		"post_slug": {"second-renamed"}, "image": {"/img.png"}, "categories_input": {strconv.Itoa(int(cat.ID))},
+	}
+	if resp, body := postForm(t, app, "/admin/post/edit", form, token, auth); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "updated") {
+		t.Fatalf("valid edit failed: %d %q", resp.StatusCode, body)
+	}
+	db.Preload("Categories").First(&second, second.ID)
+	if second.Title != "Renamed" || second.Slug != "second-renamed" || len(second.Categories) != 1 {
+		t.Fatalf("edit not applied: %+v", second)
+	}
+}
+
+func TestCustomPagesAreServedWithoutRestart(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	form := url.Values{"title": {"About"}, "content": {"<p>About us</p>"}, "slug": {"about"}, "template": {"page"}}
+	postForm(t, app, "/add-custompage", form, token, auth)
+
+	resp, body := do(t, app, "GET", "/about")
+	if resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "About us") {
+		t.Fatalf("GET /about: got status %d", resp.StatusCode)
+	}
+
+	form = url.Values{"title": {"Evil"}, "content": {"x"}, "slug": {"evil"}, "template": {"../admin/admin"}}
+	postForm(t, app, "/add-custompage", form, token, auth)
+	var count int64
+	db.Model(&model.CustomPage{}).Where("slug = ?", "evil").Count(&count)
+	if count != 0 {
+		t.Fatal("custom page with a disallowed template was created")
+	}
+
+	if resp, _ := do(t, app, "GET", "/does-not-exist"); resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("unknown path: got status %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestSitemap(t *testing.T) {
+	app, db := newTestApp(t)
+	db.Create(&model.Post{Title: "Live", Content: "x", Slug: "live", Published: true})
+	db.Create(&model.Post{Title: "Draft", Content: "x", Slug: "draft"})
+
+	resp, body := do(t, app, "GET", "/sitemap.xml")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("got status %d", resp.StatusCode)
+	}
+	for _, want := range []string{"http://localhost:3000/</loc>", "/blog</loc>", "/blog/post/live</loc>"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("sitemap missing %q", want)
+		}
+	}
+	for _, unwanted := range []string{"/blog/post/draft", "/user/"} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("sitemap contains %q", unwanted)
+		}
+	}
+}
+
+func TestUploadRejectsNonImageContent(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+	viper.Set("upload.max_size_mb", 1)
+
+	var buf strings.Builder
+	w := multipart.NewWriter(&buf)
+	part, _ := w.CreateFormFile("file", "evil.PNG")
+	part.Write([]byte("<html><script>alert(1)</script></html>"))
+	w.Close()
+
+	req := httptest.NewRequest("POST", "/upload-file", strings.NewReader(buf.String()))
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("X-Csrf-Token", token.Value)
+	req.AddCookie(token)
+	req.AddCookie(auth)
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("got status %d, want 400", resp.StatusCode)
 	}
 }

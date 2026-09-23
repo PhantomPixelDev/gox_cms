@@ -4,44 +4,45 @@ import (
 	"goxcms/model"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/template/html/v2"
 	"gorm.io/gorm"
 )
 
-func RenderCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App, slug string, engine *html.Engine) {
-	var customPage model.CustomPage
-	result := db.Where("slug = ?", slug).First(&customPage)
-	if result.Error != nil {
-		c.Status(fiber.StatusNotFound)
-		c.SendString("Custom Page not found" + result.Error.Error())
-		return
-	}
-
-	app.Get("/"+slug, func(c *fiber.Ctx) error {
-		/// reload the engine to reflect changes
-		engine.Load()
-
-		return c.Render("custom/"+customPage.Template, fiber.Map{
-			"Title":   customPage.Title,
-			"Content": customPage.Content,
-		})
-	})
-
-	/// reload the engine to reflect changes
-	engine.Load()
-
+// customPageTemplates lists the views/page templates a custom page may use.
+var customPageTemplates = map[string]bool{
+	"page":           true,
+	"page_sidebar":   true,
+	"page_fullwidth": true,
 }
 
-func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App, engine *html.Engine) error {
+// CustomPageTemplate returns name if it is an allowed page template, and the
+// default "page" template otherwise.
+func CustomPageTemplate(name string) string {
+	if customPageTemplates[name] {
+		return name
+	}
+	return "page"
+}
+
+// normalizePageSlug trims surrounding slashes and whitespace from a slug.
+func normalizePageSlug(slug string) string {
+	return strings.Trim(strings.TrimSpace(slug), "/")
+}
+
+func AddCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	title := c.FormValue("title")
 	content := c.FormValue("content")
-	slug := c.FormValue("slug")
+	slug := normalizePageSlug(c.FormValue("slug"))
 	template := c.FormValue("template")
 
 	if title == "" || content == "" || slug == "" || template == "" {
 		return c.SendString("Missing required fields: title, content, slug, template")
+	}
+
+	if !customPageTemplates[template] {
+		return c.SendString("Unknown template: " + template)
 	}
 
 	var existingPage model.CustomPage
@@ -57,15 +58,13 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB, app *fiber.App, engine *html.Engin
 		Template: template,
 	}
 
-	//RenderCustomPage(c, db, app, slug, engine)
-
 	result = db.Create(&customPage)
 	if result.Error != nil {
 		ShowToastError(c, "Error adding custom page: "+result.Error.Error())
 		return c.Status(fiber.StatusInternalServerError).SendString(result.Error.Error())
 	}
 
-	return ShowToast(c, "Custom Page Added - Restart server to see changes")
+	return ShowToast(c, "Custom Page Added")
 
 }
 
@@ -106,7 +105,7 @@ func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	id := c.FormValue("id")
 	title := c.FormValue("title")
 	content := c.FormValue("content")
-	slug := c.FormValue("slug")
+	slug := normalizePageSlug(c.FormValue("slug"))
 	template := c.FormValue("template")
 
 	// convert id to int
@@ -121,6 +120,15 @@ func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 
 	if id == "" || title == "" || content == "" || slug == "" || template == "" {
 		return c.SendString("Missing required fields: id, title, content, slug, template")
+	}
+
+	if !customPageTemplates[template] {
+		return c.SendString("Unknown template: " + template)
+	}
+
+	var existingPage model.CustomPage
+	if err := db.Where("slug = ? AND id <> ?", slug, idInt).First(&existingPage).Error; err == nil {
+		return c.SendString("Slug already exists: " + slug)
 	}
 
 	customPage := model.CustomPage{

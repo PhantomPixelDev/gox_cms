@@ -110,6 +110,9 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 	plugin_system.InitializePlugins(app, db, engine)
 	plugin_system.AddPluginManagerRoutes(app, db)
 
+	// Custom pages match any remaining path, so they go after all other routes.
+	routes.SetupCustomPageRoutes(app, db)
+
 	// 404 catch-all: must stay last.
 	app.Use(func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).Render("404", fiber.Map{
@@ -118,7 +121,6 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 		}, "main")
 	})
 
-	utils.GenerateSiteMap(db)
 	utils.CreateBasicWebsiteInfo(db)
 
 	return app

@@ -9,6 +9,7 @@ import (
 	handlers "goxcms/handler"
 	"goxcms/model"
 	"goxcms/plugin_system"
+	"goxcms/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -60,49 +61,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 		c.Locals("Settings", settings_cms_db)
 		return c.Next()
 	})
-
-	hotload_custom_pages := viper.GetBool("app.hotload_custom_pages")
-
-	if hotload_custom_pages {
-
-		app.Use(func(c *fiber.Ctx) error {
-			// Get the path from the request
-			path := c.Path()
-
-			path = strings.TrimPrefix(path, "/")
-
-			var customPage model.CustomPage
-			if err := db.Where("slug = ?", path).First(&customPage).Error; err != nil {
-				return c.Next()
-			}
-			// Render the custom page with the custom page data
-			return c.Render("page/"+customPage.Template, fiber.Map{
-				"Title":    customPage.Title,
-				"Content":  customPage.Content,
-				"Settings": c.Locals("Settings"),
-			}, "main")
-		})
-
-	} else {
-
-		var customPages []model.CustomPage
-		db.Find(&customPages)
-
-		println("Generating Custom Page Routes:", len(customPages))
-
-		for _, customPage := range customPages {
-			println("Custom Page Route Created:", customPage.Slug)
-			app.Get("/"+customPage.Slug, func(cp model.CustomPage) func(*fiber.Ctx) error {
-				return func(c *fiber.Ctx) error {
-					return c.Render("page/"+cp.Template, fiber.Map{
-						"Title":    cp.Title,
-						"Content":  template.HTML(cp.Content),
-						"Settings": c.Locals("Settings"),
-					}, "main")
-				}
-			}(customPage))
-		}
-	}
 
 	app.Get("/", func(c *fiber.Ctx) error {
 
@@ -300,7 +258,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 	})
 
 	app.Post("/add-custompage", handlers.IsLoggedIn, handlers.IsAdmin, func(c *fiber.Ctx) error {
-		return handlers.AddCustomPage(c, db, app, engine)
+		return handlers.AddCustomPage(c, db)
 	})
 
 	app.Get("/add-custompage", handlers.IsAdmin, func(c *fiber.Ctx) error {
@@ -436,7 +394,31 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 	})
 
 	app.Get("/sitemap.xml", func(c *fiber.Ctx) error {
-		return c.SendFile("./static/sitemap.xml")
+		c.Type("xml", "utf-8")
+		return c.Send(utils.BuildSitemap(db))
 	})
 
+}
+
+// SetupCustomPageRoutes serves custom pages by slug. It must be registered
+// after every other route so it never shadows them, and it reads the page on
+// each request so new and edited pages are live without a restart.
+func SetupCustomPageRoutes(app *fiber.App, db *gorm.DB) {
+	app.Get("/*", func(c *fiber.Ctx) error {
+		slug := strings.Trim(c.Params("*"), "/")
+		if slug == "" {
+			return c.Next()
+		}
+
+		var customPage model.CustomPage
+		if err := db.Where("slug = ?", slug).First(&customPage).Error; err != nil {
+			return c.Next()
+		}
+
+		return c.Render("page/"+handlers.CustomPageTemplate(customPage.Template), fiber.Map{
+			"Title":    customPage.Title,
+			"Content":  template.HTML(customPage.Content),
+			"Settings": c.Locals("Settings"),
+		}, "main")
+	})
 }

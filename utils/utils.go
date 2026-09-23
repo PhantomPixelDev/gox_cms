@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"bufio"
+	"bytes"
 	"crypto/rand"
+	"encoding/xml"
 	"fmt"
 	"goxcms/model"
 	"html/template"
@@ -10,7 +11,6 @@ import (
 	"math/big"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -53,7 +53,6 @@ func InitConfig() {
 	viper.SetDefault("redis.database", 0)
 	viper.SetDefault("redis.pool_size", 10)
 	viper.SetDefault("server.body_limit", 10)
-	viper.SetDefault("app.hotload_custom_pages", false)
 	viper.SetDefault("captcha.public_key", "")
 	viper.SetDefault("captcha.secret_key", "")
 	viper.SetDefault("captcha.enabled", false)
@@ -225,72 +224,42 @@ func SetupRateLimiter(app *fiber.App, store *session.Store) {
 	}
 }
 
-func GenerateSiteMap(db *gorm.DB) {
-	baseURL := viper.GetString("app.url")
-	urls := []string{"/", "/blog", "/login", "/register"}
+// BuildSitemap renders sitemap.xml for all published content. It is built per
+// request so new posts and pages show up without a restart.
+func BuildSitemap(db *gorm.DB) []byte {
+	baseURL := strings.TrimSuffix(viper.GetString("app.url"), "/")
+	paths := []string{"/", "/blog", "/login", "/register"}
 
-	// Use a single query to fetch all required data
-	var posts []model.Post
-	var users []model.User
-	var categories []model.Category
-	var tags []model.Tag
-	var customPages []model.CustomPage
+	var postSlugs, categorySlugs, tagSlugs, pageSlugs []string
+	db.Model(&model.Post{}).Where("published = ?", true).Pluck("slug", &postSlugs)
+	db.Model(&model.Category{}).Pluck("slug", &categorySlugs)
+	db.Model(&model.Tag{}).Pluck("slug", &tagSlugs)
+	db.Model(&model.CustomPage{}).Pluck("slug", &pageSlugs)
 
-	db.Where("published = ?", true).Find(&posts)
-	db.Select("id").Find(&users)
-	db.Select("slug").Find(&categories)
-	db.Select("slug").Find(&tags)
-	db.Where("published = ?", true).Select("slug").Find(&customPages)
-
-	// Pre-allocate the urls slice
-	totalURLs := len(urls) + len(posts) + len(users) + len(categories) + len(tags) + len(customPages)
-	urls = make([]string, 0, totalURLs)
-
-	for _, post := range posts {
-		urls = append(urls, "/blog/post/"+post.Slug)
+	for _, slug := range postSlugs {
+		paths = append(paths, "/blog/post/"+slug)
+	}
+	for _, slug := range categorySlugs {
+		paths = append(paths, "/blog/category/"+slug)
+	}
+	for _, slug := range tagSlugs {
+		paths = append(paths, "/blog/tag/"+slug)
+	}
+	for _, slug := range pageSlugs {
+		paths = append(paths, "/"+slug)
 	}
 
-	for _, user := range users {
-		urls = append(urls, "/user/"+strconv.FormatUint(uint64(user.ID), 10))
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	buf.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` + "\n")
+	for _, path := range paths {
+		buf.WriteString("  <url>\n    <loc>")
+		xml.EscapeText(&buf, []byte(baseURL+path))
+		buf.WriteString("</loc>\n  </url>\n")
 	}
+	buf.WriteString("</urlset>\n")
 
-	for _, category := range categories {
-		urls = append(urls, "/blog/category/"+category.Slug)
-	}
-
-	for _, tag := range tags {
-		urls = append(urls, "/blog/tag/"+tag.Slug)
-	}
-
-	for _, customPage := range customPages {
-		urls = append(urls, "/"+customPage.Slug)
-	}
-
-	writeSitemapToFile(baseURL, urls)
-}
-
-func writeSitemapToFile(baseURL string, urls []string) {
-	filePath := "./static/sitemap.xml"
-	file, err := os.Create(filePath)
-	if err != nil {
-		log.Fatalf("Failed to create sitemap file: %v", err)
-	}
-	defer file.Close()
-
-	writer := bufio.NewWriter(file)
-	defer writer.Flush()
-
-	writer.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-`)
-
-	for _, url := range urls {
-		writer.WriteString(fmt.Sprintf("  <url>\n    <loc>%s%s</loc>\n  </url>\n", baseURL, url))
-	}
-
-	writer.WriteString("</urlset>")
-
-	log.Println("Sitemap generated successfully")
+	return buf.Bytes()
 }
 
 func CreateBasicWebsiteInfo(db *gorm.DB) {

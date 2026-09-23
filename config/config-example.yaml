@@ -7,7 +7,8 @@ database:
 server:
   host: "127.0.0.1"
   port: 3000
-  prefork: true
+  # Prefork starts one process per CPU; keep it off with SQLite.
+  prefork: false
   body_limit: 50
   # IPs/CIDRs of reverse proxies allowed to set X-Forwarded-For. Leave empty
   # when the app is reached directly.
@@ -24,7 +25,6 @@ app:
   # Password for the "admin" account created on first start. Leave empty to
   # generate a random one, which is printed once to the log.
   admin_password: ""
-  hotload_custom_pages: false
 upload:
   max_size_mb: 50
 redis:

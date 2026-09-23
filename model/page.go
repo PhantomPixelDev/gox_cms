@@ -8,7 +8,7 @@ type CustomPage struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	Title     string    `json:"title"`
 	Content   string    `json:"content"`
-	Slug      string    `json:"slug"`
+	Slug      string    `json:"slug" gorm:"index"`
 	Template  string    `json:"template" gorm:"default:'page'"`
 	Published bool      `json:"published" gorm:"default:false"`
 	CreatedAt time.Time `json:"created_at"`

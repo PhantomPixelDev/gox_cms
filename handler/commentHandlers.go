@@ -3,39 +3,19 @@ package handlers
 import (
 	"goxcms/model"
 	"html/template"
+	"math"
 	"regexp"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/spf13/viper"
 
 	"gorm.io/gorm"
 )
 
 func AddComment(c *fiber.Ctx, db *gorm.DB) error {
 
-	capcha_enabled := viper.GetBool("captcha.enabled")
-	if capcha_enabled {
-
-		hCaptchaResponse := c.FormValue("h-captcha-response")
-
-		println("hCaptchaResponse: ", hCaptchaResponse)
-
-		if hCaptchaResponse == "" {
-			ShowToastError(c, "CAPTCHA verification failed")
-			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
-		}
-
-		valid, err := verifyHCaptcha(hCaptchaResponse)
-		if err != nil {
-			ShowToastError(c, "CAPTCHA verification failed")
-			return c.Status(fiber.StatusInternalServerError).SendString("CAPTCHA verification failed")
-		}
-
-		if !valid {
-			ShowToastError(c, "CAPTCHA verification failed")
-			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
-		}
+	if !captchaPassed(c) {
+		return nil
 	}
 	var comment model.Comment
 
@@ -89,10 +69,8 @@ func SearchCommentsView(c *fiber.Ctx, db *gorm.DB) error {
 	var comments []model.Comment
 	searchQuery := c.FormValue("query")
 	page, err := strconv.Atoi(c.FormValue("page", "1"))
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid page number",
-		})
+	if err != nil || page < 1 {
+		page = 1
 	}
 	limit := 10
 	offset := (page - 1) * limit
@@ -104,8 +82,7 @@ func SearchCommentsView(c *fiber.Ctx, db *gorm.DB) error {
 	/// count total comments for pagination ///
 	var totalComments int64
 	db.Model(&model.Comment{}).Where("content LIKE ?", "%"+searchQuery+"%").Count(&totalComments)
-	TotalPages := int(totalComments / int64(limit))
-
+	TotalPages := int(math.Ceil(float64(totalComments) / float64(limit)))
 	if TotalPages == 0 {
 		TotalPages = 1
 	}

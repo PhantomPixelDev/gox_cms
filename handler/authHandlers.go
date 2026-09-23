@@ -26,17 +26,13 @@ type HCaptchaResponse struct {
 }
 
 func verifyHCaptcha(hCaptchaResponse string) (bool, error) {
-	client := resty.New()
-	secret := viper.GetString("captcha.secret_key")
-	resp, err := client.R().
+	resp, err := resty.New().SetTimeout(10 * time.Second).R().
 		SetFormData(map[string]string{
-			"secret":   secret,
+			"secret":   viper.GetString("captcha.secret_key"),
 			"response": hCaptchaResponse,
 		}).
 		Post("https://hcaptcha.com/siteverify")
-
 	if err != nil {
-		/// show toast error here
 		return false, err
 	}
 
@@ -46,6 +42,30 @@ func verifyHCaptcha(hCaptchaResponse string) (bool, error) {
 	}
 
 	return result.Success, nil
+}
+
+// captchaPassed verifies the hCaptcha token when captcha.enabled is set. On
+// failure it writes the error response and returns false.
+func captchaPassed(c *fiber.Ctx) bool {
+	if !viper.GetBool("captcha.enabled") {
+		return true
+	}
+
+	status := fiber.StatusBadRequest
+	passed := false
+	if token := c.FormValue("h-captcha-response"); token != "" {
+		valid, err := verifyHCaptcha(token)
+		if err != nil {
+			status = fiber.StatusBadGateway
+		}
+		passed = err == nil && valid
+	}
+
+	if !passed {
+		ShowToastError(c, "CAPTCHA verification failed")
+		c.Status(status).SendString("CAPTCHA verification failed")
+	}
+	return passed
 }
 
 // jwtKey reads the signing secret on every call. It must not be captured in a
@@ -141,26 +161,8 @@ func SetJWTTokenCookie(c *fiber.Ctx, tokenString string) {
 func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
-		capcha_enabled := viper.GetBool("captcha.enabled")
-		if capcha_enabled {
-
-			hCaptchaResponse := c.FormValue("h-captcha-response")
-
-			if hCaptchaResponse == "" {
-				ShowToastError(c, "CAPTCHA verification failed")
-				return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
-			}
-
-			valid, err := verifyHCaptcha(hCaptchaResponse)
-			if err != nil {
-				ShowToastError(c, "CAPTCHA verification failed")
-				return c.Status(fiber.StatusInternalServerError).SendString("CAPTCHA verification failed")
-			}
-
-			if !valid {
-				ShowToastError(c, "CAPTCHA verification failed")
-				return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
-			}
+		if !captchaPassed(c) {
+			return nil
 		}
 
 		type loginRequest struct {
@@ -243,22 +245,8 @@ func Logout(c *fiber.Ctx) error {
 func Register(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
-		hCaptchaResponse := c.FormValue("h-captcha-response")
-
-		if hCaptchaResponse == "" {
-			ShowToastError(c, "CAPTCHA verification failed")
-			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
-		}
-
-		valid, err := verifyHCaptcha(hCaptchaResponse)
-		if err != nil {
-			ShowToastError(c, "CAPTCHA verification failed")
-			return c.Status(fiber.StatusInternalServerError).SendString("CAPTCHA verification failed")
-		}
-
-		if !valid {
-			ShowToastError(c, "CAPTCHA verification failed")
-			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
+		if !captchaPassed(c) {
+			return nil
 		}
 
 		var user model.User

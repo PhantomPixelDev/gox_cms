@@ -10,14 +10,12 @@ require (
 	github.com/gofiber/storage/redis/v3 v3.6.1
 	github.com/gofiber/template/html/v2 v2.1.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/google/uuid v1.6.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.57.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.3
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.2
-	gorm.io/plugin/dbresolver v1.6.2
 )
 
 require (
@@ -32,6 +30,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gofiber/template v1.8.3 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.10.0 // indirect
