@@ -10,7 +10,6 @@ import (
 	"math/big"
 	"os"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -46,7 +45,6 @@ func InitConfig() {
 	viper.SetDefault("upload.max_size_mb", 50)
 	viper.SetDefault("ratelimiter.enabled", false)
 	viper.SetDefault("ratelimiter.max_requests", 10)
-	viper.SetDefault("cors.allow_origins", "*")
 	viper.SetDefault("redis.enabled", false)
 	viper.SetDefault("redis.host", "localhost")
 	viper.SetDefault("redis.port", 6379)
@@ -181,14 +179,14 @@ func SetupStore(app *fiber.App) *session.Store {
 		store = session.New(session.Config{
 			Expiration:     24 * time.Hour,
 			CookieHTTPOnly: true,
-			CookieSecure:   !isWindows(),
+			CookieSecure:   SecureCookies(),
 			Storage:        redisStorage,
 		})
 	} else {
 		store = session.New(session.Config{
 			Expiration:     24 * time.Hour,
 			CookieHTTPOnly: true,
-			CookieSecure:   !isWindows(),
+			CookieSecure:   SecureCookies(),
 		})
 	}
 
@@ -415,6 +413,8 @@ func gt(a, b int) bool { return a > b }
 func le(a, b int) bool { return a <= b }
 func lt(a, b int) bool { return a < b }
 
-func isWindows() bool {
-	return runtime.GOOS == "windows"
+// SecureCookies reports whether cookies should carry the Secure flag, which is
+// the case whenever the site is served over HTTPS.
+func SecureCookies() bool {
+	return strings.HasPrefix(viper.GetString("app.url"), "https://")
 }
