@@ -11,7 +11,7 @@ type Post struct {
 	UserID     uint       `json:"user_id"`
 	Categories []Category `json:"categories" gorm:"many2many:post_categories;"`
 	Tags       []Tag      `json:"tags" gorm:"many2many:post_tags;"`
-	Slug       string     `json:"slug"`
+	Slug       string     `json:"slug" gorm:"index"`
 	ImageURL   string     `json:"image_url"`
 	Published  bool       `json:"published" gorm:"default:false"`
 	CreatedAt  time.Time  `json:"created_at"`

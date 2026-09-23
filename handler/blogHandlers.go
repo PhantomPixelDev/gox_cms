@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"goxcms/model"
 	"html/template"
@@ -12,78 +14,116 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-// Register handles the registration process
-func AdminAddBlogPost(c *fiber.Ctx, db *gorm.DB) error {
-	// Parse form values with validation
-	title, content, slug := c.FormValue("title"), c.FormValue("content"), c.FormValue("post_slug")
+// postForm holds the fields shared by the add and edit post forms.
+type postForm struct {
+	title, content, slug, image string
+	categoryIDs, tagIDs         []uint
+}
 
-	if title == "" || content == "" || slug == "" {
-		return c.SendString("Missing required fields: title, content, slug" + title + content + slug) // Show toast error
+// parsePostForm reads and validates the post form. On failure it writes the
+// response and returns false.
+func parsePostForm(c *fiber.Ctx) (postForm, bool) {
+	f := postForm{
+		title:       strings.TrimSpace(c.FormValue("title")),
+		content:     c.FormValue("content"),
+		slug:        strings.TrimSpace(c.FormValue("post_slug")),
+		image:       strings.TrimSpace(c.FormValue("image")),
+		categoryIDs: extractIDs(c.FormValue("categories_input")),
+		tagIDs:      extractIDs(c.FormValue("tags_input")),
 	}
 
-	image := c.FormValue("image")
-	if image == "" {
+	if f.title == "" || f.content == "" || f.slug == "" {
+		ShowToastError(c, "Missing required fields: title, content, slug")
+		c.SendString("Missing required fields: title, content, slug")
+		return f, false
+	}
+	if f.image == "" {
 		ShowToastError(c, "Missing required fields: image")
-		return c.SendString("Missing required fields: image") // Show toast error
+		c.SendString("Missing required fields: image")
+		return f, false
 	}
+	return f, true
+}
 
-	categoryIDs, tagIDs := extractIDs(c.FormValue("categories_input")), extractIDs(c.FormValue("tags_input"))
+var errSlugTaken = errors.New("slug is already used by another post")
 
-	// Start a transaction
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil || tx.Error != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Fetch categories and tags from the database
+// loadPostRelations fetches the selected categories and tags.
+func loadPostRelations(tx *gorm.DB, f postForm) ([]model.Category, []model.Tag, error) {
 	var categories []model.Category
-	if err := tx.Find(&categories, categoryIDs).Error; err != nil {
-		return c.SendString("Error fetching categories: " + err.Error())
+	if len(f.categoryIDs) > 0 {
+		if err := tx.Find(&categories, f.categoryIDs).Error; err != nil {
+			return nil, nil, fmt.Errorf("fetching categories: %w", err)
+		}
 	}
 
 	var tags []model.Tag
-	if err := tx.Find(&tags, tagIDs).Error; err != nil {
-		return c.SendString("Error fetching tags: " + err.Error())
+	if len(f.tagIDs) > 0 {
+		if err := tx.Find(&tags, f.tagIDs).Error; err != nil {
+			return nil, nil, fmt.Errorf("fetching tags: %w", err)
+		}
+	}
+	return categories, tags, nil
+}
+
+// postSlugTaken reports whether another post already uses slug.
+func postSlugTaken(tx *gorm.DB, slug string, excludeID uint) (bool, error) {
+	var count int64
+	err := tx.Model(&model.Post{}).Where("slug = ? AND id <> ?", slug, excludeID).Count(&count).Error
+	return count > 0, err
+}
+
+func AdminAddBlogPost(c *fiber.Ctx, db *gorm.DB) error {
+	f, ok := parsePostForm(c)
+	if !ok {
+		return nil
 	}
 
-	// Create a new Post instance
 	post := model.Post{
-		Title: title, Content: content, Slug: slug,
-		ImageURL:   image,
-		UserID:     currentUserID(c),
-		Categories: categories, Tags: tags,
+		Title:    f.title,
+		Content:  f.content,
+		Slug:     f.slug,
+		ImageURL: f.image,
+		UserID:   currentUserID(c),
 	}
 
-	if err := tx.Create(&post).Error; err != nil {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if taken, err := postSlugTaken(tx, f.slug, 0); err != nil {
+			return err
+		} else if taken {
+			return errSlugTaken
+		}
+
+		categories, tags, err := loadPostRelations(tx, f)
+		if err != nil {
+			return err
+		}
+		post.Categories, post.Tags = categories, tags
+
+		return tx.Create(&post).Error
+	})
+	if err != nil {
+		ShowToastError(c, "Post creation failed: "+err.Error())
 		return c.SendString("Post creation failed: " + err.Error())
 	}
 
-	tx.Commit()
-	if tx.Error != nil {
-		return c.SendString("Transaction commit failed: " + tx.Error.Error())
-	}
-
 	postID := strconv.Itoa(int(post.ID))
+	slug := template.HTMLEscapeString(post.Slug)
 
-	message := map[string]string{"showToast": "Settings updated successfully", "clearForm": "true"}
+	message := map[string]string{"showToast": "Post created successfully", "clearForm": "true"}
 	messageBytes, _ := json.Marshal(message)
 	c.Set("HX-Trigger", string(messageBytes))
 
 	button_show_post_and_edit_post_html := `
-	
 		<div class="alert alert-success alert-dismissible fade show" role="alert">
 			<span class="alert-icon"><i class="ni ni-like-2"></i></span>
-			
 			<h4 class="alert-heading">Post Created!</h4>
-			
 			<p class="mb-0">Post ID: ` + postID + `</p>
 			<p class="mb-0">Post Slug: ` + slug + `</p>
-			<p class="mb-0">Post Title: ` + title + `</p>
-			<hr> 
+			<p class="mb-0">Post Title: ` + template.HTMLEscapeString(post.Title) + `</p>
+			<hr>
 			<a href="/blog/post/` + slug + `" class="btn btn-sm btn-success">Show Post</a>
 			<a href="/admin/post/edit/` + postID + `" class="btn btn-sm btn-primary">Edit Post</a>
 			<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -91,7 +131,6 @@ func AdminAddBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 		`
 
 	return c.SendString(button_show_post_and_edit_post_html)
-
 }
 
 func AdminEditBlogPost(c *fiber.Ctx, db *gorm.DB) error {
@@ -132,91 +171,53 @@ func AdminEditBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func AdminUpdateBlogPost(c *fiber.Ctx, db *gorm.DB) error {
-	postID := c.FormValue("id")
-
-	// Parse form values with validation
-	if postID == "" || postID == "0" {
-		return c.SendString("Missing required fields: post_id") // Show toast error
+	postID, err := strconv.ParseUint(c.FormValue("id"), 10, 64)
+	if err != nil || postID == 0 {
+		ShowToastError(c, "Missing required fields: post_id")
+		return c.SendString("Missing required fields: post_id")
 	}
 
-	title, content, slug := c.FormValue("title"), c.FormValue("content"), c.FormValue("post_slug")
-
-	if title == "" || content == "" || slug == "" {
-		return c.SendString("Missing required fields: title, content, slug") // Show toast error
+	f, ok := parsePostForm(c)
+	if !ok {
+		return nil
 	}
 
-	image := c.FormValue("image")
-
-	if image == "" {
-		ShowToast(c, "Missing required fields: image")
-		return c.SendString("Missing required fields: image") // Show toast error
-	}
-
-	categoryIDs, tagIDs := extractIDs(c.FormValue("categories_input")), extractIDs(c.FormValue("tags_input")) // c.FormValue("categories"), c.FormValue("tags")
-
-	// Start a transaction
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil || tx.Error != nil {
-			tx.Rollback()
+	err = db.Transaction(func(tx *gorm.DB) error {
+		var post model.Post
+		if err := tx.First(&post, postID).Error; err != nil {
+			return fmt.Errorf("fetching post: %w", err)
 		}
-	}()
 
-	// Fetch the existing post from the database
-	var post model.Post
-	if err := tx.Preload("Categories").Preload("Tags").First(&post, postID).Error; err != nil {
-		return c.SendString("Error fetching post: " + err.Error())
-	}
-
-	// Update the post with the new values
-	post.Title = title
-	post.Content = content
-	post.Slug = slug
-	post.ImageURL = image
-
-	// Fetch categories and tags from the database
-	var categories []model.Category
-	if err := tx.Find(&categories, categoryIDs).Error; err != nil {
-		return c.SendString("Error fetching categories: " + err.Error())
-	}
-
-	var tags []model.Tag
-	if err := tx.Find(&tags, tagIDs).Error; err != nil {
-		return c.SendString("Error fetching tags: " + err.Error())
-	}
-
-	// Assign the fetched categories and tags to the post
-	post.Categories = categories
-	post.Tags = tags
-
-	// Check if slug is unique
-	var postWithSlug model.Post
-	if err := tx.Where("slug = ? AND id != ?", slug, postID).First(&postWithSlug).Error; err != nil {
-		if err.Error() != "record not found" {
-			return c.SendString("Error checking if slug is unique: " + err.Error())
+		if taken, err := postSlugTaken(tx, f.slug, post.ID); err != nil {
+			return err
+		} else if taken {
+			return errSlugTaken
 		}
-		if postWithSlug.ID != 0 {
-			return c.SendString("Slug is not unique")
-		}
-	}
 
-	// Update the post in the database
-	if err := tx.Save(&post).Error; err != nil {
+		categories, tags, err := loadPostRelations(tx, f)
+		if err != nil {
+			return err
+		}
+
+		post.Title = f.title
+		post.Content = f.content
+		post.Slug = f.slug
+		post.ImageURL = f.image
+
+		if err := tx.Omit(clause.Associations).Save(&post).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&post).Association("Categories").Replace(categories); err != nil {
+			return fmt.Errorf("updating categories: %w", err)
+		}
+		if err := tx.Model(&post).Association("Tags").Replace(tags); err != nil {
+			return fmt.Errorf("updating tags: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		ShowToastError(c, "Post update failed: "+err.Error())
 		return c.SendString("Post update failed: " + err.Error())
-	}
-
-	// Update the post's categories and tags in the database
-	if err := tx.Model(&post).Association("Categories").Replace(&categories); err != nil {
-		return c.SendString("Error updating post's categories: " + err.Error())
-	}
-
-	if err := tx.Model(&post).Association("Tags").Replace(&tags); err != nil {
-		return c.SendString("Error updating post's tags: " + err.Error())
-	}
-
-	tx.Commit()
-	if tx.Error != nil {
-		return c.SendString("Transaction commit failed: " + tx.Error.Error())
 	}
 
 	message := map[string]string{"showToast": "Post updated successfully", "clearForm": "true"}

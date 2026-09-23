@@ -1,19 +1,23 @@
 package handlers
 
 import (
+	"crypto/rand"
 	"goxcms/model"
+	"io"
 	"math"
-	"math/rand"
+	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
 
 const (
-	MaxFileSize        = 10 * 1024 * 1024 // 10 MB
 	UploadDir          = "./static/uploads"
 	RandomFilenameSize = 10
 )
@@ -26,13 +30,19 @@ var (
 		".gif":  true,
 	}
 
-	AllowedContentTypes = []string{
-		"image/jpeg",
-		"image/png",
-		"image/gif",
-		"image/jpg",
+	// AllowedContentTypes are checked against the sniffed file content, not
+	// the client-supplied Content-Type header.
+	AllowedContentTypes = map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+		"image/gif":  true,
 	}
 )
+
+// maxUploadSize returns the upload limit in bytes from upload.max_size_mb.
+func maxUploadSize() int64 {
+	return viper.GetInt64("upload.max_size_mb") * 1024 * 1024
+}
 
 func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
 	file, err := c.FormFile("file")
@@ -40,74 +50,75 @@ func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusBadRequest).SendString("Cannot read file: " + err.Error())
 	}
 
-	// Validate file size
-	if file.Size > MaxFileSize {
+	if file.Size > maxUploadSize() {
 		return c.Status(fiber.StatusBadRequest).SendString("File size exceeds the limit")
 	}
 
-	// Validate file type based on extension
-	fileType := filepath.Ext(file.Filename)
-	if !isValidFileType(fileType) {
+	fileType := strings.ToLower(filepath.Ext(file.Filename))
+	if !AllowedFileTypes[fileType] {
 		return c.Status(fiber.StatusBadRequest).SendString("File type not allowed")
 	}
 
-	// Check file content type from header
-	if !isValidContentType(file.Header.Get("Content-Type")) {
+	contentType, err := sniffContentType(file)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString("Cannot read file: " + err.Error())
+	}
+	if !AllowedContentTypes[contentType] {
 		return c.Status(fiber.StatusBadRequest).SendString("Invalid content type")
 	}
 
-	// Generate a random string for the filename to ensure uniqueness
-	randomString := generateRandomFilenameString(RandomFilenameSize)
-	oldFilename := file.Filename
-	filename := oldFilename[:len(oldFilename)-len(fileType)] + "_" + randomString + fileType
+	// Add a random suffix so uploads never overwrite each other.
+	baseName := strings.TrimSuffix(filepath.Base(file.Filename), filepath.Ext(file.Filename))
+	filename := baseName + "_" + randomFilenameString(RandomFilenameSize) + fileType
 
-	// Save the file to the disk
+	if err := os.MkdirAll(UploadDir, 0o755); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Cannot create upload directory")
+	}
 
-	// Save the file to the disk
 	if err := c.SaveFile(file, filepath.Join(UploadDir, filename)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to disk")
 	}
 
-	// Represent the file in the database
 	fileModel := model.File{
-		Name: filename,
-		Path: "/static/uploads/" + filename, // Save the path to the file
+		Name:      filename,
+		Extension: fileType,
+		Path:      "/static/uploads/" + filename,
 	}
 
-	// Save file reference to the database
 	if err := db.Create(&fileModel).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("Cannot save file to database")
 	}
 
-	// Respond with success message
-	c.SendStatus(fiber.StatusOK)
-	ShowToast(c, "File uploaded successfully")
-	return nil
+	return ShowToast(c, "File uploaded successfully")
 }
 
-// Check if file type is allowed
-func isValidFileType(fileType string) bool {
-	return AllowedFileTypes[fileType]
-}
-
-// Check if content type is allowed
-func isValidContentType(contentType string) bool {
-	for _, validType := range AllowedContentTypes {
-		if validType == contentType {
-			return true
-		}
+// sniffContentType detects the MIME type from the first 512 bytes of the file.
+func sniffContentType(fh *multipart.FileHeader) (string, error) {
+	f, err := fh.Open()
+	if err != nil {
+		return "", err
 	}
-	return false
+	defer f.Close()
+
+	head := make([]byte, 512)
+	n, err := io.ReadFull(f, head)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return "", err
+	}
+	return http.DetectContentType(head[:n]), nil
 }
 
-// Generate random filename string
-func generateRandomFilenameString(length int) string {
+// randomFilenameString returns a random alphanumeric string.
+func randomFilenameString(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	randomString := make([]byte, length)
-	for i := range randomString {
-		randomString[i] = charset[rand.Intn(len(charset))]
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
 	}
-	return string(randomString)
+	for i := range b {
+		b[i] = charset[int(b[i])%len(charset)]
+	}
+	return string(b)
 }
 
 func DeleteFile(c *fiber.Ctx, db *gorm.DB) error {
