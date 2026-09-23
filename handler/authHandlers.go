@@ -2,16 +2,16 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"goxcms/model"
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/go-playground/validator/v10"
 	"github.com/go-resty/resty/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
@@ -28,7 +28,6 @@ type HCaptchaResponse struct {
 func verifyHCaptcha(hCaptchaResponse string) (bool, error) {
 	client := resty.New()
 	secret := viper.GetString("captcha.secret_key")
-	println("secret: ", secret)
 	resp, err := client.R().
 		SetFormData(map[string]string{
 			"secret":   secret,
@@ -49,66 +48,55 @@ func verifyHCaptcha(hCaptchaResponse string) (bool, error) {
 	return result.Success, nil
 }
 
-var jwtSecretKey = []byte(viper.GetString("app.secret"))
+// jwtKey reads the signing secret on every call. It must not be captured in a
+// package-level variable: package variables are initialised before main()
+// loads the config file, which previously left the key empty.
+func jwtKey() []byte {
+	return []byte(viper.GetString("app.secret"))
+}
+
+const jwtLifetime = 72 * time.Hour
 
 func GenerateJWT(userID uint) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["user_id"] = userID
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-
-	tokenString, err := token.SignedString(jwtSecretKey)
-	return tokenString, err
-}
-
-// Function to validate CSRF token
-func ValidateCSRFToken(c *fiber.Ctx) error {
-	csrfToken := c.Locals("csrf").(string)
-	submittedToken := c.FormValue("csrf")
-	if csrfToken != submittedToken {
-		return fiber.NewError(fiber.StatusForbidden, "CSRF token mismatch")
+	key := jwtKey()
+	if len(key) == 0 {
+		return "", errors.New("app.secret is not configured")
 	}
-	return nil
+
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(jwtLifetime).Unix(),
+	}
+
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(key)
 }
 
-func ValidateJWT(c *fiber.Ctx) error {
-	cookie := c.Cookies("jwt")
+// parseJWT validates the token signature, algorithm and expiry and returns the
+// user ID it was issued for.
+func parseJWT(tokenString string) (uint, error) {
+	key := jwtKey()
+	if tokenString == "" || len(key) == 0 {
+		return 0, errors.New("no token")
+	}
 
-	token, err := jwt.Parse(cookie, func(token *jwt.Token) (interface{}, error) {
-		return jwtSecretKey, nil
-	})
-
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return key, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
 	if err != nil || !token.Valid {
-		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
+		return 0, errors.New("invalid token")
 	}
 
-	return c.Next()
-}
-
-func ValidateAdmin(c *fiber.Ctx, db *gorm.DB) error {
-	cookie := c.Cookies("jwt")
-
-	token, err := jwt.Parse(cookie, func(token *jwt.Token) (interface{}, error) {
-		return jwtSecretKey, nil
-	})
-
-	if err != nil || !token.Valid {
-		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return 0, errors.New("invalid claims")
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
-	userID := claims["user_id"].(float64)
-
-	var user model.User
-	db.First(&user, userID)
-
-	if user.RoleID != 2 {
-		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
+	userID, ok := claims["user_id"].(float64)
+	if !ok || userID <= 0 {
+		return 0, errors.New("invalid user_id claim")
 	}
 
-	c.Locals("isAdmin", true)
-
-	return c.Next()
+	return uint(userID), nil
 }
 
 func FormatValidationError(err error) string {
@@ -143,10 +131,17 @@ func SetJWTTokenCookie(c *fiber.Ctx, tokenString string) {
 	cookie.Name = "jwt"
 	cookie.Value = tokenString
 	cookie.HTTPOnly = true
+	cookie.Secure = secureCookies()
 	cookie.SameSite = "Lax"
 	cookie.Path = "/"
+	cookie.Expires = time.Now().Add(jwtLifetime)
 	c.Cookie(cookie)
+}
 
+// secureCookies reports whether cookies should carry the Secure flag, which is
+// the case whenever the site is served over HTTPS.
+func secureCookies() bool {
+	return strings.HasPrefix(viper.GetString("app.url"), "https://")
 }
 
 func Login(db *gorm.DB, store *session.Store) fiber.Handler {
@@ -156,8 +151,6 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 		if capcha_enabled {
 
 			hCaptchaResponse := c.FormValue("h-captcha-response")
-
-			println("hCaptchaResponse: ", hCaptchaResponse)
 
 			if hCaptchaResponse == "" {
 				ShowToastError(c, "CAPTCHA verification failed")
@@ -232,7 +225,7 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 
 		c.Locals("user", user)
 		c.Locals("isLoggedin", true)
-		c.Locals("isAdmin", user.RoleID == uint(2))
+		c.Locals("isAdmin", user.RoleID == model.RoleAdmin)
 		c.Locals("csrf", csrfToken)
 
 		c.Set("HX-Redirect", "/")
@@ -284,8 +277,6 @@ func Register(db *gorm.DB) fiber.Handler {
 
 		hCaptchaResponse := c.FormValue("h-captcha-response")
 
-		println("hCaptchaResponse: ", hCaptchaResponse)
-
 		if hCaptchaResponse == "" {
 			ShowToastError(c, "CAPTCHA verification failed")
 			return c.Status(fiber.StatusBadRequest).SendString("CAPTCHA verification failed")
@@ -308,7 +299,7 @@ func Register(db *gorm.DB) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 		}
 
-		user.RoleID = uint(1)
+		user.RoleID = model.RoleUser
 
 		validate := validator.New()
 		if err := validate.Struct(&user); err != nil {
@@ -348,42 +339,22 @@ func Register(db *gorm.DB) fiber.Handler {
 
 func AuthStatusMiddleware(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		tokenString := c.Cookies("jwt")
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return jwtSecretKey, nil
+		c.Locals("isLoggedin", false)
+		c.Locals("isAdmin", false)
 
-		})
-
-		if err != nil || !token.Valid {
-			c.Locals("isLoggedin", false)
-			return c.Next()
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.Locals("isLoggedin", false)
-			return c.Next()
-		}
-
-		userID, ok := claims["user_id"].(float64)
-		if !ok {
-			c.Locals("isLoggedin", false)
+		userID, err := parseJWT(c.Cookies("jwt"))
+		if err != nil {
 			return c.Next()
 		}
 
 		var user model.User
-		if err := db.First(&user, uint(userID)).Error; err != nil {
-			c.Locals("isLoggedin", false)
+		if err := db.First(&user, userID).Error; err != nil {
 			return c.Next()
 		}
 
 		c.Locals("isLoggedin", true)
 		c.Locals("user", user)
-
-		c.Locals("isAdmin", user.RoleID == uint(2))
+		c.Locals("isAdmin", user.RoleID == model.RoleAdmin)
 
 		return c.Next()
 	}
@@ -397,16 +368,48 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
-func IsAdmin(c *fiber.Ctx) error {
-	if c.Locals("isAdmin") == false {
-		return c.Status(fiber.StatusUnauthorized).Redirect("/login")
+// IsTrue reads a boolean local. Missing or non-bool values count as false, so
+// a request that never went through AuthStatusMiddleware is never trusted.
+func IsTrue(c *fiber.Ctx, key string) bool {
+	v, _ := c.Locals(key).(bool)
+	return v
+}
+
+// CurrentUser returns the logged-in user, if any.
+func CurrentUser(c *fiber.Ctx) (model.User, bool) {
+	user, ok := c.Locals("user").(model.User)
+	return user, ok && IsTrue(c, "isLoggedin")
+}
+
+// denyAccess rejects a request. HTMX requests get an HX-Redirect header, plain
+// page loads a redirect, and everything else a bare status code.
+func denyAccess(c *fiber.Ctx, status int, redirectTo string) error {
+	if c.Get("HX-Request") == "true" {
+		c.Set("HX-Redirect", redirectTo)
+		return c.SendStatus(status)
+	}
+	if c.Method() == fiber.MethodGet {
+		return c.Redirect(redirectTo)
+	}
+	return c.SendStatus(status)
+}
+
+// IsLoggedIn only lets authenticated users through.
+func IsLoggedIn(c *fiber.Ctx) error {
+	if !IsTrue(c, "isLoggedin") {
+		return denyAccess(c, fiber.StatusUnauthorized, "/login")
 	}
 	return c.Next()
 }
 
-func IsLoggedIn(c *fiber.Ctx) error {
-	if c.Locals("isLoggedin") == false {
-		return c.Status(fiber.StatusUnauthorized).Redirect("/login")
+// IsAdmin only lets authenticated administrators through. It does not rely on
+// IsLoggedIn having run first.
+func IsAdmin(c *fiber.Ctx) error {
+	if !IsTrue(c, "isLoggedin") {
+		return denyAccess(c, fiber.StatusUnauthorized, "/login")
+	}
+	if !IsTrue(c, "isAdmin") {
+		return denyAccess(c, fiber.StatusForbidden, "/")
 	}
 	return c.Next()
 }

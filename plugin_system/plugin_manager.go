@@ -5,7 +5,9 @@ import (
 	"fmt"
 	handlers "goxcms/handler"
 	"goxcms/model"
+	htmlstd "html"
 	"log"
+	"net/url"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
@@ -86,42 +88,37 @@ func EnableDisablePlugin(pluginName string, db *gorm.DB) error {
 	}
 	/// change value in database and then reload the plugin if enabled
 	pluginDB.Enabled = !pluginDB.Enabled
-	db.Save(&pluginDB)
-	println("Plugin enabled: ", pluginDB.Enabled)
-	/// reset app store from app store (cache) and reload the plugin
-
-	return nil
+	return db.Save(&pluginDB).Error
 }
 
-// / add route to enable/disable plugin
+// AddPluginManagerRoutes registers the admin-only plugin toggle endpoint. It is
+// a POST because it changes state.
 func AddPluginManagerRoutes(app *fiber.App, db *gorm.DB) {
-	app.Get("/admin/plugins/enable/:name", handlers.IsAdmin, handlers.IsLoggedIn, enableDisablePluginHandler(db))
+	app.Post("/admin/plugins/enable/:name", handlers.IsAdmin, enableDisablePluginHandler(db))
 }
 
 func enableDisablePluginHandler(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		pluginName := c.Params("name")
-		fmt.Println("Plugin name: ", pluginName)
-
-		EnableDisablePlugin(pluginName, db)
 
 		plugin := GetPluginByName(pluginName)
 		if plugin == nil {
-			fmt.Println("Plugin not found")
 			return c.SendStatus(fiber.StatusNotFound)
 		}
 
-		buttonText := "Enable"
-		if plugin.Enabled(db) {
-			buttonText = "Disable"
+		if err := EnableDisablePlugin(pluginName, db); err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Failed to update plugin")
 		}
 
+		buttonText := "Enable"
 		buttonClass := "btn btn-success mt-2 btn-plugin"
 		if plugin.Enabled(db) {
+			buttonText = "Disable"
 			buttonClass = "btn btn-danger mt-2 btn-plugin"
 		}
 
-		htmxResponse := fmt.Sprintf(`<button id="plugin-%s" class="%s" hx-get="/admin/plugins/enable/%s" hx-trigger="click" hx-headers='{"X-No-Cache": "true"}' hx-swap="outerHTML">%s</button>`, pluginName, buttonClass, pluginName, buttonText)
+		name := htmlstd.EscapeString(plugin.Name())
+		htmxResponse := fmt.Sprintf(`<button id="plugin-%s" class="%s" hx-post="/admin/plugins/enable/%s" hx-trigger="click" hx-swap="outerHTML">%s</button>`, name, buttonClass, url.PathEscape(plugin.Name()), buttonText)
 
 		handlers.ShowToast(c, "Plugin "+buttonText+"d successfully, restart the server to see changes")
 

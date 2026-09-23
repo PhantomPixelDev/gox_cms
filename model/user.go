@@ -6,6 +6,12 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+// Role IDs stored in User.RoleID.
+const (
+	RoleUser  uint = 1
+	RoleAdmin uint = 2
+)
+
 // User struct with validation tags using go-playground validator
 type User struct {
 	ID        uint       `json:"id" gorm:"primaryKey"`

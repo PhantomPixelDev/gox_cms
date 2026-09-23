@@ -2,10 +2,12 @@ package utils
 
 import (
 	"bufio"
+	"crypto/rand"
 	"fmt"
 	"goxcms/model"
 	"html/template"
 	"log"
+	"math/big"
 	"os"
 	"regexp"
 	"runtime"
@@ -14,7 +16,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/gofiber/storage/redis/v3"
@@ -62,6 +63,47 @@ func InitConfig() {
 	if viper.GetBool("redis.enabled") {
 		log.Println("Redis enabled")
 	}
+
+	validateSecret()
+}
+
+const exampleSecret = "change_this_secret"
+
+// validateSecret makes sure app.secret, which signs the login JWTs, is set to
+// something that is not publicly known. Production refuses to start without
+// one; development falls back to a random per-process secret.
+func validateSecret() {
+	secret := viper.GetString("app.secret")
+	weak := secret == "" || secret == exampleSecret
+
+	if viper.GetString("build.mode") == "production" {
+		if weak {
+			log.Fatal("app.secret must be set to a long random value in production (e.g. `openssl rand -hex 32`)")
+		}
+		if len(secret) < 32 {
+			log.Println("WARNING: app.secret is shorter than 32 characters; use a longer random value")
+		}
+		return
+	}
+
+	if weak {
+		viper.Set("app.secret", randomString(32))
+		log.Println("WARNING: app.secret is not set; using a random secret for this process. Logins will not survive a restart.")
+	}
+}
+
+// randomString returns a URL-safe random string of the given length.
+func randomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	out := make([]byte, length)
+	for i := range out {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			log.Fatalf("Failed to generate random value: %v", err)
+		}
+		out[i] = charset[n.Int64()]
+	}
+	return string(out)
 }
 
 func SetupEngine() *html.Engine {
@@ -142,28 +184,12 @@ func SetupStore(app *fiber.App) *session.Store {
 			CookieSecure:   !isWindows(),
 			Storage:        redisStorage,
 		})
-
-		app.Use(cache.New(cache.Config{
-			Next: func(c *fiber.Ctx) bool {
-				return c.Get("X-No-Cache") == "true"
-			},
-			Expiration: 30 * time.Minute,
-			Storage:    redisStorage,
-		}))
 	} else {
 		store = session.New(session.Config{
 			Expiration:     24 * time.Hour,
 			CookieHTTPOnly: true,
 			CookieSecure:   !isWindows(),
 		})
-
-		app.Use(cache.New(cache.Config{
-			Next: func(c *fiber.Ctx) bool {
-				return c.Get("X-No-Cache") == "true"
-			},
-			Expiration: 30 * time.Minute,
-			Storage:    store.Storage,
-		}))
 	}
 
 	if store == nil {
@@ -311,31 +337,49 @@ func CreateBasicWebsiteInfo(db *gorm.DB) {
 	createDefaultAdminUser(db)
 }
 
+// createDefaultAdminUser creates the first administrator on a fresh install.
+// The password comes from the ADMIN_PASSWORD environment variable or
+// app.admin_password; if neither is set a random one is generated and printed
+// once to the log.
 func createDefaultAdminUser(db *gorm.DB) {
 	var count int64
-	db.Model(&model.User{}).Where("username = ?", "admin").Count(&count)
+	db.Model(&model.User{}).Where("role_id = ?", model.RoleAdmin).Count(&count)
+	if count > 0 {
+		return
+	}
 
-	if count == 0 {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin1234"), bcrypt.DefaultCost)
-		if err != nil {
-			log.Fatalf("Failed to hash password: %v", err)
-		}
+	password := os.Getenv("ADMIN_PASSWORD")
+	if password == "" {
+		password = viper.GetString("app.admin_password")
+	}
+	generated := password == ""
+	if generated {
+		password = randomString(20)
+	}
 
-		email := "admin@goxcms.com"
-		newUser := model.User{
-			Username:  "admin",
-			Password:  string(hashedPassword),
-			RoleID:    2, // Assuming 2 is the admin role ID
-			FirstName: "Admin",
-			LastName:  "User",
-			Email:     &email,
-		}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("Failed to hash password: %v", err)
+	}
 
-		result := db.Create(&newUser)
-		if result.Error != nil {
-			log.Fatalf("Failed to create admin user: %v", result.Error)
-		}
-		log.Println("Default admin user created successfully")
+	email := "admin@goxcms.com"
+	newUser := model.User{
+		Username:  "admin",
+		Password:  string(hashedPassword),
+		RoleID:    model.RoleAdmin,
+		FirstName: "Admin",
+		LastName:  "User",
+		Email:     &email,
+	}
+
+	if err := db.Create(&newUser).Error; err != nil {
+		log.Fatalf("Failed to create admin user: %v", err)
+	}
+
+	if generated {
+		log.Printf("Default admin user created. Username: admin  Password: %s  (change it after logging in)", password)
+	} else {
+		log.Println("Default admin user created with the configured password")
 	}
 }
 

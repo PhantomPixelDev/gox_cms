@@ -3,13 +3,13 @@ module goxcms
 go 1.26.0
 
 require (
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fatih/color v1.19.0
 	github.com/go-playground/validator/v10 v10.30.5
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/gofiber/fiber/v2 v2.52.15
 	github.com/gofiber/storage/redis/v3 v3.6.1
 	github.com/gofiber/template/html/v2 v2.1.3
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.57.0

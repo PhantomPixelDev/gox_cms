@@ -16,7 +16,11 @@ app:
   version: "0.0.1"
   domain: "localhost"
   url: "http://localhost:3000"
-  secret: "change_this_secret"
+  # Signs login tokens. Required in production; generate one with `openssl rand -hex 32`.
+  secret: ""
+  # Password for the "admin" account created on first start. Leave empty to
+  # generate a random one, which is printed once to the log.
+  admin_password: ""
   hotload_custom_pages: false
 upload:
   max_size_mb: 50

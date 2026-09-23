@@ -165,14 +165,14 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 		}
 	}
 
-	app.Post("/ShopPlugin/add_product", func(c *fiber.Ctx) error {
+	app.Post("/ShopPlugin/add_product", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		if !p.Enabled(db) {
 			return c.Status(404).SendString("Plugin not enabled")
 		}
 		return p.AddProduct(c, db)
 	})
 
-	app.Get("/ShopPlugin/admin/:page?", handlers.IsLoggedIn, handlers.IsAdmin, handlers.AuthStatusMiddleware(db), func(c *fiber.Ctx) error {
+	app.Get("/ShopPlugin/admin/:page?", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		if !p.Enabled(db) {
 			return c.Status(fiber.StatusNotFound).SendString("Plugin not enabled")
 		}
@@ -218,7 +218,7 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 	})
 
 	/// /ShopPlugin/update-settings endpoint
-	app.Post("/ShopPlugin/update-settings", handlers.IsAdmin, handlers.IsLoggedIn, handlers.AuthStatusMiddleware(db), func(c *fiber.Ctx) error {
+	app.Post("/ShopPlugin/update-settings", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		if !p.Enabled(db) {
 			return c.Status(fiber.StatusNotFound).SendString("Plugin not enabled")
 		}
