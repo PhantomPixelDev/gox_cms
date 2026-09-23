@@ -3,7 +3,6 @@ package handlers
 import (
 	"goxcms/model"
 	"html/template"
-	"math"
 	"regexp"
 	"strconv"
 
@@ -20,7 +19,7 @@ func AddComment(c *fiber.Ctx, db *gorm.DB) error {
 	var comment model.Comment
 
 	// Extract comment data from the form
-	comment.Content = sanitizeHTML(c.FormValue("comment"))
+	comment.Content = SanitizeText(c.FormValue("comment"))
 	postID, _ := strconv.Atoi(c.FormValue("post_id"))
 	comment.PostID = uint(postID)
 	userID, _ := strconv.Atoi(c.FormValue("user_id"))
@@ -54,24 +53,18 @@ func AddComment(c *fiber.Ctx, db *gorm.DB) error {
 	return c.Status(fiber.StatusCreated).SendString(string(htmlMessage))
 }
 
-// SanitizeHTML sanitizes the HTML input to prevent XSS attacks
-func sanitizeHTML(input string) string {
-	// Remove any HTML tags and attributes
-	sanitized := regexp.MustCompile(`<[^>]*>`).ReplaceAllString(input, "")
+var htmlTagPattern = regexp.MustCompile(`<[^>]*>`)
 
-	// Replace special characters with their HTML entities
-	sanitized = template.HTMLEscapeString(sanitized)
-
-	return sanitized
+// SanitizeText strips HTML tags and escapes what is left, so the result is
+// safe to render as HTML.
+func SanitizeText(input string) string {
+	return template.HTMLEscapeString(htmlTagPattern.ReplaceAllString(input, ""))
 }
 
 func SearchCommentsView(c *fiber.Ctx, db *gorm.DB) error {
 	var comments []model.Comment
 	searchQuery := c.FormValue("query")
-	page, err := strconv.Atoi(c.FormValue("page", "1"))
-	if err != nil || page < 1 {
-		page = 1
-	}
+	page := queryPage(c)
 	limit := 10
 	offset := (page - 1) * limit
 
@@ -82,7 +75,7 @@ func SearchCommentsView(c *fiber.Ctx, db *gorm.DB) error {
 	/// count total comments for pagination ///
 	var totalComments int64
 	db.Model(&model.Comment{}).Where("content LIKE ?", "%"+searchQuery+"%").Count(&totalComments)
-	TotalPages := int(math.Ceil(float64(totalComments) / float64(limit)))
+	TotalPages := pageCount(totalComments, limit)
 	if TotalPages == 0 {
 		TotalPages = 1
 	}
@@ -107,41 +100,10 @@ func ToggleCommentStatus(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	db.Save(&comment)
-	button := GetCommentStatusButton(comment)
-	button = string(template.HTML(button)) // convert to string
 
 	ShowToast(c, "Comment status changed successfully")
 
-	return c.SendString(button)
-	/// return the button with the new status
-}
-
-func GetCommentStatusButton(comment model.Comment) string {
-	var button string
-
-	commentID := strconv.Itoa(int(comment.ID))
-
-	if comment.Status == "approved" {
-		button = `<button id="comment-status-button-` + commentID + `"
-					class="btn btn-secondary btn-sm"
-					hx-post="/toggle-comment-status/` + commentID + `" 
-					hx-target="#comment-status-button-` + commentID + `" hx-headers='{"X-No-Cache": "true"}'
-					hx-confirm="Are you sure you want to change the status of this comment?"
-					hx-swap="outerHTML">
-					Unapprove
-				</button>`
-	} else {
-		button = `<button id="comment-status-button-` + commentID + `"
-					class="btn btn-success btn-sm"
-					hx-post="/toggle-comment-status/` + commentID + `" 
-					hx-target="#comment-status-button-` + commentID + `" hx-headers='{"X-No-Cache": "true"}'
-					hx-confirm="Are you sure you want to change the status of this comment?"
-					hx-swap="outerHTML">
-					Approve
-				</button>`
-	}
-
-	return button
+	return c.Render("partials/comment-status-button", comment)
 }
 
 func DeleteComment(c *fiber.Ctx, db *gorm.DB) error {

@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"math"
-
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -109,28 +107,11 @@ func AdminAddBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 		return c.SendString("Post creation failed: " + err.Error())
 	}
 
-	postID := strconv.Itoa(int(post.ID))
-	slug := template.HTMLEscapeString(post.Slug)
-
 	message := map[string]string{"showToast": "Post created successfully", "clearForm": "true"}
 	messageBytes, _ := json.Marshal(message)
 	c.Set("HX-Trigger", string(messageBytes))
 
-	button_show_post_and_edit_post_html := `
-		<div class="alert alert-success alert-dismissible fade show" role="alert">
-			<span class="alert-icon"><i class="ni ni-like-2"></i></span>
-			<h4 class="alert-heading">Post Created!</h4>
-			<p class="mb-0">Post ID: ` + postID + `</p>
-			<p class="mb-0">Post Slug: ` + slug + `</p>
-			<p class="mb-0">Post Title: ` + template.HTMLEscapeString(post.Title) + `</p>
-			<hr>
-			<a href="/blog/post/` + slug + `" class="btn btn-sm btn-success">Show Post</a>
-			<a href="/admin/post/edit/` + postID + `" class="btn btn-sm btn-primary">Edit Post</a>
-			<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-		</div>
-		`
-
-	return c.SendString(button_show_post_and_edit_post_html)
+	return c.Render("partials/post-created", post)
 }
 
 func AdminEditBlogPost(c *fiber.Ctx, db *gorm.DB) error {
@@ -230,14 +211,10 @@ func AdminUpdateBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 func AdminSearchPosts(c *fiber.Ctx, db *gorm.DB) error {
 	var posts []model.Post
 	searchQuery := c.Query("query")
-	page := c.Query("page", "1")
 	pageSize := 10 // Or whatever your default page size is
 
 	// Convert page string to int
-	pageInt, err := strconv.Atoi(page)
-	if err != nil || pageInt < 1 {
-		pageInt = 1
-	}
+	pageInt := queryPage(c)
 
 	// Implement search logic with pagination
 	db.Preload("Categories").Preload("Tags").
@@ -252,7 +229,7 @@ func AdminSearchPosts(c *fiber.Ctx, db *gorm.DB) error {
 	db.Model(&model.Post{}).
 		Where("title LIKE ?", "%"+searchQuery+"%").
 		Count(&count)
-	totalPages := int(math.Ceil(float64(count) / float64(pageSize)))
+	totalPages := pageCount(count, pageSize)
 
 	return c.Render("admin/table/post-table", fiber.Map{
 		"Posts":       posts,
@@ -294,9 +271,6 @@ func AdminDeletePost(c *fiber.Ctx, db *gorm.DB) error {
 
 func BlogPage(c *fiber.Ctx, db *gorm.DB) error {
 
-	/// set header for cache X-No-Cache to prevent caching
-	c.Set("X-No-Cache", "true")
-
 	page := c.Params("page")
 	if page == "" {
 		page = "1"
@@ -326,7 +300,7 @@ func BlogPage(c *fiber.Ctx, db *gorm.DB) error {
 
 	totalPages := 1
 	if totalPosts > 0 {
-		totalPages = int(math.Ceil(float64(totalPosts) / float64(postsPerPage)))
+		totalPages = pageCount(totalPosts, postsPerPage)
 	}
 
 	var totalPagesArray []int
@@ -411,36 +385,14 @@ func TogglePostStatus(c *fiber.Ctx, db *gorm.DB) error {
 		return ShowToastError(c, "Error updating post status")
 	}
 
+	post.Published = newStatus
 	if newStatus {
-		ShowToastError(c, "Post published successfully")
-		button_unpublish_html := `
-		<button id="post-status-button-` + id + `"
-		class="btn btn-secondary"
-		hx-post="/toggle-post-status"
-		hx-vals='{"id": "` + id + `"}'
-		hx-target="#post-status-button-` + id + `"
-		hx-swap="outerHTML"
-		hx-confirm="Are you sure you want to change the status of this post?">
-		Unpublish
-		</button>
-		`
-		return c.SendString(button_unpublish_html)
-
+		ShowToast(c, "Post published successfully")
+	} else {
+		ShowToast(c, "Post unpublished successfully")
 	}
-	ShowToastError(c, "Post unpublished successfully")
-	button_unpublish_html := `
-	<button id="post-status-button-` + id + `"
-	class="btn btn-success"
-	hx-post="/toggle-post-status"
-	hx-vals='{"id": "` + id + `"}'
-	hx-target="#post-status-button-` + id + `"
-	hx-swap="outerHTML"
-	hx-confirm="Are you sure you want to change the status of this post?">
-	Publish
-	</button>
-	`
-	return c.SendString(button_unpublish_html)
 
+	return c.Render("partials/post-status-button", post)
 }
 
 func extractIDs(ids string) []uint {

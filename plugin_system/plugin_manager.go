@@ -2,12 +2,9 @@ package plugin_system
 
 import (
 	"encoding/json"
-	"fmt"
 	handlers "goxcms/handler"
 	"goxcms/model"
-	htmlstd "html"
 	"log"
-	"net/url"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
@@ -110,18 +107,16 @@ func enableDisablePluginHandler(db *gorm.DB) fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to update plugin")
 		}
 
-		buttonText := "Enable"
-		buttonClass := "btn btn-success mt-2 btn-plugin"
-		if plugin.Enabled(db) {
-			buttonText = "Disable"
-			buttonClass = "btn btn-danger mt-2 btn-plugin"
+		enabled := plugin.Enabled(db)
+		action := "disabled"
+		if enabled {
+			action = "enabled"
 		}
+		handlers.ShowToast(c, "Plugin "+action+" successfully, restart the server to see changes")
 
-		name := htmlstd.EscapeString(plugin.Name())
-		htmxResponse := fmt.Sprintf(`<button id="plugin-%s" class="%s" hx-post="/admin/plugins/enable/%s" hx-trigger="click" hx-swap="outerHTML">%s</button>`, name, buttonClass, url.PathEscape(plugin.Name()), buttonText)
-
-		handlers.ShowToast(c, "Plugin "+buttonText+"d successfully, restart the server to see changes")
-
-		return c.Status(fiber.StatusOK).SendString(htmxResponse)
+		return c.Render("partials/plugin-button", fiber.Map{
+			"Name":    plugin.Name(),
+			"Enabled": enabled,
+		})
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"goxcms/model"
+	htmlstd "html"
 	"html/template"
 	"log"
 	"math/big"
@@ -111,8 +112,9 @@ func SetupEngine() *html.Engine {
 			return fmt.Sprintf("?v=%d", time.Now().Unix())
 		},
 		"truncate": func(s string, length int) string {
-			if len(s) > length {
-				return s[:length] + "..."
+			runes := []rune(s)
+			if len(runes) > length {
+				return string(runes[:length]) + "..."
 			}
 			return s
 		},
@@ -142,9 +144,8 @@ func SetupEngine() *html.Engine {
 			}
 			return count
 		},
-		"escape": func(s string) template.HTML {
-			return template.HTML(htmlToPlainText(s))
-		},
+		// escape converts HTML to plain text; the template escapes the result.
+		"escape": htmlToPlainText,
 		"unescape": func(s string) template.HTML {
 			return template.HTML(s)
 		},
@@ -350,17 +351,12 @@ func createDefaultAdminUser(db *gorm.DB) {
 	}
 }
 
-func htmlToPlainText(html string) string {
-	// Remove HTML tags using a regular expression
-	re := regexp.MustCompile(`\<[^>]*\>`)
-	plainText := re.ReplaceAllString(html, "")
-	// Replace HTML entities with their plain text equivalents
-	plainText = strings.ReplaceAll(plainText, "&amp;", "&")
-	plainText = strings.ReplaceAll(plainText, "&lt;", "<")
-	plainText = strings.ReplaceAll(plainText, "&gt;", ">")
-	plainText = strings.ReplaceAll(plainText, "&quot;", "\"")
-	plainText = strings.ReplaceAll(plainText, "&#39;", "'")
-	return plainText
+var htmlTagPattern = regexp.MustCompile(`<[^>]*>?`)
+
+// htmlToPlainText strips tags and decodes entities. The result is plain text
+// and must be escaped before it is written into HTML.
+func htmlToPlainText(s string) string {
+	return htmlstd.UnescapeString(htmlTagPattern.ReplaceAllString(s, ""))
 }
 
 func max(a, b int) int {

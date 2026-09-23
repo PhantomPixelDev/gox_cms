@@ -1,0 +1,11 @@
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <span class="alert-icon"><i class="ni ni-like-2"></i></span>
+    <h4 class="alert-heading">Post Created!</h4>
+    <p class="mb-0">Post ID: {{.ID}}</p>
+    <p class="mb-0">Post Slug: {{.Slug}}</p>
+    <p class="mb-0">Post Title: {{.Title}}</p>
+    <hr>
+    <a href="/blog/post/{{.Slug}}" class="btn btn-sm btn-success">Show Post</a>
+    <a href="/admin/post/edit/{{.ID}}" class="btn btn-sm btn-primary">Edit Post</a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>

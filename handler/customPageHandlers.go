@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"goxcms/model"
-	"math"
 	"strconv"
 	"strings"
 
@@ -70,15 +69,10 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 
 func SearchCustomPages(c *fiber.Ctx, db *gorm.DB) error {
 
-	page := c.Query("page", "1")
 	pageSize := 10 // Default page size
 	searchQuery := c.Query("query", "")
 
-	pageInt, err := strconv.Atoi(page)
-
-	if err != nil || pageInt < 1 {
-		pageInt = 1
-	}
+	pageInt := queryPage(c)
 
 	var custom_pages []model.CustomPage
 	db.Where("title LIKE ?", "%"+searchQuery+"%").
@@ -91,7 +85,7 @@ func SearchCustomPages(c *fiber.Ctx, db *gorm.DB) error {
 	db.Model(&model.CustomPage{}).
 		Where("title LIKE ?", "%"+searchQuery+"%").
 		Count(&count)
-	totalPages := int(math.Ceil(float64(count) / float64(pageSize)))
+	totalPages := pageCount(count, pageSize)
 
 	return c.Render("admin/table/custom-page-table", fiber.Map{
 		"CustomPages": custom_pages,
@@ -143,7 +137,7 @@ func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusInternalServerError).SendString(result.Error.Error())
 	}
 
-	return ShowToastError(c, "Custom Page Updated")
+	return ShowToast(c, "Custom Page Updated")
 }
 
 func DeleteCustomPage(c *fiber.Ctx, db *gorm.DB) error {
@@ -162,5 +156,5 @@ func DeleteCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusInternalServerError).SendString(result.Error.Error())
 	}
 
-	return ShowToastError(c, "Custom Page Deleted")
+	return ShowToast(c, "Custom Page Deleted")
 }

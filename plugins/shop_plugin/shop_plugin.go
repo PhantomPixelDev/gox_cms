@@ -2,14 +2,13 @@ package shop_plugin
 
 import (
 	"encoding/json"
-	"fmt"
 	handlers "goxcms/handler"
 	"goxcms/model"
 	"html/template"
+	"log"
 	"math/rand"
 	"regexp"
 	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
@@ -56,9 +55,9 @@ func (p *ShopPlugin) AddProduct(c *fiber.Ctx, db *gorm.DB) error {
 	var product Product
 
 	// Extract product data from the form
-	product.Name = sanitizeHTML(c.FormValue("name"))
+	product.Name = handlers.SanitizeText(c.FormValue("name"))
 	price, _ := strconv.Atoi(c.FormValue("price"))
-	product.Description = sanitizeHTML(c.FormValue("description"))
+	product.Description = handlers.SanitizeText(c.FormValue("description"))
 	product.Picture = c.FormValue("picture")
 	product.MorePictures = c.FormValue("more_pictures")
 	product.Price = uint(price)
@@ -67,8 +66,7 @@ func (p *ShopPlugin) AddProduct(c *fiber.Ctx, db *gorm.DB) error {
 	err := db.Create(&product).Error
 
 	if err != nil {
-		price := strconv.Itoa(price)
-		println("Error creating product", err.Error(), product.Name, price)
+		log.Printf("shop: creating product %q: %v", product.Name, err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid data",
 		})
@@ -77,44 +75,36 @@ func (p *ShopPlugin) AddProduct(c *fiber.Ctx, db *gorm.DB) error {
 	return c.Status(fiber.StatusCreated).SendString("Product created successfully")
 }
 
-func sanitizeHTML(input string) string {
-	// Remove any HTML tags and attributes
-	sanitized := regexp.MustCompile(`<[^>]*>`).ReplaceAllString(input, "")
-
-	// Replace special characters with their HTML entities
-	sanitized = template.HTMLEscapeString(sanitized)
-
-	return sanitized
-}
+var nonSlugChars = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
 func generateSlugFromProductName(productName string) string {
-	return regexp.MustCompile(`[^a-zA-Z0-9]+`).ReplaceAllString(productName, "-")
+	return nonSlugChars.ReplaceAllString(productName, "-")
 }
 
-func generateRandomProducts(db *gorm.DB) error {
-	rand.Seed(time.Now().UnixNano())
+// demoProductCount is how many placeholder products are seeded the first
+// time the shop plugin starts with an empty catalogue.
+const demoProductCount = 30
 
-	for i := 0; i < 30000; i++ {
-		println("Generating product ", i+1)
-		product := Product{
-			Name:              "Product " + strconv.Itoa(i+1),
-			Price:             uint(rand.Float64() * 100),
-			Description:       "Product " + strconv.Itoa(i+1) + " description",
+func generateRandomProducts(db *gorm.DB) error {
+	products := make([]Product, 0, demoProductCount)
+	for i := 1; i <= demoProductCount; i++ {
+		name := "Product " + strconv.Itoa(i)
+		products = append(products, Product{
+			Name:              name,
+			Price:             uint(rand.Intn(100)),
+			Description:       name + " description",
 			Status:            "pending",
-			ProductCategory:   ProductCategory{ID: 1},
-			Slug:              generateSlugFromProductName("Product " + strconv.Itoa(i+1)),
+			Slug:              generateSlugFromProductName(name),
 			ProductCategoryID: 1,
 			Picture:           "https://placehold.co/600x400/EEE/31343C",
 			MorePictures:      "https://placehold.co/600x400/EEE/31343C",
-		}
-		db.Create(&product)
+		})
 	}
 
-	return nil
+	return db.CreateInBatches(products, 100).Error
 }
 
 func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) error {
-	fmt.Println("ShopPlugin setup")
 
 	db.AutoMigrate(&Product{})
 	db.AutoMigrate(&ProductCategory{})
@@ -125,24 +115,16 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 	settings := plugin.Settings
 
 	if settings == "" {
-		println("Empty settings found, adding default settings")
 		defaultSettingsJSON, err := json.Marshal(p.DefaultSettings())
 		if err != nil {
-			fmt.Println("Error marshaling default settings:", err)
+			log.Printf("shop: marshaling default settings: %v", err)
 			return err
 		}
 
 		plugin.Settings = string(defaultSettingsJSON)
 		db.Save(&plugin)
-		println("Default settings added")
 	}
 
-	// break point here
-	for key, value := range p.Settings(db) {
-		println("Key: ", key, " Value: ", value)
-	}
-
-	println("ShopPlugin setup done" + settings)
 	// Check if product categories exist, if not, add an example category
 	var productCategories []ProductCategory
 	if err := db.Find(&productCategories).Error; err != nil {
@@ -222,14 +204,7 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 		if !p.Enabled(db) {
 			return c.Status(fiber.StatusNotFound).SendString("Plugin not enabled")
 		}
-		println("Updating settings ---- ")
 		/// print the form values to debug
-
-		println("Shop Name: ", c.FormValue("shop_name"))
-		println("Shop Description: ", c.FormValue("shop_description"))
-		println("Shop Address: ", c.FormValue("shop_address"))
-		println("Shop Phone: ", c.FormValue("shop_phone"))
-		println("Shop Email: ", c.FormValue("shop_email"))
 
 		shopName := c.FormValue("shop_name")
 		shopDescription := c.FormValue("shop_description")
@@ -275,16 +250,12 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 
 		if searchQuery == "" {
 			db.Model(&Product{}).Count(&totalProducts)
-			println("Total products: ", totalProducts)
 		} else {
 			/// convert to string and remove any special characters
-			searchQuery = sanitizeHTML(searchQuery)
-			println("Search query: ", searchQuery)
+			searchQuery = handlers.SanitizeText(searchQuery)
 			print("Search query: ", searchQuery)
 			db.Model(&Product{}).Where("name LIKE ?", "%"+searchQuery+"%").Count(&totalProducts)
 		}
-
-		println("Search query: ", searchQuery, " Page: ", pageInt)
 
 		totalPages := int(totalProducts / int64(limit))
 		if totalPages == 0 {
@@ -377,12 +348,10 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 		}, "main")
 	})
 
-	println("ShopPlugin setup done")
 	return nil
 }
 
 func (p *ShopPlugin) Teardown() error {
-	fmt.Println("ShopPlugin teardown")
 	return nil
 }
 
@@ -406,13 +375,12 @@ func (p *ShopPlugin) Settings(db *gorm.DB) map[string]string {
 	plugin := &model.Plugin{}
 	db.Where("name = ?", PluginName).First(plugin)
 
-	fmt.Println(PluginName, "settings:", plugin.Settings)
 	settings := plugin.Settings
 
 	if len(settings) == 0 {
 		defaultSettingsJSON, err := json.Marshal(p.DefaultSettings())
 		if err != nil {
-			fmt.Println("Error marshaling default settings:", err)
+			log.Printf("shop: marshaling default settings: %v", err)
 			return p.DefaultSettings()
 		}
 
@@ -425,7 +393,7 @@ func (p *ShopPlugin) Settings(db *gorm.DB) map[string]string {
 	mappedSettings := make(map[string]string)
 	err := json.Unmarshal([]byte(settings), &mappedSettings)
 	if err != nil {
-		fmt.Println("Error unmarshaling settings:", err)
+		log.Printf("shop: unmarshaling settings: %v", err)
 		return p.DefaultSettings()
 	}
 
@@ -435,6 +403,5 @@ func (p *ShopPlugin) Settings(db *gorm.DB) map[string]string {
 func (p *ShopPlugin) Enabled(db *gorm.DB) bool {
 	plugin := &model.Plugin{}
 	db.Where("name = ?", PluginName).First(plugin)
-	fmt.Println(PluginName, "enabled status:", plugin.Enabled)
 	return plugin.Enabled
 }

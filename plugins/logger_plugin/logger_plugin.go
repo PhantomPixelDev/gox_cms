@@ -1,20 +1,27 @@
 package logger_plugin
 
 import (
-	"fmt"
+	"goxcms/model"
+	"strconv"
 
 	"github.com/fatih/color"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
 	"gorm.io/gorm"
-	// import print color package
 )
 
+const (
+	PluginName = "LoggerPlugin"
+	Author     = "Ashba22"
+	Version    = "1.0"
+)
+
+// LoggerPlugin prints a coloured line per request. Add it to
+// plugin_system.PluginList and enable it from the admin panel to use it.
 type LoggerPlugin struct{}
 
-func (p *LoggerPlugin) Setup(app *fiber.App, db *gorm.DB) error {
-	fmt.Println("LoggerPlugin setup")
+func (p *LoggerPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) error {
 	app.Use(func(c *fiber.Ctx) error {
-		// Print in different colors for different log levels
 		color.Cyan("Path: %s", c.Path())
 		color.Green("Method: %s", c.Method())
 		color.Yellow("Connection: %s", c.Context().RemoteAddr())
@@ -28,22 +35,33 @@ func (p *LoggerPlugin) Setup(app *fiber.App, db *gorm.DB) error {
 }
 
 func (p *LoggerPlugin) Teardown() error {
-	fmt.Println("LoggerPlugin teardown")
 	return nil
 }
 
 func (p *LoggerPlugin) Name() string {
-	return "LoggerPlugin"
+	return PluginName
 }
 
 func (p *LoggerPlugin) Author() string {
-	return "Ashba22"
+	return Author
 }
 
 func (p *LoggerPlugin) Version() string {
-	return "1.0"
+	return Version
+}
+
+func (p *LoggerPlugin) DefaultSettings() map[string]string {
+	return map[string]string{}
+}
+
+func (p *LoggerPlugin) Settings(db *gorm.DB) map[string]string {
+	return map[string]string{
+		"Enabled": strconv.FormatBool(p.Enabled(db)),
+	}
 }
 
 func (p *LoggerPlugin) Enabled(db *gorm.DB) bool {
-	return true
+	plugin := &model.Plugin{}
+	db.Where("name = ?", PluginName).First(plugin)
+	return plugin.Enabled
 }

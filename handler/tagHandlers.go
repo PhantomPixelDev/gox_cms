@@ -7,8 +7,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"math"
-
 	"gorm.io/gorm"
 )
 
@@ -55,7 +53,7 @@ func BlogTagPage(c *fiber.Ctx, db *gorm.DB) error {
 		Where("post_tags.tag_id = ? AND posts.published = ?", tag.ID, true).
 		Count(&totalPosts)
 
-	totalPages := int(math.Ceil(float64(totalPosts) / float64(postsPerPage)))
+	totalPages := pageCount(totalPosts, postsPerPage)
 
 	if pageNumber > totalPages {
 		return c.Redirect("/blog/tag/" + slug + "/1")
@@ -85,14 +83,10 @@ func SearchTag(c *fiber.Ctx, db *gorm.DB) error {
 
 	var tags []model.Tag
 	searchQuery := c.Query("query")
-	page := c.Query("page", "1")
 	pageSize := 10 // Default page size
 
 	// Convert page string to int
-	pageInt, err := strconv.Atoi(page)
-	if err != nil || pageInt < 1 {
-		pageInt = 1
-	}
+	pageInt := queryPage(c)
 
 	// Search for tags with pagination
 	db.Where("name LIKE ?", "%"+searchQuery+"%").
@@ -116,7 +110,7 @@ func SearchTag(c *fiber.Ctx, db *gorm.DB) error {
 	db.Model(&model.Tag{}).
 		Where("name LIKE ?", "%"+searchQuery+"%").
 		Count(&totalMatchingCount)
-	totalPages := int(math.Ceil(float64(totalMatchingCount) / float64(pageSize)))
+	totalPages := pageCount(totalMatchingCount, pageSize)
 
 	return c.Render("admin/table/tag-table", fiber.Map{
 		"Tags":        tags,
@@ -175,5 +169,5 @@ func DeleteTag(c *fiber.Ctx, db *gorm.DB) error {
 		return ShowToastError(c, "Error deleting tag")
 	}
 
-	return ShowToastError(c, "Tag with ID "+id+" deleted successfully")
+	return ShowToast(c, "Tag with ID "+id+" deleted successfully")
 }

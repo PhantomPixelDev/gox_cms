@@ -18,9 +18,7 @@
             <td>{{ unescape (truncate .Content 200) }} </td>
             <td>{{.CreatedAt.Format "02 Jan 2006"}}</td>
             <td>
-                <button id="comment-status-button-{{.ID}}" class="btn btn-sm {{if eq .Status "approved"}}btn-secondary{{else}}btn-success{{end}}" hx-post="/toggle-comment-status/{{.ID}}" hx-target="#comment-status-button-{{.ID}}" hx-headers='{"X-No-Cache": "true"}' hx-confirm="Are you sure you want to change the status of this comment?" hx-swap="outerHTML">
-                    {{if eq .Status "approved"}}Unapprove{{else}}Approve{{end}}
-                </button>
+                {{template "partials/comment-status-button" .}}
             </td>
             <td>
                 <button class="btn btn-sm btn-danger" hx-delete="/delete-comment/{{.ID}}" hx-confirm="Are you sure you want to delete this comment?" hx-target="#comment-row-{{.ID}}" hx-swap="#comment-row-{{.ID}}">Delete</button>

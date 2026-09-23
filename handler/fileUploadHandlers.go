@@ -4,12 +4,10 @@ import (
 	"crypto/rand"
 	"goxcms/model"
 	"io"
-	"math"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -149,12 +147,8 @@ func DeleteFile(c *fiber.Ctx, db *gorm.DB) error {
 // SearchFiles searches for files based on a query and returns the results.
 func SearchFiles(c *fiber.Ctx, db *gorm.DB) error {
 	searchQuery := c.Query("query", "")
-	page := c.Query("page", "1")
 	// validate page number
-	pageInt, err := strconv.Atoi(page)
-	if err != nil || pageInt < 1 {
-		pageInt = 1
-	}
+	pageInt := queryPage(c)
 	pageSize := 20
 
 	var files []model.File
@@ -180,7 +174,7 @@ func SearchFiles(c *fiber.Ctx, db *gorm.DB) error {
 			Find(&files)
 	}
 
-	totalPages := int(math.Ceil(float64(totalMatchingCount) / float64(pageSize)))
+	totalPages := pageCount(totalMatchingCount, pageSize)
 
 	return c.Render("partials/file-manager", fiber.Map{
 		"Files":       files,

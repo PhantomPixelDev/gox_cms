@@ -20,7 +20,6 @@ const (
 )
 
 func (p *LatestPostsPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) error {
-	fmt.Println("LatestPosts Plugin setup")
 	app.Get("/latest_posts_plugin", func(c *fiber.Ctx) error {
 		/// if plugin is not enabled return 404
 		if !p.Enabled(db) {
@@ -63,7 +62,6 @@ func (p *LatestPostsPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engi
 }
 
 func (p *LatestPostsPlugin) Teardown() error {
-	fmt.Println("LatestPostsPlugin teardown")
 	return nil
 }
 
@@ -94,6 +92,5 @@ func (p *LatestPostsPlugin) Enabled(db *gorm.DB) bool {
 	/// get status from database
 	plugin := &model.Plugin{}
 	db.Where("name = ?", PluginName).First(plugin)
-	fmt.Println(PluginName, "enabled status:", plugin.Enabled)
 	return plugin.Enabled
 }
