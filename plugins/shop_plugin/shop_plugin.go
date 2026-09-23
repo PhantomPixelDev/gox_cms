@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	handlers "goxcms/handler"
 	"goxcms/model"
-	"html/template"
 	"log"
 	"math/rand"
 	"regexp"
@@ -339,8 +338,6 @@ func (p *ShopPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engine) err
 			return c.Status(fiber.StatusNotFound).SendString("Product not found")
 		}
 
-		htmlMessage := template.HTML("<div class='alert alert-success'>Product</div>")
-		htmlMessage += template.HTML("<div class='alert alert-info'>Your product</div>")
 		return c.Render("plugins/shop_plugin/product", fiber.Map{
 			"Title":    "Product",
 			"Product":  product,
