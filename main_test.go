@@ -4,6 +4,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -224,5 +226,98 @@ func TestUnpublishedPostIs404ForAnonymous(t *testing.T) {
 	// The server must still be serving requests afterwards.
 	if resp, _ := do(t, app, "GET", "/"); resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("GET / after draft request: got status %d", resp.StatusCode)
+	}
+}
+
+// csrfCookie fetches a page to obtain the CSRF cookie that unsafe requests
+// must echo back in the X-Csrf-Token header.
+func csrfCookie(t *testing.T, app *fiber.App, cookies ...*http.Cookie) *http.Cookie {
+	t.Helper()
+	req := httptest.NewRequest("GET", "/login", nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range resp.Cookies() {
+		if c.Name == "csrf_" {
+			return c
+		}
+	}
+	t.Fatal("no csrf_ cookie set on GET /login")
+	return nil
+}
+
+func postForm(t *testing.T, app *fiber.App, path string, form url.Values, csrf *http.Cookie, cookies ...*http.Cookie) (*http.Response, string) {
+	t.Helper()
+	req := httptest.NewRequest("POST", path, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	if csrf != nil {
+		req.AddCookie(csrf)
+		req.Header.Set("X-Csrf-Token", csrf.Value)
+	}
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	return resp, string(body)
+}
+
+func TestCSRFTokenRequiredForUnsafeRequests(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	post := model.Post{Title: "Hello", Content: "world", Slug: "hello"}
+	if err := db.Create(&post).Error; err != nil {
+		t.Fatal(err)
+	}
+	form := url.Values{"id": {strconv.Itoa(int(post.ID))}}
+
+	if resp, _ := postForm(t, app, "/toggle-post-status", form, nil, auth); resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("POST without CSRF token: got status %d, want 403", resp.StatusCode)
+	}
+
+	token := csrfCookie(t, app, auth)
+	if resp, _ := postForm(t, app, "/toggle-post-status", form, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("POST with CSRF token: got status %d, want 200", resp.StatusCode)
+	}
+
+	db.First(&post, post.ID)
+	if !post.Published {
+		t.Fatal("post was not published")
+	}
+}
+
+func TestLoginSetsSessionCookie(t *testing.T) {
+	app, db := newTestApp(t)
+	createUser(t, db, "alice", model.RoleUser)
+	token := csrfCookie(t, app)
+
+	resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token)
+	if resp.StatusCode != fiber.StatusOK || resp.Header.Get("HX-Redirect") != "/" {
+		t.Fatalf("login: got status %d, HX-Redirect %q", resp.StatusCode, resp.Header.Get("HX-Redirect"))
+	}
+
+	var jwtCookie *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "jwt" {
+			jwtCookie = c
+		}
+	}
+	if jwtCookie == nil || !jwtCookie.HttpOnly {
+		t.Fatalf("login did not set an HttpOnly jwt cookie: %+v", jwtCookie)
+	}
+
+	resp, _ = postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"wrong"}}, token)
+	if resp.StatusCode != fiber.StatusUnauthorized {
+		t.Fatalf("login with wrong password: got status %d, want 401", resp.StatusCode)
 	}
 }

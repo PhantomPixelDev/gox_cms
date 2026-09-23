@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"goxcms/model"
+	"goxcms/utils"
 	"strings"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -131,17 +131,11 @@ func SetJWTTokenCookie(c *fiber.Ctx, tokenString string) {
 	cookie.Name = "jwt"
 	cookie.Value = tokenString
 	cookie.HTTPOnly = true
-	cookie.Secure = secureCookies()
+	cookie.Secure = utils.SecureCookies()
 	cookie.SameSite = "Lax"
 	cookie.Path = "/"
 	cookie.Expires = time.Now().Add(jwtLifetime)
 	c.Cookie(cookie)
-}
-
-// secureCookies reports whether cookies should carry the Secure flag, which is
-// the case whenever the site is served over HTTPS.
-func secureCookies() bool {
-	return strings.HasPrefix(viper.GetString("app.url"), "https://")
 }
 
 func Login(db *gorm.DB, store *session.Store) fiber.Handler {
@@ -212,31 +206,14 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 
 		SetJWTTokenCookie(c, tokenString)
 
-		/// csrf token generation
-		csrfToken := GenerateCSRFToken()
-
-		cookie := new(fiber.Cookie)
-		cookie.Name = "csrf"
-		cookie.Value = csrfToken
-		cookie.HTTPOnly = true
-		cookie.SameSite = "Lax"
-		cookie.Path = "/"
-		c.Cookie(cookie)
-
 		c.Locals("user", user)
 		c.Locals("isLoggedin", true)
 		c.Locals("isAdmin", user.RoleID == model.RoleAdmin)
-		c.Locals("csrf", csrfToken)
 
 		c.Set("HX-Redirect", "/")
 		c.Status(fiber.StatusOK).SendString("Logged in successfully" + user.Username)
 		return nil
 	}
-}
-
-func GenerateCSRFToken() string {
-	uuid := uuid.New()
-	return uuid.String()
 }
 
 func Logout(c *fiber.Ctx) error {
@@ -248,22 +225,13 @@ func Logout(c *fiber.Ctx) error {
 	cookie.Value = ""
 	cookie.Expires = time.Now().Add(-1 * time.Hour)
 	cookie.HTTPOnly = true
+	cookie.Path = "/"
 
-	/// remove the csrf cookie as well
-	csrfCookie := new(fiber.Cookie)
-	csrfCookie.Name = "csrf"
-	csrfCookie.Value = ""
-	csrfCookie.Expires = time.Now().Add(-1 * time.Hour)
-	csrfCookie.HTTPOnly = true
-
-	c.Cookie(csrfCookie)
 	c.Cookie(cookie)
 	c.Locals("user", nil)
 	c.Locals("isLoggedin", false)
 	c.Locals("isAdmin", false)
 	c.Locals("session", nil)
-	c.Locals("csrf", nil)
-	// remove the csrf cookie
 
 	c.Set("HX-Redirect", "/")
 

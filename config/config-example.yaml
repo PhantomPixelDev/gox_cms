@@ -8,7 +8,10 @@ server:
   host: "127.0.0.1"
   port: 3000
   prefork: true
-  body_limit: 50000
+  body_limit: 50
+  # IPs/CIDRs of reverse proxies allowed to set X-Forwarded-For. Leave empty
+  # when the app is reached directly.
+  trusted_proxies: []
 build:
   mode: production
 app:
@@ -35,7 +38,9 @@ redis:
   min_idle_conns: 10
   max_conn_age: 0
 cors:
-  allowed_origins: ["http://localhost:3000", "https://localhost:3000"]
+  # Defaults to app.url when empty.
+  allowed_origins: ["http://localhost:3000"]
+  allow_credentials: false
 ratelimiter:
   enabled: true
   max_requests: 100
