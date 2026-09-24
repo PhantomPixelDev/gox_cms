@@ -2,6 +2,8 @@ module goxcms
 
 go 1.26.0
 
+toolchain go1.26.8
+
 require (
 	github.com/fatih/color v1.19.0
 	github.com/go-playground/validator/v10 v10.30.5
@@ -29,7 +31,7 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gofiber/template v1.8.3 // indirect
-	github.com/gofiber/utils v1.1.0 // indirect
+	github.com/gofiber/utils v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
