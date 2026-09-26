@@ -90,6 +90,7 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 	app.Use(csrf.New(csrf.Config{
 		KeyLookup:      "header:" + csrf.HeaderName,
 		CookieName:     "csrf_",
+		CookiePath:     "/",
 		CookieSameSite: "Lax",
 		CookieSecure:   utils.SecureCookies(),
 		Expiration:     24 * time.Hour,
