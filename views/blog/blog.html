@@ -1,7 +1,7 @@
 <div class="row">
     {{range .Posts}}
     <div class="col-sm-12 col-md-6 col-lg-6 mb-4"> 
-        <div class="card mb-4 shadow-lg rounded-3 h-100 d-flex flex-row">
+        <div class="card mb-4 shadow-sm h-100 d-flex flex-row">
             <!-- Image Container -->
             <div class="image-container" style="flex: 0 0 33%; background-image: url('{{if .ImageURL}}{{.ImageURL}}{{else}}https://picsum.photos/seed/picsum/1200/600{{end}}'); background-size: cover; background-position: center; border-top-left-radius: .3rem; border-bottom-left-radius: .3rem;">
               <!-- Intentionally left blank to use as a background image container -->

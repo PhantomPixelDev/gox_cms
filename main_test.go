@@ -433,6 +433,20 @@ func TestCustomPagesAreServedWithoutRestart(t *testing.T) {
 	}
 }
 
+func TestHomepageLeaksNoCredentials(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	resp, body := do(t, app, "GET", "/")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("GET /: got status %d", resp.StatusCode)
+	}
+	for _, bad := range []string{"admin1234", "admin_password", "Password:"} {
+		if strings.Contains(body, bad) {
+			t.Errorf("homepage contains %q", bad)
+		}
+	}
+}
+
 func TestSitemap(t *testing.T) {
 	app, db := newTestApp(t)
 	db.Create(&model.Post{Title: "Live", Content: "x", Slug: "live", Published: true})
