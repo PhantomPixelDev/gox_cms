@@ -1,0 +1,12 @@
+.git
+.github
+data/*.sqlite
+static/uploads/*
+static/sitemap.xml
+config/config.yaml
+tmp/
+*.test
+*.out
+go.work
+.vscode/
+.DS_Store

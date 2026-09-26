@@ -1,0 +1,27 @@
+# GoX CMS — local/dev compose. Port 4120 matches apps.registry.json
+# (portfolio-hosting-zap). On the VPS an override file drops the host port
+# and joins the `edge` network (see portfolio-hosting-zap/apps/gox-cms-dev/).
+#
+#   GOX_SECRET=$(openssl rand -hex 32) docker compose up -d --build
+#
+# Open http://localhost:4120. First start prints the admin password to the log
+# unless ADMIN_PASSWORD is set (see `docker compose logs app`).
+
+services:
+  app:
+    build: .
+    image: gox-cms:local
+    ports:
+      - "${GOX_PORT:-4120}:3000"
+    environment:
+      APP_URL: "${APP_URL:-http://localhost:4120}"
+      GOX_SECRET: "${GOX_SECRET:-}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+    volumes:
+      - gox-data:/app/data
+      - gox-uploads:/app/static/uploads
+    restart: unless-stopped
+
+volumes:
+  gox-data:
+  gox-uploads:

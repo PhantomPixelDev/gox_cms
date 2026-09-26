@@ -35,6 +35,26 @@ On first start an `admin` account is created. Its password comes from the `ADMIN
 - `make lint` runs gofmt, `go vet` and staticcheck, the same checks as CI.
 - `make fmt` formats the code.
 
+## Docker
+
+Requires a `GOX_SECRET` (signs login tokens):
+
+```bash
+GOX_SECRET=$(openssl rand -hex 32) docker compose up -d --build
+```
+
+Open http://localhost:4120 (override with `GOX_PORT`). SQLite data and uploads
+persist in the `gox-data` / `gox-uploads` volumes; first start writes
+`config/config.yaml` inside the container (kept on redeploys). Set
+`ADMIN_PASSWORD` to choose the initial admin password, otherwise a random one
+is printed once in `docker compose logs app`.
+
+Run the test suite in Docker (no local Go needed):
+
+```bash
+docker build --target test .
+```
+
 ### Configuration notes
 
 - `app.url`: set it to the public URL. Cookies are marked `Secure` when it starts with `https://`, and it is used for the sitemap and as the default CORS origin.
