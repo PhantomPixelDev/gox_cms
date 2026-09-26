@@ -412,12 +412,12 @@ func TestCustomPagesAreServedWithoutRestart(t *testing.T) {
 	auth := authCookie(t, admin.ID)
 	token := csrfCookie(t, app, auth)
 
-	form := url.Values{"title": {"About"}, "content": {"<p>About us</p>"}, "slug": {"about"}, "template": {"page"}}
+	form := url.Values{"title": {"Contact"}, "content": {"<p>Contact us</p>"}, "slug": {"contact"}, "template": {"page"}}
 	postForm(t, app, "/add-custompage", form, token, auth)
 
-	resp, body := do(t, app, "GET", "/about")
-	if resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "About us") {
-		t.Fatalf("GET /about: got status %d", resp.StatusCode)
+	resp, body := do(t, app, "GET", "/contact")
+	if resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "Contact us") {
+		t.Fatalf("GET /contact: got status %d", resp.StatusCode)
 	}
 
 	form = url.Values{"title": {"Evil"}, "content": {"x"}, "slug": {"evil"}, "template": {"../admin/admin"}}
@@ -430,6 +430,40 @@ func TestCustomPagesAreServedWithoutRestart(t *testing.T) {
 
 	if resp, _ := do(t, app, "GET", "/does-not-exist"); resp.StatusCode != fiber.StatusNotFound {
 		t.Fatalf("unknown path: got status %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestSeedDemoContent(t *testing.T) {
+	app, db := newTestApp(t)
+
+	var posts int64
+	db.Model(&model.Post{}).Where("published = ?", true).Count(&posts)
+	if posts < 3 {
+		t.Errorf("seeded published posts = %d, want >= 3", posts)
+	}
+
+	var menu model.Menu
+	if err := db.Preload("MenuItems").Where("is_primary = ?", true).First(&menu).Error; err != nil {
+		t.Fatalf("no primary menu seeded: %v", err)
+	}
+	if len(menu.MenuItems) < 3 {
+		t.Errorf("primary menu items = %d, want >= 3", len(menu.MenuItems))
+	}
+
+	var files int64
+	db.Model(&model.File{}).Count(&files)
+	if files < 3 {
+		t.Errorf("seeded files = %d, want >= 3", files)
+	}
+
+	// Seeded pages are live without restart.
+	if resp, body := do(t, app, "GET", "/about"); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "custom page") {
+		t.Errorf("GET /about: got status %d", resp.StatusCode)
+	}
+
+	// Seeded posts render with their images.
+	if resp, body := do(t, app, "GET", "/blog/post/welcome-to-gox-cms"); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "/static/uploads/seed-1.jpg") {
+		t.Errorf("GET seeded post: got status %d", resp.StatusCode)
 	}
 }
 

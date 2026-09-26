@@ -308,27 +308,25 @@ func CreateBasicWebsiteInfo(db *gorm.DB) {
 			log.Fatalf("Failed to create BasicWebsiteInfo: %v", result.Error)
 		}
 		log.Println("Basic website info created successfully")
-		return
-	}
-
-	// Self-heal rows created before a default existed: an empty container
-	// class stretches the whole site full-width, an empty theme breaks the
-	// stylesheet link.
-	var existing model.BasicWebsiteInfo
-	if err := db.First(&existing).Error; err != nil {
-		return
-	}
-	updates := map[string]interface{}{}
-	if strings.TrimSpace(existing.ContainerClass) == "" {
-		updates["container_class"] = "container"
-	}
-	if strings.TrimSpace(existing.Theme) == "" {
-		updates["theme"] = "flatly"
-		updates["selected_theme"] = "flatly"
-	}
-	if len(updates) > 0 {
-		db.Model(&model.BasicWebsiteInfo{}).Where("id = ?", existing.ID).Updates(updates)
-		log.Println("Basic website info normalized (empty theme/container filled in)")
+	} else {
+		// Self-heal rows created before a default existed: an empty container
+		// class stretches the whole site full-width, an empty theme breaks the
+		// stylesheet link.
+		var existing model.BasicWebsiteInfo
+		if err := db.First(&existing).Error; err == nil {
+			updates := map[string]interface{}{}
+			if strings.TrimSpace(existing.ContainerClass) == "" {
+				updates["container_class"] = "container"
+			}
+			if strings.TrimSpace(existing.Theme) == "" {
+				updates["theme"] = "flatly"
+				updates["selected_theme"] = "flatly"
+			}
+			if len(updates) > 0 {
+				db.Model(&model.BasicWebsiteInfo{}).Where("id = ?", existing.ID).Updates(updates)
+				log.Println("Basic website info normalized (empty theme/container filled in)")
+			}
+		}
 	}
 
 	createDefaultAdminUser(db)

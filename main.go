@@ -123,6 +123,7 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 	})
 
 	utils.CreateBasicWebsiteInfo(db)
+	handlers.SeedDemoContent(db)
 
 	return app
 }
