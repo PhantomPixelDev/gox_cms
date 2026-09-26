@@ -467,6 +467,54 @@ func TestSeedDemoContent(t *testing.T) {
 	}
 }
 
+func TestMenuBuilderFlow(t *testing.T) {
+	app, db := newTestApp(t)
+	// Fresh test apps seed a primary menu; start clean for this flow.
+	db.Exec("DELETE FROM menu_items")
+	db.Exec("DELETE FROM menus")
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	// New menus land at the end without a position number.
+	if resp, _ := postForm(t, app, "/add-menu", url.Values{"menu_title": {"Main"}}, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("add menu: got status %d", resp.StatusCode)
+	}
+	var menu model.Menu
+	if err := db.Where("title = ?", "Main").First(&menu).Error; err != nil {
+		t.Fatalf("menu not created: %v", err)
+	}
+
+	addItem := func(title, link string) {
+		t.Helper()
+		form := url.Values{"menu_item_title": {title}, "menu_item_link": {link}, "menu_item_menu": {strconv.Itoa(int(menu.ID))}}
+		if resp, _ := postForm(t, app, "/add-menu-item", form, token, auth); resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("add item %q: got status %d", title, resp.StatusCode)
+		}
+	}
+	addItem("Alpha", "/alpha")
+	addItem("Beta", "/beta")
+
+	// Missing title is a 400, not a 500.
+	bad := url.Values{"menu_item_title": {""}, "menu_item_link": {"/x"}, "menu_item_menu": {strconv.Itoa(int(menu.ID))}}
+	if resp, _ := postForm(t, app, "/add-menu-item", bad, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("invalid item: got status %d, want 400", resp.StatusCode)
+	}
+
+	// Move Beta above Alpha.
+	var beta model.MenuItem
+	db.Where("title = ?", "Beta").First(&beta)
+	movePath := "/move-menu-item/" + strconv.Itoa(int(beta.ID)) + "/up"
+	if resp, _ := postForm(t, app, movePath, url.Values{}, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("move item: got status %d", resp.StatusCode)
+	}
+	var items []model.MenuItem
+	db.Where("menu_id = ?", menu.ID).Order("position ASC").Find(&items)
+	if len(items) != 2 || items[0].Title != "Beta" || items[1].Title != "Alpha" {
+		t.Fatalf("wrong order after move: %+v", items)
+	}
+}
+
 func TestHomepageLeaksNoCredentials(t *testing.T) {
 	app, _ := newTestApp(t)
 

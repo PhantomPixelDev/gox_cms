@@ -96,9 +96,25 @@ func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 		"TimeZone":       settings.TimeZone,
 		"SelectedTheme":  settings.SelectedTheme,
 		"ContainerClass": settings.ContainerClass,
+		"NavbarClass":    navbarClassForTheme(settings.Theme),
 		"CaptchaEnabled": strconv.FormatBool(viper.GetBool("captcha.enabled")),
 		"CaptchaSiteKey": viper.GetString("captcha.public_key"),
 	}
+}
+
+// darkBootswatchThemes need a dark navbar for readable contrast; every other
+// theme gets the light navbar.
+var darkBootswatchThemes = map[string]bool{
+	"cyborg": true, "darkly": true, "slate": true,
+	"solar": true, "superhero": true, "vapor": true,
+}
+
+// navbarClassForTheme maps a Bootswatch theme name to navbar color classes.
+func navbarClassForTheme(theme string) string {
+	if darkBootswatchThemes[theme] {
+		return "navbar-dark bg-dark"
+	}
+	return "navbar-light bg-light"
 }
 
 // settingsTTL bounds how stale cached settings can get in another process

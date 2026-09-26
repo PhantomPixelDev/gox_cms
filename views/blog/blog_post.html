@@ -1,84 +1,62 @@
-<div class="col-md-12">
-    <!-- if Is Admin SHOW EDIT BUTTON -->
+<article class="post-article">
     {{if .IsAdmin}}
-    <div class="container">
-        <div class="row">
-            <div class="col-md-12">
-                <p class="text-muted">Admin Actions:</p>
-                <a href="/admin/post/edit/{{.Post.ID}}" class="btn btn-primary">Edit Post</a>
-                <hr>
-            </div>
-        </div>
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <span class="text-muted small">Admin Actions:</span>
+        <a href="/admin/post/edit/{{.Post.ID}}" class="btn btn-sm btn-outline-primary">Edit Post</a>
     </div>
     {{end}}
 
-    <div class="container">
-        <div class="row">
-            <div class="col-md-12">
-                <img src="{{.Post.ImageURL}}" class="post-featured-image" alt="{{.Title}}">
-                <h1 class="display-4">{{.Title}}</h1>
-            </div>
-        </div>
+    <header class="mb-4">
+        <h1 class="post-title">{{.Title}}</h1>
+        <p class="text-muted small mb-0">{{.CreatedAt.Format "02 Jan 2006"}}</p>
+    </header>
+
+    {{if .Post.ImageURL}}
+    <img src="{{.Post.ImageURL}}" class="post-featured-image" alt="{{.Post.Title}}" loading="lazy">
+    {{end}}
+
+    <div class="post-content">
+        {{.Content}}
     </div>
 
-   
-<hr class="my-4">
-
-
-    <div class="container">
-        <div class="row">
-            <div class="col-md-12">
-                <div style="max-width: 100%; overflow-wrap: break-word;">
-                    {{.Content}}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="container">
-
-        <p class="lead">{{.CreatedAt.Format "02 Jan 2006"}}</p>
-
+    <footer class="d-flex flex-wrap gap-2 align-items-center mt-4">
         {{if .Tags}}
-        <p class="text-muted">Tags:
-            {{range .Tags}}
-            <a href="/blog/tag/{{.Slug}}" class="badge bg-primary ">{{.Name}}</a>
-            {{end}}
-        </p>
+        {{range .Tags}}
+        <a href="/blog/tag/{{.Slug}}" class="badge rounded-pill border border-primary text-primary text-decoration-none">{{.Name}}</a>
+        {{end}}
         {{end}}
 
         {{if .Categories}}
-        <p class="text-muted">Categories:
-            {{range .Categories}}
-            <a href="/blog/category/{{.Slug}}" class="badge bg-primary ">{{.Name}}</a>
-            {{end}}
-        </p>
+        {{range .Categories}}
+        <a href="/blog/category/{{.Slug}}" class="badge rounded-pill text-bg-secondary text-decoration-none">{{.Name}}</a>
         {{end}}
-    </div>
+        {{end}}
+    </footer>
+</article>
 
+<hr class="my-4">
 
-</div>
-
-<div class="container">
+<div class="post-comments">
     <div class="row">
-        <div class="col-md-12">
-            <h2 class="display-4">Comments</h2>
+        <div class="col-12">
+            <h2 class="h4">Comments</h2>
             <hr>
         </div>
 
-        <!--- Show A FORM to post a comment if the user is logged in -->
         {{if .IsLoggedIn }}
 
-        <div class="col-md-12 mb-3 shadow p-3 rounded" id="comment-form"> 
-            <form hx-post="/add-comment" hx-headers='{"X-No-Cache": "true"}' hx-swap="outerHTML" hx-target="#comment-form"> 
+        <div class="col-12 mb-3 shadow-sm p-3 rounded" id="comment-form">
+            <form hx-post="/add-comment" hx-headers='{"X-No-Cache": "true"}' hx-swap="outerHTML" hx-target="#comment-form">
                 <div class="mb-3">
                     <label for="comment" class="form-label">Comment:</label>
-                    <textarea class="form-control" id="comment" name="comment" rows="3" required></textarea>
+                    <textarea class="form-control" id="comment" name="comment" rows="3" required maxlength="2000"
+                        aria-describedby="comment-hint"></textarea>
+                    <div id="comment-hint" class="form-text">Be kind. Comments appear after approval.</div>
                     <input type="hidden" name="post_id" value="{{.Post.ID}}">
                     <input type="hidden" name="user_id" value="{{.UserID}}">
                 </div>
                 {{ if eq .Settings.CaptchaEnabled "true" }}
-                    <div class="h-captcha" data-sitekey="{{.Settings.CaptchaSiteKey}}"></div>
+                    <div class="h-captcha mb-3" data-sitekey="{{.Settings.CaptchaSiteKey}}"></div>
                 {{ end }}
                 <button type="submit" class="btn btn-primary">Post Comment</button>
             </form>
@@ -86,7 +64,7 @@
 
         {{else}}
 
-        <div class="col-md-12 mb-3">
+        <div class="col-12 mb-3">
             <div class="alert alert-info" role="alert">
                 Please <a href="/login">login</a> to post a comment.
             </div>
@@ -98,24 +76,22 @@
 
         {{if .Comments}}
         {{range .Comments}}
-        <div class="comments-container" id="comments-container">
-            <div class="col-md-12 mb-3">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title">{{.User.Username }}</h5>
-                        <p class="card-text">{{ unescape .Content }}</p>
-                        <p class="card-text"><small class="text-muted">{{.CreatedAt.Format "02 Jan 2006"}}</small></p>
-                    </div>
+        <div class="col-12 mb-3" id="comment-{{.ID}}">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title h6">{{.User.Username }}</h5>
+                    <p class="card-text">{{ unescape .Content }}</p>
+                    <p class="card-text"><small class="text-muted">{{.CreatedAt.Format "02 Jan 2006"}}</small></p>
                 </div>
             </div>
         </div>
         {{end}}
         {{else}}
-        <div class="col-md-12">
+        <div class="col-12">
             <div class="alert alert-info" role="alert">
                 No comments found.
             </div>
         </div>
         {{end}}
     </div>
-</div> 
+</div>

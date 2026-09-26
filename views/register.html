@@ -1,22 +1,23 @@
-<div class="wrapper col-12 col-sm-8 col-md-6 col-lg-4 mx-auto p-4">
+<div class="wrapper col-12 col-sm-8 col-md-6 col-lg-4 mx-auto p-4 my-5">
     <div class="card shadow-sm">
         <div class="card-body">
 
 <h1 class="h3">Register</h1>
-<div id="login-error" class="text-danger"></div>
+<div id="register-error" class="text-danger" role="alert" aria-live="polite"></div>
 <hr>    
 <!-- Registration Form -->
-<form id="registration-form" hx-post="/register" hx-target="#login-error" hx-swap="innerHTML" enctype="application/x-www-form-urlencoded">
+<form id="registration-form" hx-post="/register" hx-target="#register-error" hx-swap="innerHTML" enctype="application/x-www-form-urlencoded" hx-disabled-elt="find button[type=submit]">
     <!-- Input fields for registration -->
 
     <div class="mb-3">
         <label for="username" class="form-label">Username:</label>
-        <input type="text" class="form-control" id="username" name="username" required>
+        <input type="text" class="form-control" id="username" name="username" required autocomplete="username">
     </div>
 
     <div class="mb-3">
         <label for="password" class="form-label">Password:</label>
-        <input type="password" class="form-control" id="password" name="password" required>
+        <input type="password" class="form-control" id="password" name="password" required minlength="6" autocomplete="new-password" aria-describedby="password-hint">
+        <div id="password-hint" class="form-text">At least 6 characters.</div>
     </div>
 
     <div class="mb-3">
@@ -35,9 +36,9 @@
     </div>
 
     {{ if eq .Settings.CaptchaEnabled "true" }}
-         <div class="h-captcha" data-sitekey="{{.Settings.CaptchaSiteKey}}"></div>
+         <div class="h-captcha mb-3" data-sitekey="{{.Settings.CaptchaSiteKey}}"></div>
     {{ end }}
-    <button type="submit" class="btn btn-primary">
+    <button type="submit" class="btn btn-primary w-100 py-2">
         Register
     </button>
     

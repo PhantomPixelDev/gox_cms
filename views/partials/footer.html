@@ -1,20 +1,28 @@
 <!-- create a bootstrap 5 footer -->
-<footer class="border-top border-light p-3" style="margin-top: 20px; padding-top: 10px;">
-
+<footer class="border-top mt-5 py-4">
     <div class="{{ .Settings.ContainerClass }}">
-
-        <div class="row">
-
-            <div class="col-md-12">
-
-                <p>{{ if .Settings.FooterText }}{{ .Settings.FooterText }}{{ else }}&copy; {{ .Settings.Name }}{{ end }}</p>
-
-                <p>Powered by <a href="https://golang.org/">Golang</a> and <a href="https://htmx.org/">HTMX</a></p>
-
+        <div class="row g-4">
+            <div class="col-12 col-md-5">
+                <p class="mb-1"><strong>{{ .Settings.Name }}</strong></p>
+                <p class="text-muted small mb-0">{{ if .Settings.FooterText }}{{ .Settings.FooterText }}{{ else }}&copy; {{ year }} {{ .Settings.Name }}. All rights reserved.{{ end }}</p>
             </div>
-
+            <div class="col-6 col-md-4">
+                <p class="mb-2"><strong>Explore</strong></p>
+                <ul class="list-unstyled mb-0">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/blog">Blog</a></li>
+                    <li><a href="/login">Login</a></li>
+                </ul>
+            </div>
+            <div class="col-6 col-md-3">
+                <p class="mb-2"><strong>Elsewhere</strong></p>
+                <ul class="list-unstyled mb-0">
+                    {{ if .Settings.FacebookURL }}<li><a href="{{ .Settings.FacebookURL }}" rel="noopener" target="_blank">Facebook</a></li>{{ end }}
+                    {{ if .Settings.TwitterURL }}<li><a href="{{ .Settings.TwitterURL }}" rel="noopener" target="_blank">Twitter</a></li>{{ end }}
+                    {{ if .Settings.LinkedInURL }}<li><a href="{{ .Settings.LinkedInURL }}" rel="noopener" target="_blank">LinkedIn</a></li>{{ end }}
+                </ul>
+                <p class="text-muted small mt-3 mb-0">Powered by <a href="https://golang.org/">Golang</a> and <a href="https://htmx.org/">HTMX</a></p>
+            </div>
         </div>
-
     </div>
-
 </footer>

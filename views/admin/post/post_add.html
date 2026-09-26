@@ -7,8 +7,8 @@
 
 
 <div class="container">
-    <div class="row mb-3 shadow">
-        <div class="col-7">
+    <div class="row g-4 mb-3 shadow rounded p-2">
+        <div class="col-12 col-lg-8">
             <form hx-post="/admin/post/add" hx-target="#result">
                 <!-- Title Field -->
                 <div class="mb-3">
@@ -35,7 +35,7 @@
                 </div>
     
                 <!-- Submit Button... -->
-                <button type="submit" class="btn btn-primary">Edit Post</button>
+                <button type="submit" class="btn btn-primary">Create Post</button>
     
                 <!-- Result... -->
                 <div id="result"></div>
@@ -43,75 +43,22 @@
     
     
         </div>
-        <div class="col-3 offset-1">
-    
+        <div class="col-12 col-lg-4">
+
             <!-- Image Field -->
             <div class="mb-3">
-    
+
                 <label for="image" class="form-label">Image:</label>
-    
+
                 <input type="text" id="image" name="image" class="form-control" placeholder="Image Link" required>
+                <img id="image-preview" class="img-fluid rounded mt-2 d-none" alt="Image preview">
+                <div class="mt-2">
                 <!--- add button to open a dialog with partial file manager! -->
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal" id="upload-btn"
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exampleModal" id="upload-btn"
                 hx-trigger="click" hx-get="/search-files" hx-target="#file-list-conatiner">Open File Manager</button>
-    
+                </div>
+
             </div>
-    
-    
-    
-            <script>
-                document.addEventListener("DOMContentLoaded", function () {
-                    const uploadBtn = document.getElementById("upload-btn");
-                    const imageInput = document.getElementById("image_up");
-                    const imagePreview = document.getElementById("image-preview");
-                    const imageLinkInput = document.getElementById("image-link");
-    
-                    uploadBtn.addEventListener("click", function () {
-                        imageInput.click();
-                    });
-    
-                    imageInput.addEventListener("change", function () {
-                        const file = imageInput.files[0];
-                        const reader = new FileReader();
-    
-                        reader.onload = function (e) {
-                            const img = document.createElement("img");
-                            img.src = e.target.result;
-                            img.classList.add("img-fluid");
-                            imagePreview.innerHTML = "";
-                            imagePreview.appendChild(img);
-                        };
-    
-                        reader.readAsDataURL(file);
-                    });
-                });
-    
-                document.getElementById("exampleModal").addEventListener("shown.bs.modal", function () {
-                    const uploadBtn = document.getElementById("upload-btn");
-                    const imageInput = document.getElementById("image_up");
-                    const imagePreview = document.getElementById("image-preview");
-                    const imageLinkInput = document.getElementById("image-link");
-    
-                    uploadBtn.addEventListener("click", function () {
-                        imageInput.click();
-                    });
-    
-                    imageInput.addEventListener("change", function () {
-                        const file = imageInput.files[0];
-                        const reader = new FileReader();
-    
-                        reader.onload = function (e) {
-                            const img = document.createElement("img");
-                            img.src = e.target.result;
-                            img.classList.add("img-fluid");
-                            imagePreview.innerHTML = "";
-                            imagePreview.appendChild(img);
-                        };
-    
-                        reader.readAsDataURL(file);
-                    });
-                });
-            </script>
     
     
     
@@ -261,31 +208,43 @@
 </script>
 
 <script>
+    // Auto-slug from the title until the user edits the slug by hand.
+    (function () {
+        var title = document.getElementById('title');
+        var slug = document.getElementById('post_slug');
+        var touched = false;
+        if (!title || !slug) {
+            return;
+        }
+        slug.addEventListener('input', function () {
+            touched = true;
+        });
+        title.addEventListener('input', function () {
+            if (touched) {
+                return;
+            }
+            slug.value = title.value.toLowerCase().trim()
+                .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        });
+    })();
 
-    var myModal = document.getElementById('myModal')
-    var myInput = document.getElementById('myInput')
-
-    myModal.addEventListener('shown.bs.modal', function () {
-        myInput.focus()
-    })
-
-
-</script>
-<script>
-    var closeButton = document.getElementById('post_add_close');
-    var success_alert = document.getElementById('post_add_success_alert');
-
-    closeButton.addEventListener('click', function () {
-        success_alert.remove();
-    });
-</script>
-
-
-<script>
-
-    var theme = localStorage.getItem("data-bs-theme");
-
-
+    // Live preview for the featured-image URL.
+    (function () {
+        var input = document.getElementById('image');
+        var preview = document.getElementById('image-preview');
+        if (!input || !preview) {
+            return;
+        }
+        input.addEventListener('input', function () {
+            if (input.value.trim() === '') {
+                preview.classList.add('d-none');
+                preview.removeAttribute('src');
+                return;
+            }
+            preview.src = input.value.trim();
+            preview.classList.remove('d-none');
+        });
+    })();
 </script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {

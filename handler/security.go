@@ -12,7 +12,7 @@ import (
 // theme switch, Quill); object/embed, foreign frames and base-uri hijacking
 // are still blocked. Saved HTML is sanitized on top of this (SanitizeRichHTML).
 const contentSecurityPolicy = "default-src 'self';" +
-	" script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://ajax.googleapis.com https://js.hcaptcha.com;" +
+	" script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://ajax.googleapis.com https://cdnjs.cloudflare.com https://js.hcaptcha.com;" +
 	" style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" +
 	" img-src 'self' data: https:;" +
 	" font-src 'self' data: https://cdn.jsdelivr.net;" +

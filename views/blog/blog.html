@@ -1,76 +1,57 @@
 <div class="row">
     {{range .Posts}}
-    <div class="col-sm-12 col-md-6 col-lg-6 mb-4"> 
-        <div class="card mb-4 shadow-sm h-100 d-flex flex-row">
-            <!-- Image Container -->
-            <div class="image-container" style="flex: 0 0 33%; background-image: url('{{if .ImageURL}}{{.ImageURL}}{{else}}https://picsum.photos/seed/picsum/1200/600{{end}}'); background-size: cover; background-position: center; border-top-left-radius: .3rem; border-bottom-left-radius: .3rem;">
-              <!-- Intentionally left blank to use as a background image container -->
+    <div class="col-12 col-md-6 mb-4">
+        <div class="card h-100 shadow-sm d-flex flex-column flex-md-row overflow-hidden">
+            {{if .ImageURL}}
+            <img src="{{.ImageURL}}" class="blog-card-img" alt="" loading="lazy">
+            {{end}}
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">
+                    <a href="/blog/post/{{.Slug}}" class="text-decoration-none">{{.Title}}</a>
+                </h5>
+                <p class="card-text text-muted small">{{.CreatedAt.Format "02 Jan 2006"}}</p>
+                <p class="card-text excerpt">{{ truncate (escape .Content) 200 }}</p>
+                <div class="mt-auto">
+                    <a href="/blog/post/{{.Slug}}" class="btn btn-primary btn-sm">Read More</a>
+                </div>
+                {{if or .Tags .Categories}}
+                <div class="mt-2 d-flex flex-wrap gap-1">
+                    {{range .Tags}}
+                    <a href="/blog/tag/{{.Slug}}" class="badge rounded-pill border border-primary text-primary text-decoration-none">{{.Name}}</a>
+                    {{end}}
+                    {{range .Categories}}
+                    <a href="/blog/category/{{.Slug}}" class="badge rounded-pill text-bg-secondary text-decoration-none">{{.Name}}</a>
+                    {{end}}
+                </div>
+                {{end}}
             </div>
-            
-            <!-- Content Container -->
-            <div class="card-body d-flex flex-column" style="flex: 1;">
-            <h5 class="card-title">
-                <a href="/blog/post/{{.Slug}}" class="">{{.Title}}</a>
-            </h5>
-              <p class="card-text text-muted small">{{.CreatedAt.Format "02 Jan 2006"}}</p>
-              <p class="card-text flex-grow-1">{{ truncate (escape .Content) 200 }}</p>
-              <a href="/blog/post/{{.Slug}}" class="btn btn-primary btn-sm align-self-start">Read More</a>
-              <hr>
-              <div class="mt-2">
-                <!-- Tags and Categories -->
-                {{if .Tags}}
-                <span class="badge bg-primary me-2">Tags:</span>
-                {{range .Tags}}
-                <a href="/blog/tag/{{.Slug}}" class="badge bg-secondary me-2">{{.Name}}</a>
-                {{end}}
-                {{else}}
-                <!-- No tags found -->
-                {{end}}
-
-                {{if .Categories}}
-                <span class="badge bg-primary me-2">Categories:</span>
-                {{range .Categories}}
-                <a href="/blog/category/{{.Slug}}" class="badge bg-secondary me-2">{{.Name}}</a>
-                {{end}}
-                {{else}}
-                <!-- No categories found -->
-                {{end}}
-              </div>
-            </div>
-          </div>
+        </div>
+    </div>
+    {{else}}
+    <div class="col-12">
+        <div class="alert alert-info" role="alert">No posts yet — check back soon.</div>
     </div>
     {{end}}
 </div>
 
-
-
-
-
-
+{{if gt .TotalPagesInt 1}}
 <div class="row mb-2">
-    <div class="col-md-12">
-        {{if gt .CurrentPage 1}}
-            <a href="/blog/{{.PrevPage}}" class="btn btn-primary px-3 me-2">Previous</a>
-        {{end}}
-
-        {{if lt .CurrentPage .TotalPagesInt }}
-            <a href="/blog/{{.NextPage}}" class="btn btn-primary px-3">Next</a>
-        {{end}}
-    </div>
-</div>
-
-<hr>
-
-<div class="row">
-    <div class="col-md-12">
-        <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center flex-wrap mb-0 col-12">
+    <div class="col-12">
+        <nav aria-label="Blog pages">
+            <ul class="pagination justify-content-center flex-wrap mb-0">
+                <li class="page-item {{if eq .CurrentPage 1}}disabled{{end}}">
+                    <a class="page-link" {{if gt .CurrentPage 1}}href="/blog/{{.PrevPage}}"{{end}} aria-label="Previous">Previous</a>
+                </li>
                 {{range .TotalPages}}
-                <li class="page-item {{if eq . $.CurrentPage}}active{{end}}">
+                <li class="page-item {{if eq . $.CurrentPage}}active{{end}}" {{if eq . $.CurrentPage}}aria-current="page"{{end}}>
                     <a class="page-link" href="/blog/{{.}}">{{.}}</a>
                 </li>
                 {{end}}
+                <li class="page-item {{if eq .CurrentPage .TotalPagesInt}}disabled{{end}}">
+                    <a class="page-link" {{if lt .CurrentPage .TotalPagesInt}}href="/blog/{{.NextPage}}"{{end}} aria-label="Next">Next</a>
+                </li>
             </ul>
         </nav>
     </div>
 </div>
+{{end}}

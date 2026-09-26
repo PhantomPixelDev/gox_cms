@@ -1,5 +1,15 @@
-<div class="container-fluid">
-    <h1>{{.Title}}</h1>
-    <div class="m-4"></div>
-    {{.Content}}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{.Title}}</li>
+        </ol>
+    </nav>
+    <article class="page-article page-article-wide">
+        <h1 class="page-title">{{.Title}}</h1>
+        <hr>
+        <div class="page-content">
+            {{.Content}}
+        </div>
+    </article>
 </div>

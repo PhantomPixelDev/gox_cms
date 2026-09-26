@@ -1,17 +1,24 @@
 <div class="container">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="sidebar">
-                {{template "partials/sidebar" .}}
-            </div>
-        </div>
-
-        <div class="col-md-8">
-            <div class="main-content">
-                <h1>{{.Title}}</h1>
-                <div class="m-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{.Title}}</li>
+        </ol>
+    </nav>
+    <div class="row g-4">
+        <div class="col-12 col-md-8 order-1">
+            <article class="page-article">
+                <h1 class="page-title">{{.Title}}</h1>
+                <hr>
+                <div class="page-content">
                     {{.Content}}
                 </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-md-4 order-2">
+            <div class="sidebar">
+                {{template "partials/sidebar" .}}
             </div>
         </div>
     </div>

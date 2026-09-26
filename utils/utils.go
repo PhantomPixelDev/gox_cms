@@ -118,6 +118,9 @@ func SetupEngine() *html.Engine {
 		"timestamp": func() string {
 			return fmt.Sprintf("?v=%d", time.Now().Unix())
 		},
+		"year": func() int {
+			return time.Now().Year()
+		},
 		"truncate": func(s string, length int) string {
 			runes := []rune(s)
 			if len(runes) > length {

@@ -96,6 +96,11 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 		return handlers.DeleteMenuItem(c, db)
 	})
 
+	// reorder a menu item within its menu
+	app.Post("/move-menu-item/:id/:direction", handlers.IsAdmin, func(c *fiber.Ctx) error {
+		return handlers.MoveMenuItem(c, db)
+	})
+
 	// delete menu
 	app.Delete("/delete-menu/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.DeleteMenu(c, db)
