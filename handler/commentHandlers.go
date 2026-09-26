@@ -16,30 +16,50 @@ func AddComment(c *fiber.Ctx, db *gorm.DB) error {
 	if !captchaPassed(c) {
 		return nil
 	}
-	var comment model.Comment
-
-	// Extract comment data from the form
-	comment.Content = SanitizeText(c.FormValue("comment"))
-	postID, _ := strconv.Atoi(c.FormValue("post_id"))
-	comment.PostID = uint(postID)
-	userID, _ := strconv.Atoi(c.FormValue("user_id"))
-	comment.UserID = uint(userID)
-
-	comment.User = model.User{ID: comment.UserID}
-
-	comment.Status = "pending"
-
-	// Check if the user is authenticated and is the same user as in the form data
-	if uid := currentUserID(c); uid == 0 || uint(userID) != uid {
+	if authBlocked(c.IP()) {
+		ShowToastError(c, "Too many attempts, try again later")
+		return c.Status(fiber.StatusTooManyRequests).SendString("Too many attempts")
+	}
+	// The author is always the logged-in user: a client-supplied user_id is
+	// never trusted.
+	uid := currentUserID(c)
+	if uid == 0 {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Unauthorized",
 		})
 	}
 
+	postID, err := strconv.Atoi(c.FormValue("post_id"))
+	if err != nil || postID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid data",
+		})
+	}
+	var post model.Post
+	if err := db.First(&post, postID).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Invalid data",
+		})
+	}
+
+	content := SanitizeText(c.FormValue("comment"))
+	if content == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid data",
+		})
+	}
+
+	comment := model.Comment{
+		Content: content,
+		PostID:  uint(postID),
+		UserID:  uid,
+		User:    model.User{ID: uid},
+		Status:  "pending",
+	}
+
 	// Validate the data
-	err := db.Create(&comment).Error
-	if err != nil {
-		ShowToast(c, "Error creating comment"+err.Error())
+	if err := db.Create(&comment).Error; err != nil {
+		ShowToastError(c, "Could not save comment")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid data",
 		})
@@ -63,7 +83,7 @@ func SanitizeText(input string) string {
 
 func SearchCommentsView(c *fiber.Ctx, db *gorm.DB) error {
 	var comments []model.Comment
-	searchQuery := c.FormValue("query")
+	searchQuery := c.Query("query", c.FormValue("query"))
 	page := queryPage(c)
 	limit := 10
 	offset := (page - 1) * limit
@@ -89,9 +109,15 @@ func SearchCommentsView(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func ToggleCommentStatus(c *fiber.Ctx, db *gorm.DB) error {
-	commentID, _ := strconv.Atoi(c.Params("id"))
+	commentID, err := c.ParamsInt("id")
+	if err != nil || commentID <= 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid ID")
+	}
 	var comment model.Comment
-	db.First(&comment, commentID)
+	if err := db.First(&comment, commentID).Error; err != nil {
+		ShowToastError(c, "Comment not found")
+		return c.Status(fiber.StatusNotFound).SendString("Comment not found")
+	}
 
 	if comment.Status == "approved" {
 		comment.Status = "pending"
@@ -99,7 +125,10 @@ func ToggleCommentStatus(c *fiber.Ctx, db *gorm.DB) error {
 		comment.Status = "approved"
 	}
 
-	db.Save(&comment)
+	if err := db.Save(&comment).Error; err != nil {
+		ShowToastError(c, "Could not update comment")
+		return c.Status(fiber.StatusInternalServerError).SendString("Could not update comment")
+	}
 
 	ShowToast(c, "Comment status changed successfully")
 
@@ -107,11 +136,19 @@ func ToggleCommentStatus(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func DeleteComment(c *fiber.Ctx, db *gorm.DB) error {
-	commentID, _ := strconv.Atoi(c.Params("id"))
-	var comment model.Comment
-	db.First(&comment, commentID)
-
-	db.Delete(&comment)
+	commentID, err := c.ParamsInt("id")
+	if err != nil || commentID <= 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid ID")
+	}
+	result := db.Delete(&model.Comment{}, commentID)
+	if result.Error != nil {
+		ShowToastError(c, "Could not delete comment")
+		return c.Status(fiber.StatusInternalServerError).SendString("Could not delete comment")
+	}
+	if result.RowsAffected == 0 {
+		ShowToastError(c, "Comment not found")
+		return c.Status(fiber.StatusNotFound).SendString("Comment not found")
+	}
 
 	ShowToast(c, "Comment deleted successfully")
 

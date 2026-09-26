@@ -43,7 +43,7 @@
                 <td>
                     <button class="btn btn-sm btn-danger" hx-delete="/delete-post/{{.ID}}"
                         hx-confirm="Are you sure you want to delete this post?" hx-target="#post-row-{{.ID}}"
-                        hx-swap="#post-row-{{.ID}}">Delete</button>
+                        hx-swap="outerHTML">Delete</button>
                 </td>
 
                 <td>
@@ -74,53 +74,6 @@
 
 
 
-<div id="pagination-container" class="col-12 d-flex justify-content-center">
-
-    {{ $totalPages := .TotalPages }}
-    {{ $currentPage := .CurrentPage }}
-
-    {{ $searchQuery := .SearchQuery }}
-
-    <!-- ... Other variables ... -->
-
-    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
-        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
-            <!-- ... Other pagination links prev and next ... -->
-
-            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
-
-                <a class="page-link" href="/search-posts?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-get="/search-posts?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-headers='{"X-No-Cache": "true"}' hx-target="#post-table-container">
-                    Previous
-                </a>
-
-            </li>
+{{template "partials/pagination" dict "Base" "/search-posts" "Target" "#post-table-container" "TotalPages" .TotalPages "CurrentPage" .CurrentPage "SearchQuery" .SearchQuery}}
 
 
-            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
-
-                <a class="page-link" href="/search-posts?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-get="/search-posts?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-headers='{"X-No-Cache": "true"}' hx-target="#post-table-container">
-                    Next
-                </a>
-
-            </li>
-
-
-            <!-- Dynamically set hx-get based on whether it's a search result -->
-            {{ range $i := sequence 1 $totalPages }}
-            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
-
-                <a class="page-link" href="/search-posts?page={{$i}}&query={{$searchQuery}}"
-                    hx-get="/search-posts?page={{$i}}&query={{$searchQuery}}" hx-headers='{"X-No-Cache": "true"}'
-                    hx-target="#post-table-container">
-                    {{$i}}
-                </a>
-
-            </li>
-            {{ end }}
-        </ul>
-    </nav>
-</div>

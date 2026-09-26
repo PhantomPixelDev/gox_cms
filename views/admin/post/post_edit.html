@@ -24,12 +24,8 @@
                     </div>
                     
     
-                    <!-- Create the editor container -->
-                    <div id="editor">
-                        <p>Hello World!</p>
-                        <p>Some initial <strong>bold</strong> text</p>
-                        <p><br /></p>
-                    </div>
+                    <!-- Create the editor container (content via data-content, editor.js inits Quill) -->
+                    <div id="editor" data-content="{{ .PostContent }}"></div>
                     <input type="hidden" id="content_input" name="content">
                 </div>
     
@@ -57,7 +53,7 @@
                 {{if .Published}}Unpublish{{else}}Publish{{end}}
             </button>
     
-            <a href="/blog/post/{{.PostSlug}}" class="btn btn btn-primary">🔍</a>
+            <a href="/blog/post/{{.PostSlug}}" class="btn btn-primary" aria-label="View post"><i class="bi bi-eye"></i></a>
     
              <!-- Image URL Field -->
             <hr>
@@ -70,14 +66,16 @@
             <!-- Slug Field -->
             <div class="mb-3">
                 <label for="post_slug" class="form-label">Slug:</label>
-                <input type="text" class="form-control" id="post_slug" name="post_slug" value="{{ .PostSlug }}" required>
+                <input type="text" class="form-control" id="post_slug" name="post_slug" value="{{ .PostSlug }}" required pattern="[a-z0-9-]+"
+                    aria-describedby="post-slug-hint">
+                <div id="post-slug-hint" class="form-text">Lowercase letters, numbers and dashes.</div>
     
             </div>
     
             <!-- Categories Select with Search -->
             <div class="mb-3">
                 <label for="categoriesSelect" class="form-label">Categories:</label>
-                <select class="form-select form-select-sm" id="categoriesSelect" name="categories" multiple="multiple">
+                <select class="form-select form-select-sm" id="categoriesSelect" name="categories" multiple="multiple" data-selected="{{ .PostCatIDs }}">
                     {{ range .Categories }}
                     <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
                     {{ end }}
@@ -88,7 +86,7 @@
             <!-- Tags Select with Search -->
             <div class="mb-3">
                 <label for="tagsSelect" class="form-label">Tags:</label>
-                <select class="form-select form-select-sm" id="tagsSelect" name="tags" multiple="multiple">
+                <select class="form-select form-select-sm" id="tagsSelect" name="tags" multiple="multiple" data-selected="{{ .PostTagIDs }}">
                     {{ range .Tags }}
                     <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
                     {{ end }}
@@ -117,92 +115,10 @@
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.snow.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.bubble.css" rel="stylesheet" />
 
-<!-- Initialize Selectize -->
-<script>
-    $(document).ready(function () {
-        // Initialize selectize for categories and tags with event handlers to update hidden inputs
-        const categoriesSelect = $('#categoriesSelect').selectize({
-            placeholder: "Select categories",
-            create: false,
-            sortField: 'text',
-            plugins: ['remove_button'],
-            onChange: updateCategoriesInput
-        });
-    
-        const tagsSelect = $('#tagsSelect').selectize({
-            placeholder: "Select tags",
-            create: false,
-            sortField: 'text',
-            plugins: ['remove_button'],
-            onChange: updateTagsInput
-        });
-    
-        // Function to update hidden input for categories
-        function updateCategoriesInput(value) {
-            $('#categories_input').val(value.join(','));
-        }
-    
-        // Function to update hidden input for tags
-        function updateTagsInput(value) {
-            $('#tags_input').val(value.join(','));
-        }
-    
-        // Pre-select the values for categories and tags based on the post's current categories and tags
-        var categories = JSON.parse('{{ .PostCats }}');
-        var tags = JSON.parse('{{ .PostTags }}');
-    
-        var categoryValues = categories.map(function(category) {
-            return category.id;
-        });
-    
-        var tagValues = tags.map(function(tag) {
-            return tag.id;
-        });
-    
-        var categoriesSelectize = categoriesSelect[0].selectize;
-        categoriesSelectize.setValue(categoryValues);
-    
-        var tagsSelectize = tagsSelect[0].selectize;
-        tagsSelectize.setValue(tagValues);
-    });
-    
-</script>
+<!-- Selectize + Quill init live in /static/js/editor.js (loaded once from the layout). -->
 
 
 
 
-<script>
 
 
-
-    const quill = new Quill("#editor", {
-        modules: {
-            toolbar: [
-                [{ header: "1" }, { header: "2" }, { header: [3, 4, 5, 6] }, { font: [] }],
-                [{ size: [] }],
-                ["bold", "italic", "underline", "strike", "blockquote"],
-                [{ list: "ordered" }, { list: "bullet" }, { indent: "-1" }, { indent: "+1" }],
-                ["link", "image", "video"],
-                ["clean"],
-                ["code-block"],
-                [{ color: [] }, { background: [] }], // Add color and background options
-                [{ align: [] }], // Add alignment options
-                ["formula"], // Add formula option
-                ["emoji"] // Add emoji option
-            ]
-        },
-        theme: "snow"
-    });
-
-
-    const quillContent = "{{ .PostContent }}";
-    quill.root.innerHTML = quillContent;
-    quill.on('text-change', function () {
-        const contentInput = document.getElementById('content_input');
-        contentInput.value = quill.root.innerHTML;
-    });
-
-
-    
-
-</script>

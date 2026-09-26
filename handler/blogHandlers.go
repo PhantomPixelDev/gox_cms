@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"goxcms/model"
 	"html/template"
@@ -48,12 +49,16 @@ func parsePostForm(c *fiber.Ctx) (postForm, bool) {
 
 var errSlugTaken = errors.New("slug is already used by another post")
 
-// loadPostRelations fetches the selected categories and tags.
+// loadPostRelations fetches the selected categories and tags. Unknown IDs
+// are rejected instead of silently dropping them.
 func loadPostRelations(tx *gorm.DB, f postForm) ([]model.Category, []model.Tag, error) {
 	var categories []model.Category
 	if len(f.categoryIDs) > 0 {
 		if err := tx.Find(&categories, f.categoryIDs).Error; err != nil {
 			return nil, nil, fmt.Errorf("fetching categories: %w", err)
+		}
+		if len(categories) != len(f.categoryIDs) {
+			return nil, nil, errors.New("unknown category selected")
 		}
 	}
 
@@ -61,6 +66,9 @@ func loadPostRelations(tx *gorm.DB, f postForm) ([]model.Category, []model.Tag, 
 	if len(f.tagIDs) > 0 {
 		if err := tx.Find(&tags, f.tagIDs).Error; err != nil {
 			return nil, nil, fmt.Errorf("fetching tags: %w", err)
+		}
+		if len(tags) != len(f.tagIDs) {
+			return nil, nil, errors.New("unknown tag selected")
 		}
 	}
 	return categories, tags, nil
@@ -100,11 +108,22 @@ func AdminAddBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 		}
 		post.Categories, post.Tags = categories, tags
 
-		return tx.Create(&post).Error
+		if err := tx.Create(&post).Error; err != nil {
+			if isDupKeyError(err) {
+				return errSlugTaken
+			}
+			return err
+		}
+		return nil
 	})
 	if err != nil {
-		ShowToastError(c, "Post creation failed: "+err.Error())
-		return c.SendString("Post creation failed: " + err.Error())
+		if errors.Is(err, errSlugTaken) {
+			ShowToastError(c, "Post creation failed: "+err.Error())
+			return c.SendString("Post creation failed: " + err.Error())
+		}
+		log.Printf("creating post: %v", err)
+		ShowToastError(c, "Post creation failed")
+		return c.SendString("Post creation failed")
 	}
 
 	message := map[string]string{"showToast": "Post created successfully", "clearForm": "true"}
@@ -130,6 +149,21 @@ func AdminEditBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 	postCategories, _ := json.Marshal(post.Categories)
 	postTags, _ := json.Marshal(post.Tags)
 
+	selectedIDs := func(items []model.Category) string {
+		ids := make([]string, 0, len(items))
+		for _, item := range items {
+			ids = append(ids, strconv.Itoa(int(item.ID)))
+		}
+		return strings.Join(ids, ",")
+	}
+	selectedTagIDs := func(items []model.Tag) string {
+		ids := make([]string, 0, len(items))
+		for _, item := range items {
+			ids = append(ids, strconv.Itoa(int(item.ID)))
+		}
+		return strings.Join(ids, ",")
+	}
+
 	/// convert post ID so can print in Template as string
 	postIDStr := strconv.Itoa(int(post.ID))
 
@@ -145,6 +179,8 @@ func AdminEditBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 		"Tags":        tags,
 		"PostTags":    template.JS(postTags),
 		"PostCats":    template.JS(postCategories),
+		"PostCatIDs":  selectedIDs(post.Categories),
+		"PostTagIDs":  selectedTagIDs(post.Tags),
 		"IsAdmin":     c.Locals("isAdmin"),
 		"IsLoggedIn":  c.Locals("isLoggedin"),
 		"Settings":    c.Locals("Settings"),
@@ -186,6 +222,9 @@ func AdminUpdateBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 		post.ImageURL = f.image
 
 		if err := tx.Omit(clause.Associations).Save(&post).Error; err != nil {
+			if isDupKeyError(err) {
+				return errSlugTaken
+			}
 			return err
 		}
 		if err := tx.Model(&post).Association("Categories").Replace(categories); err != nil {
@@ -197,8 +236,13 @@ func AdminUpdateBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 		return nil
 	})
 	if err != nil {
-		ShowToastError(c, "Post update failed: "+err.Error())
-		return c.SendString("Post update failed: " + err.Error())
+		if errors.Is(err, errSlugTaken) {
+			ShowToastError(c, "Post update failed: "+err.Error())
+			return c.SendString("Post update failed: " + err.Error())
+		}
+		log.Printf("updating post: %v", err)
+		ShowToastError(c, "Post update failed")
+		return c.SendString("Post update failed")
 	}
 
 	message := map[string]string{"showToast": "Post updated successfully", "clearForm": "true"}
@@ -242,23 +286,34 @@ func AdminSearchPosts(c *fiber.Ctx, db *gorm.DB) error {
 
 func AdminDeletePost(c *fiber.Ctx, db *gorm.DB) error {
 	id, err := c.ParamsInt("id")
+	if err != nil || id <= 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid post ID")
+	}
+
+	err = db.Transaction(func(tx *gorm.DB) error {
+		var post model.Post
+		if err := tx.First(&post, id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM post_categories WHERE post_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM post_tags WHERE post_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("post_id = ?", id).Delete(&model.Comment{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&post).Error
+	})
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+		if err == gorm.ErrRecordNotFound {
+			ShowToastError(c, "Post not found")
+			return c.Status(fiber.StatusNotFound).SendString("Post not found")
+		}
+		ShowToastError(c, "Could not delete post")
+		return c.Status(fiber.StatusInternalServerError).SendString("Could not delete post")
 	}
-
-	var post model.Post
-
-	db.Preload("Categories").Preload("Tags").First(&post, id)
-
-	for _, category := range post.Categories {
-		db.Model(&category).Association("Posts").Delete(&post)
-	}
-
-	for _, tag := range post.Tags {
-		db.Model(&tag).Association("Posts").Delete(&post)
-	}
-
-	db.Delete(&post)
 
 	c.Status(fiber.StatusOK)
 
@@ -289,13 +344,15 @@ func BlogPage(c *fiber.Ctx, db *gorm.DB) error {
 	var posts []model.Post
 	result := db.Preload("Categories").Preload("Tags").Where("published = ?", true).Offset(offset).Limit(postsPerPage).Find(&posts)
 	if result.Error != nil {
-		return c.Status(500).SendString(result.Error.Error())
+		log.Printf("blog list: %v", result.Error)
+		return c.Status(500).SendString("Could not load posts")
 	}
 
 	var totalPosts int64
 	result = db.Model(&model.Post{}).Where("published = ?", true).Count(&totalPosts)
 	if result.Error != nil {
-		return c.Status(500).SendString(result.Error.Error())
+		log.Printf("blog count: %v", result.Error)
+		return c.Status(500).SendString("Could not load posts")
 	}
 
 	totalPages := 1
@@ -377,12 +434,14 @@ func TogglePostStatus(c *fiber.Ctx, db *gorm.DB) error {
 	var post model.Post
 
 	if err := db.First(&post, id).Error; err != nil {
-		return ShowToastError(c, "Post not found")
+		ShowToastError(c, "Post not found")
+		return c.Status(fiber.StatusNotFound).SendString("Post not found")
 	}
 
 	newStatus := !post.Published
 	if err := db.Model(&post).Update("published", newStatus).Error; err != nil {
-		return ShowToastError(c, "Error updating post status")
+		ShowToastError(c, "Error updating post status")
+		return c.Status(fiber.StatusInternalServerError).SendString("Error updating post status")
 	}
 
 	post.Published = newStatus

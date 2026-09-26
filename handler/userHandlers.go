@@ -66,6 +66,18 @@ func DeleteUser(c *fiber.Ctx, db *gorm.DB) error {
 		}
 	}
 
+	// Refuse while the user still owns content: posts and comments would be
+	// orphaned (foreign keys enforce this too).
+	var owned int64
+	db.Model(&model.Post{}).Where("user_id = ?", user.ID).Count(&owned)
+	if owned == 0 {
+		db.Model(&model.Comment{}).Where("user_id = ?", user.ID).Count(&owned)
+	}
+	if owned > 0 {
+		ShowToastError(c, "Delete or reassign this user's posts and comments first")
+		return c.Status(fiber.StatusBadRequest).SendString("User still owns content")
+	}
+
 	if err := db.Delete(&user).Error; err != nil {
 		ShowToastError(c, "Could not delete user")
 		return c.Status(fiber.StatusInternalServerError).SendString("Could not delete user")

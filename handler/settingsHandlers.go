@@ -95,7 +95,6 @@ func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 		"Language":            settings.Language,
 		"Locale":              settings.Locale,
 		"TimeZone":            settings.TimeZone,
-		"SelectedTheme":       settings.SelectedTheme,
 		"ContainerClass":      settings.ContainerClass,
 		"NavbarClass":         navbarClassForTheme(settings.Theme),
 		"RegistrationEnabled": strconv.FormatBool(settings.RegistrationEnabled),
@@ -144,9 +143,10 @@ func SiteSettings(db *gorm.DB) map[string]string {
 }
 
 // ReloadSiteSettings reads the settings from the database into the cache.
+// The oldest row wins: it is the install-time singleton.
 func ReloadSiteSettings(db *gorm.DB) map[string]string {
 	var settings model.BasicWebsiteInfo
-	db.First(&settings)
+	db.Order("id ASC").First(&settings)
 	values := MapSettingsToMap(settings)
 
 	siteSettings.Lock()

@@ -33,17 +33,15 @@ func (p *LatestPostsPlugin) Setup(app *fiber.App, db *gorm.DB, engine *html.Engi
 		}
 
 		tmpl := template.Must(template.New("latest_posts").Parse(`
-			<p class="mb-4">Latest Posts PLUGIN</p>
+			<p class="mb-4">Latest Posts</p>
 			<div class="d-flex flex-wrap justify-content-center">
 				{{range .}}
-				<div class="m-2 bg-body rounded shadow">
+				<div class="m-2 bg-body rounded shadow latest-post-card">
 					<a href="/blog/post/{{.Slug}}" class="text-decoration-none d-block">
-						<img src="{{.ImageURL}}" class="w-100" style="max-height: 200px; object-fit: cover;">
-						<div class="p-3">
-							<h3 style="font-size: 1.2rem; font-weight: bold;" class="text-secondary">
-								<a href="/blog/post/{{.Slug}}" class="text-decoration-none">{{.Title}}</a>
-							</h3>
-						</div>
+						<img src="{{.ImageURL}}" class="w-100 latest-post-img" alt="" loading="lazy">
+						<span class="d-block p-3">
+							<span class="d-block latest-post-title text-secondary">{{.Title}}</span>
+						</span>
 					</a>
 				</div>
 				{{end}}

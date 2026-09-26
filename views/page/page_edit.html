@@ -15,26 +15,25 @@
             </div>
             
 
-            <!-- Create the editor container -->
-            <div id="editor">
-                <p>Hello World!</p>
-                <p>Some initial <strong>bold</strong> text</p>
-                <p><br /></p>
-            </div>
+            <!-- Create the editor container (content via data-content, editor.js inits Quill) -->
+            <div id="editor" data-content="{{ .Content }}"></div>
             <input type="hidden" id="content_input" name="content">
         </div>
         <div class="mb-3">
             <label for="template" class="form-label">Template:</label>
-            <select id="template" name="template" class="form-select" required>
-                <option value="page" {{if eq .Template "page"}}selected{{end}}>page</option>
-                <option value="page_sidebar" {{if eq .Template "page_sidebar"}}selected{{end}}>page_sidebar</option>
-                <option value="page_fullwidth" {{if eq .Template "page_fullwidth"}}selected{{end}}>page_fullwidth</option>
+            <select id="template" name="template" class="form-select" required aria-describedby="template-hint">
+                <option value="page" {{if eq .Template "page"}}selected{{end}}>Default page</option>
+                <option value="page_sidebar" {{if eq .Template "page_sidebar"}}selected{{end}}>Page with sidebar</option>
+                <option value="page_fullwidth" {{if eq .Template "page_fullwidth"}}selected{{end}}>Full-width page</option>
             </select>
+            <div id="template-hint" class="form-text">Controls the page layout.</div>
         </div>
      
         <div class="mb-3">
             <label for="slug" class="form-label">Slug:</label>
-            <input type="text" class="form-control" id="slug" name="slug" value="{{.Slug}}" required>
+            <input type="text" class="form-control" id="slug" name="slug" value="{{.Slug}}" required pattern="[a-z0-9-]+"
+                aria-describedby="slug-hint">
+            <div id="slug-hint" class="form-text">Lowercase letters, numbers and dashes.</div>
             <div class="invalid-feedback">Please provide a slug.</div>
         </div>
         <button type="submit" class="btn btn-primary">Update Custom Page</button>
@@ -61,38 +60,5 @@
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.bubble.css" rel="stylesheet" />
 
 
-<script>
+<!-- Quill init lives in /static/js/editor.js (loaded once from the layout). -->
 
-
-
-    const quill = new Quill("#editor", {
-        modules: {
-            toolbar: [
-                [{ header: "1" }, { header: "2" }, { header: [3, 4, 5, 6] }, { font: [] }],
-                [{ size: [] }],
-                ["bold", "italic", "underline", "strike", "blockquote"],
-                [{ list: "ordered" }, { list: "bullet" }, { indent: "-1" }, { indent: "+1" }],
-                ["link", "image", "video"],
-                ["clean"],
-                ["code-block"],
-                [{ color: [] }, { background: [] }], // Add color and background options
-                [{ align: [] }], // Add alignment options
-                ["formula"], // Add formula option
-                ["emoji"] // Add emoji option
-            ]
-        },
-        theme: "snow"
-    });
-
-
-    const quillContent = "{{ .Content }}";
-    quill.root.innerHTML = quillContent;
-    quill.on('text-change', function () {
-        const contentInput = document.getElementById('content_input');
-        contentInput.value = quill.root.innerHTML;
-    });
-
-
-    
-
-</script>

@@ -59,8 +59,11 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 
 	result = db.Create(&customPage)
 	if result.Error != nil {
-		ShowToastError(c, "Error adding custom page: "+result.Error.Error())
-		return c.Status(fiber.StatusInternalServerError).SendString(result.Error.Error())
+		if isDupKeyError(result.Error) {
+			return c.SendString("Slug or title already exists: " + slug)
+		}
+		ShowToastError(c, "Error adding custom page")
+		return c.Status(fiber.StatusInternalServerError).SendString("Error adding custom page")
 	}
 
 	return ShowToast(c, "Custom Page Added")
@@ -134,7 +137,10 @@ func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 
 	result := db.Model(&model.CustomPage{}).Where("id = ?", id).Updates(customPage)
 	if result.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(result.Error.Error())
+		if isDupKeyError(result.Error) {
+			return c.SendString("Slug already exists: " + slug)
+		}
+		return c.Status(fiber.StatusInternalServerError).SendString("Error updating custom page")
 	}
 
 	return ShowToast(c, "Custom Page Updated")
@@ -143,17 +149,16 @@ func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 func DeleteCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	id, err := c.ParamsInt("id")
 
-	if err != nil {
-		return c.SendString("Invalid ID")
-	}
-
-	if id == 0 {
-		return c.SendString("No ID provided")
+	if err != nil || id <= 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid ID")
 	}
 
 	result := db.Delete(&model.CustomPage{}, id)
 	if result.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(result.Error.Error())
+		return c.Status(fiber.StatusInternalServerError).SendString("Could not delete custom page")
+	}
+	if result.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).SendString("Custom page not found")
 	}
 
 	return ShowToast(c, "Custom Page Deleted")

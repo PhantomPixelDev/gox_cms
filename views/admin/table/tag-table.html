@@ -21,7 +21,7 @@
                 <td>
                     <button class="btn btn-sm btn-danger" hx-delete="/delete-tag" hx-vals='{"id": "{{.ID}}"}'
                         hx-confirm="Are you sure you want to delete this tag?" hx-target="#tag-row-{{.ID}}"
-                        hx-swap="#tag-row-{{.ID}}">Delete</button>
+                        hx-swap="outerHTML">Delete</button>
                 </td>
             </tr>
             {{end}}
@@ -30,53 +30,7 @@
 </div>
 
 
-<div id="pagination-container">
-
-    {{ $totalPages := .TotalPages }}
-    {{ $currentPage := .CurrentPage }}
-    {{ $isSearch := .IsSearch }}
-    {{ $searchQuery := .SearchQuery }}
+{{template "partials/pagination" dict "Base" "/search-tags" "Target" "#tag-table-container" "TotalPages" .TotalPages "CurrentPage" .CurrentPage "SearchQuery" .SearchQuery}}
 
 
-    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
-        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
-            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
-              
-                <a class="page-link" href="/search-tags?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-get="/search-tags?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#tag-table-container"
-                    hx-headers='{"X-No-Cache": "true"}'>
-                    Previous
-                </a>
-               
-            </li>
-
-
-            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
-          
-                <a class="page-link" href="/search-tags?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-get="/search-tags?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#tag-table-container"
-                    hx-headers='{"X-No-Cache": "true"}'>
-                    Next
-                </a>
-             
-           
-            </li>
-
-            {{ range $i := sequence 1 $totalPages }}
-
-            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
-                
-                <a class="page-link" href="/search-tags?page={{$i}}&query={{$searchQuery}}"
-                    hx-get="/search-tags?page={{$i}}&query={{$searchQuery}}" hx-target="#tag-table-container"
-                    hx-headers='{"X-No-Cache": "true"}'>
-                    {{$i}}
-                </a>
-            </li>
-            {{ end }}
-
-        </ul>
-    </nav>
-</div>
 

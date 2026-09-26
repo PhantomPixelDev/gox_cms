@@ -24,7 +24,7 @@ type MenuItem struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	Title     string    `json:"title"`
 	Link      string    `json:"link"`
-	MenuID    *uint     `json:"menu_id"`                                          // Pointer to allow null (zero value)
+	MenuID    *uint     `json:"menu_id" gorm:"index"`                             // Pointer to allow null (zero value)
 	Position  int       `json:"position" gorm:"index:idx_item_position,sort:asc"` // Position field for ordering items within a menu
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

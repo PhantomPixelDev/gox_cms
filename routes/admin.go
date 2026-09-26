@@ -33,8 +33,8 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 
 		settings_cms := model.BasicWebsiteInfo{}
 
-		if err := db.First(&settings_cms).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		if err := db.Order("id ASC").First(&settings_cms).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Could not load settings")
 		}
 
 		themes_list := []string{"cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal", "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone", "simplex", "sketchy", "slate", "solar", "spacelab", "superhero", "united", "yeti", "morph", "quartz", "vapor", "zephyr"}
@@ -187,13 +187,13 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 	app.Get("/edit-custompage/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		id, err := c.ParamsInt("id")
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+		if err != nil || id <= 0 {
+			return c.Status(fiber.StatusBadRequest).SendString("Invalid ID")
 		}
 
 		var customPage model.CustomPage
 		if err := db.First(&customPage, id).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+			return c.Status(fiber.StatusNotFound).SendString("Custom page not found")
 		}
 
 		return c.Render("page/page_edit", fiber.Map{

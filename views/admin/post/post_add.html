@@ -24,13 +24,9 @@
                     
                     </div>
     
-                    <!-- Create the editor container -->
-                    <div id="editor">
-                        <p>Hello World!</p>
-                        <p>Some initial <strong>bold</strong> text</p>
-                        <p><br /></p>
-                    </div>
-                    
+                    <!-- Create the editor container (content via data-content, editor.js inits Quill) -->
+                    <div id="editor" data-content="{{ .Content }}"></div>
+
                     <input type="hidden" id="content_input" name="content">
                 </div>
     
@@ -55,7 +51,7 @@
                 <div class="mt-2">
                 <!--- add button to open a dialog with partial file manager! -->
                 <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exampleModal" id="upload-btn"
-                hx-trigger="click" hx-get="/search-files" hx-target="#file-list-conatiner">Open File Manager</button>
+                hx-trigger="click" hx-get="/search-files" hx-target="#file-list-container">Open File Manager</button>
                 </div>
 
             </div>
@@ -65,7 +61,9 @@
             <!-- Slug Field -->
             <div class="mb-3">
                 <label for="post_slug" class="form-label">Slug:</label>
-                <input type="text" class="form-control" id="post_slug" name="post_slug" required>
+                <input type="text" class="form-control" id="post_slug" name="post_slug" required pattern="[a-z0-9-]+"
+                    aria-describedby="post-slug-hint">
+                <div id="post-slug-hint" class="form-text">Lowercase letters, numbers and dashes — fills in from the title.</div>
     
     
             </div>
@@ -124,13 +122,13 @@
                     <div class="mb-3">
                         <input type="text" id="search-input-files" placeholder="Search files..."
                         class="form-control w-50 mx-auto text-center shadow" hx-get="/search-files"
-                        hx-trigger="keyup delay:500ms changed" hx-target="#file-list-conatiner"
+                        hx-trigger="keyup delay:500ms changed" hx-target="#file-list-container"
                         hx-vars="query:document.getElementById('search-input-files').value">
                     </div>
                 
                     <hr>
                 
-                    <div id="file-list-conatiner"></div>
+                    <div id="file-list-container"></div>
                 
                 
                 </div>
@@ -161,128 +159,8 @@
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.snow.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.bubble.css" rel="stylesheet" />
 
-<!-- Initialize Quill editor -->
-<style>
-    .ql-editor.ql-blank::before {
-        color: white;
-    }
-</style>
+<!-- Quill init lives in /static/js/editor.js (loaded once from the layout). -->
 
-<script>
-    const quill = new Quill("#editor", {
-        modules: {
-            toolbar: [
-                [{ header: "1" }, { header: "2" }, { header: [3, 4, 5, 6] }, { font: [] }],
-                [{ size: [] }],
-                ["bold", "italic", "underline", "strike", "blockquote"],
-                [{ list: "ordered" }, { list: "bullet" }, { indent: "-1" }, { indent: "+1" }],
-                ["link", "image", "video"],
-                ["clean"],
-                ["code-block"],
-                [{ color: [] }, { background: [] }], // Add color and background options
-                [{ align: [] }], // Add alignment options
-                ["formula"], // Add formula option
-                ["emoji"] // Add emoji option
-            ]
-        },
-        theme: "snow"
-    });
-
-    const quillContent = "{{ .Content }}";
-    quill.root.innerHTML = quillContent;
+<!-- Selectize init lives in /static/js/editor.js (loaded once from the layout). -->
 
 
-    quill.on('text-change', function () {
-        const contentInput = document.getElementById('content_input');
-        contentInput.value = quill.root.innerHTML;
-    });
-
-    document.querySelector('form').addEventListener('submit', function (e) {
-        e.preventDefault();
-        const contentInput = document.getElementById('content_input');
-        contentInput.value = quill.root.innerHTML;
-    });
-
-
-
-</script>
-
-<script>
-    // Auto-slug from the title until the user edits the slug by hand.
-    (function () {
-        var title = document.getElementById('title');
-        var slug = document.getElementById('post_slug');
-        var touched = false;
-        if (!title || !slug) {
-            return;
-        }
-        slug.addEventListener('input', function () {
-            touched = true;
-        });
-        title.addEventListener('input', function () {
-            if (touched) {
-                return;
-            }
-            slug.value = title.value.toLowerCase().trim()
-                .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-        });
-    })();
-
-    // Live preview for the featured-image URL.
-    (function () {
-        var input = document.getElementById('image');
-        var preview = document.getElementById('image-preview');
-        if (!input || !preview) {
-            return;
-        }
-        input.addEventListener('input', function () {
-            if (input.value.trim() === '') {
-                preview.classList.add('d-none');
-                preview.removeAttribute('src');
-                return;
-            }
-            preview.src = input.value.trim();
-            preview.classList.remove('d-none');
-        });
-    })();
-</script>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const categoriesSelect = document.getElementById("categoriesSelect");
-        const tagsSelect = document.getElementById("tagsSelect");
-        const categoriesInput = document.getElementById("categories_input");
-        const tagsInput = document.getElementById("tags_input");
-
-        // Initialize selectize for categories and tags
-        $(categoriesSelect).selectize({
-            plugins: ['remove_button'],
-            placeholder: "Select categories",
-            create: false,
-            sortField: 'text',
-            onChange: function(value) {
-                // Update hidden input for categories when the select value changes
-                categoriesInput.value = value.join(','); // Assuming you want to store values as comma-separated
-            }
-        });
-
-        $(tagsSelect).selectize({
-            plugins: ['remove_button'],
-            placeholder: "Select tags",
-            create: false,
-            sortField: 'text',
-            onChange: function(value) {
-                // Update hidden input for tags when the select value changes
-                tagsInput.value = value.join(','); // Assuming you want to store values as comma-separated
-            }
-        });
-
-        htmx.on("clearForm", function (e) {
-            console.log("clearForm");
-            var form = document.querySelector('form');
-            form.reset();
-            quill.root.innerHTML = "";
-            $('#categoriesSelect')[0].selectize.clear(); // Clear selectize field for categories
-            $('#tagsSelect')[0].selectize.clear(); // Clear selectize field for tags
-        });
-    });
-</script>

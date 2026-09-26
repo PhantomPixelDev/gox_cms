@@ -8,7 +8,7 @@ import (
 
 type File struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
-	Name      string    `json:"name" gorm:"index:idx_name"`
+	Name      string    `json:"name" gorm:"uniqueIndex:idx_name"`
 	Extension string    `json:"extension"`
 	Path      string    `json:"path"`
 	CreatedAt time.Time `json:"created_at"`

@@ -6,7 +6,7 @@
         <div class="modal-body">
             <form hx-post="/edit-menu/{{ .Menu.ID }}" hx-target="#menu-table-container" hx-swap="none"
             hx-headers="{'X-No-Cache': 'true'}"
-            hx-on::after-request="updateMenuList()">
+            data-after="updateMenuList">
                 <input type="hidden" name="menu_id" value="{{ .Menu.ID }}">
                 <div class="mb-3">
                     <label for="menu_title" class="form-label">Menu Title:</label>
@@ -43,17 +43,6 @@
         </div>
     </div>
 </div>
-<script>
-    function updateMenuList() {
+<!-- Shared helpers live in /static/js/admin.js (loaded once from the layout). -->
 
-        htmx.ajax('GET', '/search-menu', {
-            target: '#menu-table-container',
-            swap: 'innerHTML',
-            headers: {
-                'X-No-Cache': 'true'
-            },
-        });
-        
-    }
-</script>
 

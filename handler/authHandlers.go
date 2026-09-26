@@ -3,6 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
+
 	"goxcms/model"
 	"goxcms/utils"
 	"strings"
@@ -178,11 +181,6 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 			return nil
 		}
 
-		if loginBlocked(c.IP()) {
-			ShowToastError(c, "Too many login attempts, try again later")
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many login attempts"})
-		}
-
 		type loginRequest struct {
 			Username string `json:"username"`
 			Password string `json:"password"`
@@ -194,26 +192,41 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 			return c.SendStatus(fiber.StatusBadRequest)
 		}
 
+		if loginBlocked(c.IP(), req.Username) {
+			log.Printf("auth blocked ip=%s user=%s", c.IP(), req.Username)
+			ShowToastError(c, "Too many login attempts, try again later")
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many login attempts"})
+		}
+
 		var user model.User
 		if err := db.Where("username = ?", req.Username).First(&user).Error; err != nil {
 			// Same cost as a real password check, so unknown usernames do
 			// not fail visibly faster than wrong passwords.
 			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(req.Password))
-			recordLoginFailure(c.IP())
+			recordLoginFailure(c.IP(), req.Username)
+			log.Printf("auth fail ip=%s user=%s", c.IP(), req.Username)
 			ShowToastError(c, "Invalid login credentials")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid login credentials"})
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			recordLoginFailure(c.IP())
-			ShowToastError(c, "Invalid login credentials - Password does not match")
+			recordLoginFailure(c.IP(), req.Username)
+			log.Printf("auth fail ip=%s user=%s", c.IP(), req.Username)
+			ShowToastError(c, "Invalid login credentials")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid login credentials"})
 		}
 
-		resetLoginAttempts(c.IP())
+		resetLoginAttempts(c.IP(), req.Username)
 
 		sess, err := store.Get(c)
 		if err != nil {
+			ShowToastError(c, "Failed to initiate session")
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to initiate session"})
+		}
+
+		// Fresh session ID on login so a pre-planted session cookie can
+		// never become authenticated (session fixation).
+		if err := sess.Regenerate(); err != nil {
 			ShowToastError(c, "Failed to initiate session")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to initiate session"})
 		}
@@ -244,22 +257,33 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 }
 
 // Logout destroys the server session, revokes all JWTs issued to the user by
-// bumping their session version, and clears the login cookie.
+// bumping their session version, and clears the login cookie. The version
+// bump is checked: if it fails the token would stay valid, so logout fails
+// instead of pretending.
 func Logout(c *fiber.Ctx, db *gorm.DB) error {
+	user, loggedIn := CurrentUser(c)
+
+	if loggedIn {
+		if err := db.Model(&model.User{}).Where("id = ?", user.ID).
+			Update("session_version", gorm.Expr("session_version + 1")).Error; err != nil {
+			ShowToastError(c, "Logout failed, please try again")
+			return c.Status(fiber.StatusInternalServerError).SendString("Logout failed")
+		}
+	}
+
 	if sess, ok := c.Locals("session").(*session.Session); ok && sess != nil {
 		sess.Destroy()
 	}
 
-	if user, ok := CurrentUser(c); ok {
-		db.Model(&model.User{}).Where("id = ?", user.ID).
-			Update("session_version", gorm.Expr("session_version + 1"))
-	}
-
+	// Mirror the flags of SetJWTTokenCookie: on HTTPS a clear without
+	// Secure/SameSite leaves the original cookie alive in the browser.
 	cookie := new(fiber.Cookie)
 	cookie.Name = "jwt"
 	cookie.Value = ""
 	cookie.Expires = time.Now().Add(-1 * time.Hour)
 	cookie.HTTPOnly = true
+	cookie.Secure = utils.SecureCookies()
+	cookie.SameSite = "Lax"
 	cookie.Path = "/"
 
 	c.Cookie(cookie)
@@ -281,6 +305,17 @@ func registrationEnabled(db *gorm.DB) bool {
 	return SiteSettings(db)["RegistrationEnabled"] == "true"
 }
 
+// registerRequest is the whitelisted sign-up payload. The model is never
+// bound directly: that would let callers set ID, RoleID, SessionVersion or
+// timestamps (mass assignment).
+type registerRequest struct {
+	Username  string  `form:"username" json:"username" validate:"required,alphanum,min=2,max=30"`
+	Password  string  `form:"password" json:"password" validate:"required,min=8,max=72"`
+	FirstName string  `form:"first_name" json:"first_name" validate:"required,min=2,max=30"`
+	LastName  string  `form:"last_name" json:"last_name" validate:"required,min=2,max=30"`
+	Email     *string `form:"email" json:"email" validate:"omitempty,email"`
+}
+
 func Register(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
@@ -289,37 +324,45 @@ func Register(db *gorm.DB) fiber.Handler {
 			return c.Status(fiber.StatusForbidden).SendString("Registration is disabled")
 		}
 
+		if authBlocked(c.IP()) {
+			ShowToastError(c, "Too many attempts, try again later")
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many attempts"})
+		}
+
 		if !captchaPassed(c) {
 			return nil
 		}
 
-		var user model.User
-
-		if err := c.BodyParser(&user); err != nil {
+		var req registerRequest
+		if err := c.BodyParser(&req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 		}
 
-		user.RoleID = model.RoleUser
-
 		validate := validator.New()
-		if err := validate.Struct(&user); err != nil {
+		if err := validate.Struct(&req); err != nil {
 			ShowToastError(c, "Validation failed: "+FormatValidationError(err))
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Validation failed", "details": err.Error()})
 		}
 
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
 			ShowToastError(c, "Failed to hash password")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to hash password"})
 		}
-		user.Password = string(hashedPassword)
-
-		if err := db.Where("username = ?", user.Username).First(&model.User{}).Error; err == nil {
-			ShowToastError(c, "Username already exists")
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Username already exists"})
+		user := model.User{
+			Username:  req.Username,
+			Password:  string(hashedPassword),
+			RoleID:    model.RoleUser,
+			FirstName: req.FirstName,
+			LastName:  req.LastName,
+			Email:     req.Email,
 		}
 
 		if err := db.Create(&user).Error; err != nil {
+			if isDupKeyError(err) {
+				ShowToastError(c, "Username already exists")
+				return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Username already exists"})
+			}
 			ShowToastError(c, "Registration failed")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Registration failed"})
 		}
@@ -332,6 +375,7 @@ func Register(db *gorm.DB) fiber.Handler {
 
 		SetJWTTokenCookie(c, tokenString)
 
+		log.Printf("auth register ip=%s user=%s", c.IP(), user.Username)
 		c.Set("HX-Redirect", "/")
 		return c.Status(fiber.StatusOK).SendString("Registered successfully")
 	}
@@ -374,6 +418,19 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
+// minPasswordLength returns the minimum password length for a role:
+// admins guard the whole site, so they need longer passwords.
+func minPasswordLength(roleID uint) int {
+	if roleID == model.RoleAdmin {
+		return 12
+	}
+	return 8
+}
+
+func passwordTooShort(password string, roleID uint) bool {
+	return len(password) < minPasswordLength(roleID) || len(password) > 72
+}
+
 // ChangePassword updates the logged-in user's password after verifying the
 // current one. Other sessions are revoked via the session version; a fresh
 // token is issued for this session so the user stays logged in here.
@@ -381,6 +438,11 @@ func ChangePassword(c *fiber.Ctx, db *gorm.DB) error {
 	user, ok := CurrentUser(c)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).SendString("Not logged in")
+	}
+
+	if authBlocked(c.IP()) {
+		ShowToastError(c, "Too many attempts, try again later")
+		return c.Status(fiber.StatusTooManyRequests).SendString("Too many attempts")
 	}
 
 	current := c.FormValue("current_password")
@@ -391,17 +453,21 @@ func ChangePassword(c *fiber.Ctx, db *gorm.DB) error {
 		ShowToastError(c, "New passwords do not match")
 		return c.Status(fiber.StatusBadRequest).SendString("New passwords do not match")
 	}
-	if len(next) < 6 {
-		ShowToastError(c, "New password must be at least 6 characters")
-		return c.Status(fiber.StatusBadRequest).SendString("New password must be at least 6 characters")
-	}
 
 	var dbUser model.User
 	if err := db.First(&dbUser, user.ID).Error; err != nil {
 		ShowToastError(c, "User not found")
 		return c.Status(fiber.StatusNotFound).SendString("User not found")
 	}
+	// bcrypt silently truncates past 72 bytes, so longer input is rejected
+	// instead of colliding with its 72-byte prefix.
+	if passwordTooShort(next, dbUser.RoleID) {
+		msg := fmt.Sprintf("New password must be %d-%d characters", minPasswordLength(dbUser.RoleID), 72)
+		ShowToastError(c, msg)
+		return c.Status(fiber.StatusBadRequest).SendString(msg)
+	}
 	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(current)); err != nil {
+		recordLoginFailure(c.IP(), dbUser.Username)
 		ShowToastError(c, "Current password is incorrect")
 		return c.Status(fiber.StatusUnauthorized).SendString("Current password is incorrect")
 	}
@@ -426,6 +492,7 @@ func ChangePassword(c *fiber.Ctx, db *gorm.DB) error {
 	}
 	SetJWTTokenCookie(c, tokenString)
 
+	log.Printf("auth password change ip=%s user_id=%d", c.IP(), dbUser.ID)
 	ShowToast(c, "Password changed successfully")
 	return c.Status(fiber.StatusOK).SendString("Password changed successfully")
 }

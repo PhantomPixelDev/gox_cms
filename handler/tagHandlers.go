@@ -55,7 +55,7 @@ func BlogTagPage(c *fiber.Ctx, db *gorm.DB) error {
 
 	totalPages := pageCount(totalPosts, postsPerPage)
 
-	if pageNumber > totalPages {
+	if totalPosts > 0 && pageNumber > totalPages {
 		return c.Redirect("/blog/tag/" + slug + "/1")
 	}
 
@@ -94,15 +94,30 @@ func SearchTag(c *fiber.Ctx, db *gorm.DB) error {
 		Offset((pageInt - 1) * pageSize).
 		Find(&tags)
 
-	// Count the number of posts for each tag
-	for i := range tags {
-		var count int64
+	// Count posts per tag in one query instead of one per row.
+	if len(tags) > 0 {
+		ids := make([]uint, 0, len(tags))
+		for i := range tags {
+			ids = append(ids, tags[i].ID)
+		}
+		type tagCount struct {
+			TagID uint
+			Total int64
+		}
+		var counts []tagCount
 		db.Model(&model.Post{}).
+			Select("post_tags.tag_id as tag_id, COUNT(*) as total").
 			Joins("join post_tags on post_tags.post_id = posts.id").
-			Where("post_tags.tag_id = ?", tags[i].ID).
-			Count(&count)
-
-		tags[i].PostsCount = int(count)
+			Where("post_tags.tag_id IN ?", ids).
+			Group("post_tags.tag_id").
+			Scan(&counts)
+		byID := make(map[uint]int, len(counts))
+		for _, tc := range counts {
+			byID[tc.TagID] = int(tc.Total)
+		}
+		for i := range tags {
+			tags[i].PostsCount = byID[tags[i].ID]
+		}
 	}
 
 	// Count total tags that match the search query for pagination
@@ -136,10 +151,15 @@ func AddTag(c *fiber.Ctx, db *gorm.DB) error {
 		}
 	}
 
-	db.Create(&model.Tag{
+	if err := db.Create(&model.Tag{
 		Name: name,
 		Slug: slug,
-	})
+	}).Error; err != nil {
+		if isDupKeyError(err) {
+			return ShowToastError(c, "Tag name or slug already exists")
+		}
+		return ShowToastError(c, "Could not create tag")
+	}
 
 	message := map[string]string{"showToast": "Tag added successfully"}
 	messageBytes, _ := json.Marshal(message)
@@ -157,16 +177,19 @@ func DeleteTag(c *fiber.Ctx, db *gorm.DB) error {
 	var tag model.Tag
 
 	if err := db.First(&tag, id).Error; err != nil {
-		return ShowToastError(c, "Tag not found")
+		ShowToastError(c, "Tag not found")
+		return c.Status(fiber.StatusNotFound).SendString("Tag not found")
 	}
 
-	// Delete the associated records in the "post_tags" table
-	if err := db.Exec("DELETE FROM post_tags WHERE tag_id = ?", tag.ID).Error; err != nil {
-		return ShowToastError(c, "Error deleting associated records")
-	}
-
-	if err := db.Delete(&tag).Error; err != nil {
-		return ShowToastError(c, "Error deleting tag")
+	// Delete the tag and its associations atomically.
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM post_tags WHERE tag_id = ?", tag.ID).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&tag).Error
+	}); err != nil {
+		ShowToastError(c, "Error deleting tag")
+		return c.Status(fiber.StatusInternalServerError).SendString("Error deleting tag")
 	}
 
 	return ShowToast(c, "Tag with ID "+id+" deleted successfully")

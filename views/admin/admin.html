@@ -79,7 +79,7 @@
 
             <li class="nav-item">
                 <a class="nav-link" id="filemanager-tab" data-bs-toggle="tab" href="#filemanager" role="tab"
-                    hx-get="/search-files" hx-trigger="click" hx-target="#file-list-conatiner" hx-swap="innerHTML"
+                    hx-get="/search-files" hx-trigger="click" hx-target="#file-list-container" hx-swap="innerHTML"
                     hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-controls="filemanager"
                     aria-selected="false"><i class="bi bi-folder"></i> File
                     Manager</a>
@@ -173,9 +173,7 @@
                             <h2 class="text-primary">Users</h2>
                         </div>
                         <div class="col-auto">
-                            <a href="/admin/user/add" class="btn btn-primary" target="_blank">
-                                Add New User
-                            </a>
+                            <span class="text-muted small">New users sign up at <a href="/register">/register</a> when enabled in Settings.</span>
                         </div>
 
                     </div>
@@ -260,7 +258,7 @@
                                     <div class="row mt-4">
                                         <div class="col-12">
                                             <form hx-post="/add-tag" hx-trigger="submit" hx-swap="none"
-                                                hx-headers='{"X-No-Cache": "true"}' hx-on::after-request="searchTags()">
+                                                hx-headers='{"X-No-Cache": "true"}' data-after="searchTags">
                                                 <div class="row g-3">
                                                     <div class="col-md-6">
                                                         <label for="tag_name" class="form-label">Tag Name:</label>
@@ -334,7 +332,7 @@
                                         <div class="col-12">
                                             <form hx-post="/add-category" hx-trigger="submit" hx-swap="none"
                                                 hx-headers='{"X-No-Cache": "true"}'
-                                                hx-on::after-request="searchCategories()">
+                                                data-after="searchCategories">
                                                 <div class="row g-3">
                                                     <div class="col-md-6">
                                                         <label for="category_name" class="form-label">Category
@@ -470,7 +468,7 @@
                             <form hx-post="/upload-file" enctype="multipart/form-data" hx-swap="none"
                                 hx-trigger="submit" hx-headers='{"X-No-Cache": "true"}' id="upload-file-form"
                                 
-                                hx-on::after-request="updateFileList()">
+                                data-after="updateFileList">
                                 <div class="mb-3">
                                     <label for="file" class="form-label">Choose File</label>
                                     <input type="file" class="form-control" name="file" id="file">
@@ -481,23 +479,18 @@
                             </form>
                             <progress id='progress' class="" value="0" max="100"></progress>
 
-                            <script>
-                                htmx.on('#upload-file-form', 'htmx:xhr:progress', function(evt) {
-                                  htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
-                                });
-                            </script>
                             <hr>
 
                             <div class="mb-3">
                                 <input type="text" id="search-input-files" placeholder="Search files..."
                                     class="form-control" hx-get="/search-files" hx-trigger="keyup delay:500ms changed"
-                                    hx-target="#file-list-conatiner" hx-headers='{"X-No-Cache": "true"}'
+                                    hx-target="#file-list-container" hx-headers='{"X-No-Cache": "true"}'
                                     hx-vars="query:document.getElementById('search-input-files').value">
                             </div>
 
                             <hr>
 
-                            <div id="file-list-conatiner"></div>
+                            <div id="file-list-container"></div>
                         </div>
                     </div>
 
@@ -536,49 +529,4 @@
     </div>
 </div>
 
-
-<script>
-
-    function updateFileList() {
-
-        /// reset progress bar 
-        htmx.find('#progress').setAttribute('value', 0) 
-        htmx.find('#upload-file-form').reset()
-        htmx.ajax('GET', '/search-files', {
-            target: '#file-list-conatiner',
-            headers: {
-                'X-No-Cache': 'true'
-            },
-        });
-
-
-    }
-
-    function updateSettingsForm() {
-        htmx.ajax('GET', '/admin-settings', {
-            target: '#settings-container',
-            swap: 'innerHTML',
-            headers: {
-                'X-No-Cache': 'true'
-            },
-        });
-    }
-    function searchTags() {
-        htmx.ajax('GET', '/search-tags', {
-            target: '#tag-table-container',
-            headers: {
-                'X-No-Cache': 'true'
-            },
-        });
-    }
-
-    function searchCategories() {
-        htmx.ajax('GET', '/search-categories', {
-            target: '#category-table-container',
-            headers: {
-                'X-No-Cache': 'true'
-            }
-        });
-    }
-
-</script>
+<!-- Admin helpers live in /static/js/admin.js (loaded once from the layout). -->

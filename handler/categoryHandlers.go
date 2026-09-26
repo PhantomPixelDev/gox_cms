@@ -55,7 +55,7 @@ func BlogCategoryPage(c *fiber.Ctx, db *gorm.DB) error {
 
 	totalPages := pageCount(totalPosts, postsPerPage)
 
-	if pageNumber > totalPages {
+	if totalPosts > 0 && pageNumber > totalPages {
 		return c.Redirect("/blog/category/" + slug + "/1")
 	}
 
@@ -95,10 +95,15 @@ func AddCategory(c *fiber.Ctx, db *gorm.DB) error {
 		}
 	}
 
-	db.Create(&model.Category{
+	if err := db.Create(&model.Category{
 		Name: name,
 		Slug: slug,
-	})
+	}).Error; err != nil {
+		if isDupKeyError(err) {
+			return ShowToastError(c, "Category name or slug already exists")
+		}
+		return ShowToastError(c, "Could not create category")
+	}
 
 	message := map[string]string{"showToast": "Category added successfully"}
 	messageBytes, _ := json.Marshal(message)
@@ -116,17 +121,18 @@ func DeleteCategory(c *fiber.Ctx, db *gorm.DB) error {
 	// Find the category
 	if err := db.First(&category, id).Error; err != nil {
 		// Handle the error if the category is not found
-		return ShowToastError(c, "Category not found")
+		ShowToastError(c, "Category not found")
+		return c.Status(fiber.StatusNotFound).SendString("Category not found")
 	}
 
-	if err := db.Exec("DELETE FROM post_categories WHERE category_id = ?", category.ID).Error; err != nil {
-		// Handle the error if deleting the associated records fails
-		return ShowToastError(c, "Error deleting associated records")
-	}
-
-	if err := db.Delete(&category).Error; err != nil {
-		// Handle the error if deleting the category fails
-		return ShowToastError(c, "Error deleting category")
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM post_categories WHERE category_id = ?", category.ID).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&category).Error
+	}); err != nil {
+		ShowToastError(c, "Error deleting category")
+		return c.Status(fiber.StatusInternalServerError).SendString("Error deleting category")
 	}
 
 	return ShowToast(c, "Category deleted successfully")
@@ -147,15 +153,30 @@ func SearchCategories(c *fiber.Ctx, db *gorm.DB) error {
 		Offset((pageInt - 1) * pageSize).
 		Find(&categories)
 
-	// Count the number of posts for each category
-	for i := range categories {
-		var count int64
+	// Count posts per category in one query instead of one per row.
+	if len(categories) > 0 {
+		ids := make([]uint, 0, len(categories))
+		for i := range categories {
+			ids = append(ids, categories[i].ID)
+		}
+		type catCount struct {
+			CategoryID uint
+			Total      int64
+		}
+		var counts []catCount
 		db.Model(&model.Post{}).
+			Select("post_categories.category_id as category_id, COUNT(*) as total").
 			Joins("join post_categories on post_categories.post_id = posts.id").
-			Where("post_categories.category_id = ?", categories[i].ID).
-			Count(&count)
-
-		categories[i].PostsCount = int(count)
+			Where("post_categories.category_id IN ?", ids).
+			Group("post_categories.category_id").
+			Scan(&counts)
+		byID := make(map[uint]int, len(counts))
+		for _, cc := range counts {
+			byID[cc.CategoryID] = int(cc.Total)
+		}
+		for i := range categories {
+			categories[i].PostsCount = byID[categories[i].ID]
+		}
 	}
 
 	var totalMatchingCount int64

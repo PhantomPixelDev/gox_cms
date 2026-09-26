@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"goxcms/model"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -45,7 +46,8 @@ func maxUploadSize() int64 {
 func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
 	file, err := c.FormFile("file")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("Cannot read file: " + err.Error())
+		log.Printf("upload: reading form file: %v", err)
+		return c.Status(fiber.StatusBadRequest).SendString("Cannot read file")
 	}
 
 	if file.Size > maxUploadSize() {
@@ -59,7 +61,8 @@ func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
 
 	contentType, err := sniffContentType(file)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("Cannot read file: " + err.Error())
+		log.Printf("upload: sniffing content type: %v", err)
+		return c.Status(fiber.StatusBadRequest).SendString("Cannot read file")
 	}
 	if !AllowedContentTypes[contentType] {
 		return c.Status(fiber.StatusBadRequest).SendString("Invalid content type")
@@ -124,19 +127,20 @@ func DeleteFile(c *fiber.Ctx, db *gorm.DB) error {
 	safeFilename := filepath.Base(filename)
 	filePath := filepath.Join(UploadDir, safeFilename)
 
-	// Check if the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	// Delete the database row first: it is the source of truth, and a
+	// missing row is a clean 404 instead of a half-deleted state.
+	result := db.Delete(&model.File{}, "name = ?", safeFilename)
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete file from database"})
+	}
+	if result.RowsAffected == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "File not found"})
 	}
 
-	// Delete the file from disk
-	if err := os.Remove(filePath); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete file from disk"})
-	}
-
-	// Delete the file from the database
-	if err := db.Delete(&model.File{}, "name = ?", safeFilename).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete file from database"})
+	// Best effort on disk: the row is already gone, so a missing file is
+	// only worth a log line, not a failure.
+	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+		log.Printf("delete file: removing %s from disk: %v", filePath, err)
 	}
 
 	ShowToast(c, "File deleted successfully")

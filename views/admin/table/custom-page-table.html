@@ -20,16 +20,16 @@
                 <td>{{.Title }}</td>
                 <td>{{.Slug}}</td>
                 <td>
-                    <a href="/{{.Slug}}" class="btn btn-sm btn-primary" target="_blank">🔍</a>
+                    <a href="/{{.Slug}}" class="btn btn-sm btn-primary" target="_blank" rel="noopener" aria-label="View page"><i class="bi bi-eye"></i></a>
                     
                 </td>
                 <td>
-                    <a href="/edit-custompage/{{.ID}}" class="btn btn-sm btn-warning" target="_blank">✏️</a>
+                    <a href="/edit-custompage/{{.ID}}" class="btn btn-sm btn-warning" aria-label="Edit page"><i class="bi bi-pencil"></i></a>
                 </td>
                 <td>
                     <button class="btn btn-sm btn-danger" hx-delete="/delete-custompage/{{.ID}}" 
                     hx-confirm="Are you sure you want to delete this custom page?" hx-target="#custompage-row-{{.ID}}"
-                    hx-swap="#custompage-row-{{.ID}}">Delete</button>
+                    hx-swap="outerHTML">Delete</button>
                 </td>
             </tr>
             {{end}}
@@ -43,59 +43,9 @@
 
 
 
-<div id="pagination-container" class="col-12 d-flex justify-content-center">
-        
-    {{ $totalPages := .TotalPages }}
-    {{ $currentPage := .CurrentPage  }}
-  
-    {{ $searchQuery := .SearchQuery }}
-
-    <!-- ... Other variables ... -->
-
-    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
-        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
-            <!-- ... Other pagination links prev and next ... -->
-
-            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
-              
-                <a class="page-link" href="/search-custompages?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-get="/search-custompages?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#custompage-table-container"
-                    hx-headers='{"X-No-Cache": "true"}'>
-                    Previous
-                </a>
-               
-            </li>
+{{template "partials/pagination" dict "Base" "/search-custompages" "Target" "#custompage-table-container" "TotalPages" .TotalPages "CurrentPage" .CurrentPage "SearchQuery" .SearchQuery}}
 
 
-            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
-             
-                <a class="page-link" href="/search-custompages?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-get="/search-custompages?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#custompage-table-container"
-                    hx-headers='{"X-No-Cache": "true"}'>
-                    Next
-                </a>
-         
-            </li>
-
-            
-            <!-- Dynamically set hx-get based on whether it's a search result -->
-            {{ range $i := sequence 1 $totalPages }}
-            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
-               
-                <a class="page-link" href="/search-custompages?page={{$i}}&query={{$searchQuery}}"
-                   hx-get="/search-custompages?page={{$i}}&query={{$searchQuery}}"
-                   hx-target="#custompage-table-container"
-                   hx-headers='{"X-No-Cache": "true"}'>
-                    {{$i}}
-                </a>
-               
-            </li>
-            {{ end }}
-        </ul>
-    </nav>
-</div>
 
 
 

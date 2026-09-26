@@ -21,7 +21,9 @@ func InitDB() *gorm.DB {
 	databaseDriver := viper.GetString("database.driver")
 
 	config := &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true,
+		// Foreign keys are enforced: deletes must clear dependents first
+		// (see the transactional delete handlers), or the database refuses.
+		DisableForeignKeyConstraintWhenMigrating: false,
 		Logger:                                   logger.Default.LogMode(logger.Silent),
 	}
 

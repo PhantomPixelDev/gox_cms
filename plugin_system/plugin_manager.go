@@ -2,9 +2,11 @@ package plugin_system
 
 import (
 	"encoding/json"
+	"errors"
 	handlers "goxcms/handler"
 	"goxcms/model"
 	"log"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
@@ -30,7 +32,11 @@ func RegisterPlugin(plugin Plugin, db *gorm.DB) {
 			return
 		}
 
-		db.Create(&model.Plugin{Name: plugin.Name(), Author: plugin.Author(), Version: plugin.Version(), Enabled: plugin.Enabled(db), Settings: string(settingsJSON)})
+		if err := db.Create(&model.Plugin{Name: plugin.Name(), Author: plugin.Author(), Version: plugin.Version(), Enabled: plugin.Enabled(db), Settings: string(settingsJSON)}).Error; err != nil {
+			if !isDupPlugin(err) {
+				log.Printf("Error registering plugin %s: %v", plugin.Name(), err)
+			}
+		}
 	}
 
 	for _, p := range plugins {
@@ -77,11 +83,24 @@ func GetPluginByName(pluginName string) Plugin {
 	return nil
 }
 
+// errPluginNotFound is returned when toggling a plugin with no database row.
+var errPluginNotFound = errors.New("plugin not found")
+
+func isDupPlugin(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "UNIQUE constraint failed") ||
+		strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "Duplicate entry")
+}
+
 func EnableDisablePlugin(pluginName string, db *gorm.DB) error {
 	pluginDB := model.Plugin{}
 	db.Where("name = ?", pluginName).First(&pluginDB)
 	if pluginDB.ID == 0 {
-		return nil
+		return errPluginNotFound
 	}
 	/// change value in database and then reload the plugin if enabled
 	pluginDB.Enabled = !pluginDB.Enabled
@@ -104,6 +123,9 @@ func enableDisablePluginHandler(db *gorm.DB) fiber.Handler {
 		}
 
 		if err := EnableDisablePlugin(pluginName, db); err != nil {
+			if err == errPluginNotFound {
+				return c.SendStatus(fiber.StatusNotFound)
+			}
 			return c.Status(fiber.StatusInternalServerError).SendString("Failed to update plugin")
 		}
 

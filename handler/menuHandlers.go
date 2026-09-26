@@ -45,12 +45,21 @@ func AddMenu(c *fiber.Ctx, db *gorm.DB) error {
 		return nil
 	}
 
-	// Change other primary menus to non-primary
-	if menu.Primary {
-		db.Model(&model.Menu{}).Where("primary = ?", true).Update("primary", false)
-	}
-
-	if err := db.Create(&menu).Error; err != nil {
+	// Change other primary menus to non-primary, atomically with the create.
+	// NOTE: the column is is_primary (see model.Menu), not primary.
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if menu.Primary {
+			if err := tx.Model(&model.Menu{}).Where("is_primary = ?", true).Update("is_primary", false).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Create(&menu).Error
+	})
+	if err != nil {
+		if isDupKeyError(err) {
+			ShowToast(c, "Menu with title "+menu.Title+" already exists")
+			return nil
+		}
 		ShowToastError(c, "Could not create menu")
 		return c.Status(fiber.StatusInternalServerError).SendString("Could not create menu")
 	}
@@ -167,7 +176,24 @@ func DeleteMenu(c *fiber.Ctx, db *gorm.DB) error {
 		return err
 	}
 
-	if err := db.Where("id = ?", id).Delete(&model.Menu{}).Error; err != nil {
+	err = db.Transaction(func(tx *gorm.DB) error {
+		var menu model.Menu
+		if err := tx.First(&menu, id).Error; err != nil {
+			return err
+		}
+		// Detach submenus instead of orphaning them.
+		if err := tx.Model(&model.Menu{}).Where("parent_id = ?", id).Update("parent_id", nil).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("menu_id = ?", id).Delete(&model.MenuItem{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&menu).Error
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return menuNotFound(c, "Menu")
+		}
 		return menuServerError(c, "Could not delete menu")
 	}
 
@@ -232,12 +258,17 @@ func EditMenu(c *fiber.Ctx, db *gorm.DB) error {
 		menu.ParentID = &parentID
 	}
 
-	/// change other primary menus to non-primary
-	if menu.Primary {
-		db.Model(&model.Menu{}).Where("primary = ?", true).Update("primary", false)
-	}
-
-	if err := db.Save(&menu).Error; err != nil {
+	/// change other primary menus to non-primary, atomically with the save.
+	// NOTE: the column is is_primary (see model.Menu), not primary.
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if menu.Primary {
+			if err := tx.Model(&model.Menu{}).Where("is_primary = ?", true).Update("is_primary", false).Error; err != nil {
+				return err
+			}
+			menu.Primary = true
+		}
+		return tx.Save(&menu).Error
+	}); err != nil {
 		return menuServerError(c, "Could not update menu")
 	}
 
@@ -361,13 +392,14 @@ func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
 		Count(&totalMatchingCount)
 	totalPages := pageCount(totalMatchingCount, pageSize)
 
-	// Link picker sources for the guided "add item" form.
+	// Link picker sources for the guided "add item" form, capped so the
+	// admin search stays cheap no matter how big the site grows.
 	var allMenus []model.Menu
-	db.Order("position ASC").Find(&allMenus)
+	db.Order("position ASC").Limit(200).Find(&allMenus)
 	var pages []model.CustomPage
-	db.Order("title ASC").Find(&pages)
+	db.Order("title ASC").Limit(200).Find(&pages)
 	var posts []model.Post
-	db.Where("published = ?", true).Order("title ASC").Find(&posts)
+	db.Where("published = ?", true).Order("title ASC").Limit(200).Find(&posts)
 
 	return c.Render("admin/table/menu-table", fiber.Map{
 		"Menus":       menus, // No need to separate and recombine by primary status for ordering

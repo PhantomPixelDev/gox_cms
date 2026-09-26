@@ -1,4 +1,4 @@
-<div id="modals-here" class="modal modal-blur fade" style="display: none" aria-hidden="false" tabindex="-1">
+<div id="modals-here" class="modal modal-blur fade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
 
         <div class="modal-content">
@@ -14,7 +14,7 @@
             <h3 class="h5 card-title">Add menu item</h3>
             {{if .AllMenus}}
             <form hx-post="/add-menu-item" hx-trigger="submit" hx-swap="none"
-                hx-headers='{"X-No-Cache": "true"}' hx-on::after-request="updateMenuList(); this.reset();"
+                hx-headers='{"X-No-Cache": "true"}' data-after="updateMenuList" data-reset-form
                 id="menu-item-form">
                 <div class="row g-3">
                     <div class="col-12 col-md-3">
@@ -77,7 +77,7 @@
         <div class="card-body">
             <h3 class="h5 card-title">New menu</h3>
             <form hx-post="/add-menu" hx-trigger="submit" hx-swap="none"
-                hx-headers='{"X-No-Cache": "true"}' hx-on::after-request="updateMenuList(); this.reset();">
+                hx-headers='{"X-No-Cache": "true"}' data-after="updateMenuList" data-reset-form>
                 <div class="row g-3 align-items-end">
                     <div class="col-12 col-md-5">
                         <label for="menu_title" class="form-label">Menu title</label>
@@ -211,93 +211,9 @@
 
 <!-- Add Pagination -->
 
-<div id="pagination-container" class="col-12 d-flex justify-content-center">
-
-    {{ $totalPages := .TotalPages }}
-    {{ $currentPage := .CurrentPage }}
-
-    {{ $searchQuery := .SearchQuery }}
-
-    <!-- ... Other variables ... -->
-
-    <nav class="container d-flex justify-content-center" aria-label="Page navigation example">
-        <ul class="pagination justify-content-start flex-wrap mb-0 col-md-12 ">
-            <!-- ... Other pagination links prev and next ... -->
-
-            <!--- add prev and next buttons -->
-            <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
-
-                <a class="page-link" href="/search-menu?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-get="/search-menu?page={{sub $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#menu-table-container"
-                    hx-headers='{"X-No-Cache": "true"}'>
-                    Previous
-                </a>
-
-            </li>
+{{template "partials/pagination" dict "Base" "/search-menu" "Target" "#menu-table-container" "TotalPages" .TotalPages "CurrentPage" .CurrentPage "SearchQuery" .SearchQuery}}
 
 
-            <li class="page-item {{if eq $currentPage $totalPages}}disabled{{end}}">
-
-                <a class="page-link" href="/search-menu?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-get="/search-menu?page={{add $currentPage 1}}&query={{$searchQuery}}"
-                    hx-target="#menu-table-container"
-                    hx-headers='{"X-No-Cache": "true"}'>
-                    Next
-                </a>
-
-            </li>
+<!-- Shared helpers live in /static/js/admin.js (loaded once from the layout). -->
 
 
-            <!-- Dynamically set hx-get based on whether it's a search result -->
-            {{ range $i := sequence 1 $totalPages }}
-            <li class="page-item {{if eq $i $currentPage}}active{{end}}">
-
-                <a class="page-link" href="/search-menu?page={{$i}}&query={{$searchQuery}}"
-                    hx-get="/search-menu?page={{$i}}&query={{$searchQuery}}"
-                    hx-target="#menu-table-container"
-                    hx-headers='{"X-No-Cache": "true"}'>
-                    {{$i}}
-                </a>
-
-            </li>
-            {{ end }}
-        </ul>
-    </nav>
-</div>
-
-
-<script>
-    function updateMenuList() {
-
-        htmx.ajax('GET', '/search-menu', {
-            target: '#menu-table-container',
-            swap: 'innerHTML',
-            headers: {
-                'X-No-Cache': 'true'
-            },
-        });
-
-    }
-
-    (function () {
-        var source = document.getElementById('link_source');
-        var url = document.getElementById('menu_item_link');
-        var title = document.getElementById('menu_item_title');
-        if (!source || !url) {
-            return;
-        }
-        source.addEventListener('change', function () {
-            var opt = source.options[source.selectedIndex];
-            if (source.value === '__custom') {
-                url.value = '';
-                url.focus();
-                return;
-            }
-            url.value = source.value;
-            if (title && !title.value && opt.getAttribute('data-title')) {
-                title.value = opt.getAttribute('data-title');
-            }
-        });
-    })();
-</script>

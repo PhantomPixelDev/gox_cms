@@ -6,7 +6,7 @@ import (
 
 type Plugin struct {
 	ID        uint       `json:"id" gorm:"primaryKey"`
-	Name      string     `json:"name" validate:"required"`
+	Name      string     `json:"name" validate:"required" gorm:"uniqueIndex"`
 	Author    string     `json:"author" validate:"required"`
 	Version   string     `json:"version" validate:"required"`
 	Enabled   bool       `json:"enabled" default:"false"`

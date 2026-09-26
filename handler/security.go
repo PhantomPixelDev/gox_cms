@@ -7,12 +7,14 @@ import (
 )
 
 // contentSecurityPolicy locks the page to same-origin plus the CDNs the
-// templates use. Inline scripts/styles stay allowed ('unsafe-inline') because
-// main.html and the admin views rely on them (CSRF header wiring, toasts,
-// theme switch, Quill); object/embed, foreign frames and base-uri hijacking
-// are still blocked. Saved HTML is sanitized on top of this (SanitizeRichHTML).
+// templates use. All first-party JavaScript lives in /static/js files and
+// admin behavior uses data-* hooks evaluated by static listeners, so no
+// 'unsafe-inline' or 'unsafe-eval' is needed for scripts. Inline styles stay
+// allowed because the Quill editor applies them at runtime; object/embed,
+// foreign frames and base-uri hijacking are still blocked. Saved HTML is
+// sanitized on top of this (SanitizeRichHTML).
 const contentSecurityPolicy = "default-src 'self';" +
-	" script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://ajax.googleapis.com https://cdnjs.cloudflare.com https://js.hcaptcha.com;" +
+	" script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://ajax.googleapis.com https://cdnjs.cloudflare.com https://js.hcaptcha.com;" +
 	" style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" +
 	" img-src 'self' data: https:;" +
 	" font-src 'self' data: https://cdn.jsdelivr.net;" +

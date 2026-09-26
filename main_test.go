@@ -417,8 +417,10 @@ func TestPostSlugMustBeUnique(t *testing.T) {
 	second := model.Post{Title: "Second", Content: "two", Slug: "second"}
 	db.Create(&first)
 	db.Create(&second)
-	cat := model.Category{Name: "News", Slug: "news"}
-	db.Create(&cat)
+	cat := model.Category{Name: "Local", Slug: "local"}
+	if err := db.Create(&cat).Error; err != nil {
+		t.Fatalf("could not create category: %v", err)
+	}
 
 	form := url.Values{"title": {"Dup"}, "content": {"x"}, "post_slug": {"first"}, "image": {"/img.png"}}
 	postForm(t, app, "/admin/post/add", form, token, auth)
@@ -506,6 +508,163 @@ func TestSeedDemoContent(t *testing.T) {
 	// Seeded posts render with their images.
 	if resp, body := do(t, app, "GET", "/blog/post/welcome-to-gox-cms"); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "/static/uploads/seed-1.jpg") {
 		t.Errorf("GET seeded post: got status %d", resp.StatusCode)
+	}
+}
+
+func TestUpdateSettings(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	form := url.Values{"name": {"New Name"}, "theme": {"darkly"}, "container_class": {"container"}}
+	if resp, _ := postForm(t, app, "/update-settings", form, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("update settings: got status %d", resp.StatusCode)
+	}
+	var info model.BasicWebsiteInfo
+	db.First(&info)
+	if info.Name != "New Name" || info.Theme != "darkly" {
+		t.Fatalf("settings not saved: %+v", info)
+	}
+
+	// Theme drives the navbar class on public pages.
+	if resp, body := do(t, app, "GET", "/"); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "navbar-dark bg-dark") {
+		t.Errorf("dark theme navbar not applied (status %d)", resp.StatusCode)
+	}
+}
+
+func TestTagCategoryCRUD(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	tagForm := url.Values{"tag_name": {"Go"}, "tag_slug": {"go"}}
+	if resp, _ := postForm(t, app, "/add-tag", tagForm, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("add tag: got status %d", resp.StatusCode)
+	}
+	// Duplicate slug does not create a second row.
+	postForm(t, app, "/add-tag", tagForm, token, auth)
+	var tagCount int64
+	db.Model(&model.Tag{}).Where("slug = ?", "go").Count(&tagCount)
+	if tagCount != 1 {
+		t.Fatalf("tag slug count = %d, want 1", tagCount)
+	}
+
+	catForm := url.Values{"category_name": {"News"}, "category_slug": {"news"}}
+	// Note: the seed owns slug "news", so this must not create a duplicate.
+	postForm(t, app, "/add-category", catForm, token, auth)
+	var catCount int64
+	db.Model(&model.Category{}).Where("slug = ?", "news").Count(&catCount)
+	if catCount != 1 {
+		t.Fatalf("category slug count = %d, want 1", catCount)
+	}
+
+	var tag model.Tag
+	db.Where("slug = ?", "go").First(&tag)
+	delReq := func(path string) *http.Response {
+		t.Helper()
+		req := httptest.NewRequest("DELETE", path+"?id="+strconv.Itoa(int(tag.ID)), nil)
+		req.Header.Set("HX-Request", "true")
+		req.AddCookie(token)
+		req.AddCookie(auth)
+		req.Header.Set("X-Csrf-Token", token.Value)
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
+	}
+	if resp := delReq("/delete-tag"); resp.StatusCode != fiber.StatusOK {
+		t.Errorf("delete tag: got status %d", resp.StatusCode)
+	}
+}
+
+func TestCommentModeration(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+	post := model.Post{Title: "P", Content: "x", Slug: "p", Published: true, UserID: admin.ID}
+	db.Create(&post)
+	comment := model.Comment{Content: "hello", UserID: admin.ID, PostID: post.ID, Status: "pending"}
+	db.Create(&comment)
+
+	toggle := "/toggle-comment-status/" + strconv.Itoa(int(comment.ID))
+	if resp, _ := postForm(t, app, toggle, url.Values{}, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("toggle comment: got status %d", resp.StatusCode)
+	}
+	db.First(&comment, comment.ID)
+	if comment.Status != "approved" {
+		t.Fatalf("comment status = %q, want approved", comment.Status)
+	}
+
+	if resp, _ := deleteReq(t, app, "/delete-comment/"+strconv.Itoa(int(comment.ID)), token, auth); resp.StatusCode != fiber.StatusNoContent {
+		t.Errorf("delete comment: got status %d, want 204", resp.StatusCode)
+	}
+}
+
+func TestUploadRoundTrip(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+	viper.Set("upload.max_size_mb", 1)
+
+	// Minimal bytes that sniff as image/png.
+	png := append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 200)...)
+	var buf strings.Builder
+	w := multipart.NewWriter(&buf)
+	part, _ := w.CreateFormFile("file", "tiny.png")
+	part.Write(png)
+	w.Close()
+
+	req := httptest.NewRequest("POST", "/upload-file", strings.NewReader(buf.String()))
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("X-Csrf-Token", token.Value)
+	req.AddCookie(token)
+	req.AddCookie(auth)
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("upload: got status %d", resp.StatusCode)
+	}
+	var files int64
+	db.Model(&model.File{}).Where("name LIKE ?", "%tiny%").Count(&files)
+	if files != 1 {
+		t.Fatalf("uploaded files = %d, want 1", files)
+	}
+}
+
+func TestPluginToggle(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	if resp, _ := postForm(t, app, "/admin/plugins/enable/LatestPostsPlugin", url.Values{}, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("toggle plugin: got status %d", resp.StatusCode)
+	}
+	var plugin model.Plugin
+	db.Where("name = ?", "LatestPostsPlugin").First(&plugin)
+	if !plugin.Enabled {
+		t.Error("plugin not enabled after toggle")
+	}
+	if resp, _ := postForm(t, app, "/admin/plugins/enable/NoSuchPlugin", url.Values{}, token, auth); resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("toggle missing plugin: got status %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestClearCache(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	if resp, _ := postForm(t, app, "/clear-cache", url.Values{}, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Errorf("clear cache: got status %d, want 200", resp.StatusCode)
 	}
 }
 
@@ -608,8 +767,21 @@ func TestSecurityHeaders(t *testing.T) {
 	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Errorf("X-Content-Type-Options = %q, want nosniff", got)
 	}
-	if got := resp.Header.Get("Content-Security-Policy"); !strings.Contains(got, "object-src 'none'") {
-		t.Errorf("Content-Security-Policy missing object-src 'none': %q", got)
+	csp := resp.Header.Get("Content-Security-Policy")
+	if !strings.Contains(csp, "object-src 'none'") {
+		t.Errorf("Content-Security-Policy missing object-src 'none': %q", csp)
+	}
+	// Scripts must not allow inline/eval code; styles keep unsafe-inline for
+	// the Quill editor's runtime styles.
+	scriptSrc := csp
+	if i := strings.Index(csp, "script-src"); i >= 0 {
+		scriptSrc = csp[i:]
+		if j := strings.Index(scriptSrc, ";"); j >= 0 {
+			scriptSrc = scriptSrc[:j]
+		}
+	}
+	if strings.Contains(scriptSrc, "unsafe-inline") || strings.Contains(scriptSrc, "unsafe-eval") {
+		t.Errorf("script-src must not allow inline/eval code: %q", scriptSrc)
 	}
 }
 

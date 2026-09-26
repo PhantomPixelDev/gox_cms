@@ -56,7 +56,15 @@
 
 .ck.ck-editor__editable {
     min-height: 300px;
-    
+
+}
+
+.ql-editor {
+    min-height: 300px;
+}
+
+.ql-editor.ql-blank::before {
+    color: var(--bs-secondary-color);
 }
 
 
@@ -148,6 +156,16 @@
     width: 100%;
     height: 180px;
     object-fit: cover;
+}
+
+.latest-post-img {
+    max-height: 200px;
+    object-fit: cover;
+}
+
+.latest-post-title {
+    font-size: 1.2rem;
+    font-weight: bold;
 }
 
 @media (min-width: 768px) {
@@ -284,6 +302,10 @@
     width: 100%;
     height: 0.75rem;
     margin-bottom: 0.5rem;
+}
+
+.toast-stack {
+    z-index: 9999;
 }
 
 /* ---- Public site ---- */

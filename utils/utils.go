@@ -13,6 +13,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -166,6 +167,17 @@ func SetupEngine() *html.Engine {
 		"gt":  gt,
 		"le":  le,
 		"lt":  lt,
+		// dict builds a map for passing named params to sub-templates:
+		// {{template "partials/pagination" dict "Base" "/search-posts" ...}}
+		"dict": func(values ...interface{}) map[string]interface{} {
+			m := make(map[string]interface{}, len(values)/2)
+			for i := 0; i+1 < len(values); i += 2 {
+				if k, ok := values[i].(string); ok {
+					m[k] = values[i+1]
+				}
+			}
+			return m
+		},
 	}
 
 	engine.AddFuncMap(funcMap)
@@ -207,7 +219,8 @@ func SetupStore(app *fiber.App) *session.Store {
 	app.Use(func(c *fiber.Ctx) error {
 		sess, err := store.Get(c)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+			log.Printf("session load: %v", err)
+			return c.Status(fiber.StatusInternalServerError).SendString("Session error")
 		}
 		c.Locals("session", sess)
 		return c.Next()
@@ -235,17 +248,34 @@ func SetupRateLimiter(app *fiber.App, store *session.Store) {
 	}
 }
 
-// BuildSitemap renders sitemap.xml for all published content. It is built per
-// request so new posts and pages show up without a restart.
+// sitemapCache holds the rendered sitemap for sitemapTTL: crawlers hit this
+// endpoint in bursts, and rebuilding means four full-table scans per hit.
+var sitemapCache struct {
+	sync.Mutex
+	renderedAt time.Time
+	payload    []byte
+}
+
+const sitemapTTL = 10 * time.Minute
+
+// BuildSitemap renders sitemap.xml for all published content, cached briefly.
+// Only published pages with non-empty slugs are listed.
 func BuildSitemap(db *gorm.DB) []byte {
+	sitemapCache.Lock()
+	defer sitemapCache.Unlock()
+
+	if sitemapCache.payload != nil && time.Since(sitemapCache.renderedAt) < sitemapTTL {
+		return sitemapCache.payload
+	}
+
 	baseURL := strings.TrimSuffix(viper.GetString("app.url"), "/")
 	paths := []string{"/", "/blog", "/login", "/register"}
 
 	var postSlugs, categorySlugs, tagSlugs, pageSlugs []string
-	db.Model(&model.Post{}).Where("published = ?", true).Pluck("slug", &postSlugs)
-	db.Model(&model.Category{}).Pluck("slug", &categorySlugs)
-	db.Model(&model.Tag{}).Pluck("slug", &tagSlugs)
-	db.Model(&model.CustomPage{}).Pluck("slug", &pageSlugs)
+	db.Model(&model.Post{}).Where("published = ? AND slug <> ?", true, "").Limit(5000).Pluck("slug", &postSlugs)
+	db.Model(&model.Category{}).Where("slug <> ?", "").Limit(5000).Pluck("slug", &categorySlugs)
+	db.Model(&model.Tag{}).Where("slug <> ?", "").Limit(5000).Pluck("slug", &tagSlugs)
+	db.Model(&model.CustomPage{}).Where("published = ? AND slug <> ?", true, "").Limit(5000).Pluck("slug", &pageSlugs)
 
 	for _, slug := range postSlugs {
 		paths = append(paths, "/blog/post/"+slug)
@@ -270,7 +300,9 @@ func BuildSitemap(db *gorm.DB) []byte {
 	}
 	buf.WriteString("</urlset>\n")
 
-	return buf.Bytes()
+	sitemapCache.payload = buf.Bytes()
+	sitemapCache.renderedAt = time.Now()
+	return sitemapCache.payload
 }
 
 func CreateBasicWebsiteInfo(db *gorm.DB) {
@@ -302,7 +334,6 @@ func CreateBasicWebsiteInfo(db *gorm.DB) {
 			Language:       "en",
 			Locale:         "en-US",
 			TimeZone:       "UTC",
-			SelectedTheme:  "flatly",
 			ContainerClass: "container",
 		}
 
@@ -323,7 +354,6 @@ func CreateBasicWebsiteInfo(db *gorm.DB) {
 			}
 			if strings.TrimSpace(existing.Theme) == "" {
 				updates["theme"] = "flatly"
-				updates["selected_theme"] = "flatly"
 			}
 			if len(updates) > 0 {
 				db.Model(&model.BasicWebsiteInfo{}).Where("id = ?", existing.ID).Updates(updates)
@@ -353,6 +383,8 @@ func createDefaultAdminUser(db *gorm.DB) {
 	generated := password == ""
 	if generated {
 		password = randomString(20)
+	} else if len(password) < 12 || len(password) > 72 {
+		log.Fatal("The configured admin password must be 12-72 characters")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -375,7 +407,10 @@ func createDefaultAdminUser(db *gorm.DB) {
 	}
 
 	if generated {
-		log.Printf("Default admin user created. Username: admin  Password: %s  (change it after logging in)", password)
+		// Printed exactly once: container/file logs retain it, so treat it
+		// as a bootstrap secret and replace it immediately. Prefer setting
+		// ADMIN_PASSWORD (or app.admin_password) so no secret is ever logged.
+		log.Printf("Default admin user created. Username: admin  Password: %s  (shown once — change it after logging in)", password)
 	} else {
 		log.Println("Default admin user created with the configured password")
 	}

@@ -15,8 +15,8 @@ const (
 // User struct with validation tags using go-playground validator
 type User struct {
 	ID       uint   `json:"id" gorm:"primaryKey"`
-	Username string `form:"username" json:"username" validate:"required,alphanum,min=2,max=30"`
-	Password string `json:"-" validate:"required,min=6"`
+	Username string `form:"username" json:"username" validate:"required,alphanum,min=2,max=30" gorm:"uniqueIndex"`
+	Password string `json:"-" validate:"required,min=8"`
 	RoleID   uint   `json:"role_id" validate:"required"`
 	// SessionVersion is bumped on logout and invalidates all previously
 	// issued JWTs (their "sv" claim no longer matches).

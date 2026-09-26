@@ -32,6 +32,7 @@ type BasicWebsiteInfo struct {
 	TimeZone            string    `json:"time_zone"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
-	SelectedTheme       string    `json:"selected_theme" default:"cerulean"`
-	ContainerClass      string    `json:"container_class" default:"container"`
+	// NOTE: a legacy selected_theme column may exist in old databases; it is
+	// ignored. Theme is the single source of truth.
+	ContainerClass string `json:"container_class" default:"container"`
 }

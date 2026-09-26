@@ -1,7 +1,7 @@
 <div class="my-3">
     <form id="websiteSettingsForm" hx-post="/update-settings" hx-target="#answer"
         hx-headers='{"X-No-Cache": "true"}'
-        hx-on::after-swap="updateSettingsForm()" class="rounded" enctype="multipart/form-data">
+        data-after-swap="updateSettingsForm" class="rounded" enctype="multipart/form-data">
 
         <div class="card mb-3 mt-3 rounded">
             <div class="card-header">Basic Information</div>
@@ -22,7 +22,7 @@
                     <div class="col-md-6">
                         <label for="email" class="form-label">Email:</label>
                         <input type="email" class="form-control" id="email" name="email"
-                            placeholder="contact@example.cCredentialsom" value="{{.SettingsAdmin.Email}}">
+                            placeholder="contact@example.com" value="{{.SettingsAdmin.Email}}">
                     </div>
                     <div class="col-md-6">
                         <label for="phone" class="form-label">Phone:</label>
@@ -47,7 +47,7 @@
 
         <!-- Themes -->
         <div class="card mb-3 mt-3 shadow rounded">
-            <div class="card-header">Theme.SettingsAdmin</div>
+            <div class="card-header">Theme</div>
             <div class="card-body">
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -110,9 +110,9 @@
             </div>
         </div>
 
-        <!-- SEO.SettingsAdmin -->
+        <!-- SEO -->
         <div class="card mb-3 mt-3 shadow rounded">
-            <div class="card-header">SEO.SettingsAdmin</div>
+            <div class="card-header">SEO</div>
             <div class="card-body">
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -199,7 +199,7 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Update.SettingsAdmin</button>
+        <button type="submit" class="btn btn-primary">Update Settings</button>
     </form>
 </div>
 
@@ -207,4 +207,5 @@
 <div id="answer">
     <!-- This is where the response will be rendered -->
 </div>
+
 
