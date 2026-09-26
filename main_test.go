@@ -361,8 +361,30 @@ func TestLoginSetsSessionCookie(t *testing.T) {
 	}
 }
 
+func enableRegistration(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	if err := db.Model(&model.BasicWebsiteInfo{}).Where("id > ?", 0).Update("registration_enabled", true).Error; err != nil {
+		t.Fatal(err)
+	}
+	handlers.ReloadSiteSettings(db)
+}
+
+func TestRegisterDisabledByDefault(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	if resp, _ := do(t, app, "GET", "/register"); resp.StatusCode != fiber.StatusFound {
+		t.Errorf("GET /register while disabled: got status %d, want 302 to /login", resp.StatusCode)
+	}
+	token := csrfCookie(t, app)
+	form := url.Values{"username": {"newuser"}, "password": {"secret123"}, "first_name": {"New"}, "last_name": {"User"}}
+	if resp, _ := postForm(t, app, "/register", form, token); resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("POST /register while disabled: got status %d, want 403", resp.StatusCode)
+	}
+}
+
 func TestRegisterWorksWithCaptchaDisabled(t *testing.T) {
 	app, db := newTestApp(t)
+	enableRegistration(t, db)
 	token := csrfCookie(t, app)
 
 	form := url.Values{
@@ -641,6 +663,134 @@ func TestLoginThrottleBlocksBruteForce(t *testing.T) {
 	good := url.Values{"username": {"alice"}, "password": {"password123"}}
 	if resp, _ := postForm(t, app, "/login", good, token); resp.StatusCode != fiber.StatusTooManyRequests {
 		t.Fatalf("good login while blocked: got status %d, want 429", resp.StatusCode)
+	}
+}
+
+func deleteReq(t *testing.T, app *fiber.App, path string, csrf *http.Cookie, cookies ...*http.Cookie) (*http.Response, string) {
+	t.Helper()
+	req := httptest.NewRequest("DELETE", path, nil)
+	req.Header.Set("HX-Request", "true")
+	if csrf != nil {
+		req.AddCookie(csrf)
+		req.Header.Set("X-Csrf-Token", csrf.Value)
+	}
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	return resp, string(body)
+}
+
+func TestDeleteUserGuards(t *testing.T) {
+	app, db := newTestApp(t)
+	boss := createUser(t, db, "boss", model.RoleAdmin)
+	other := createUser(t, db, "second", model.RoleAdmin)
+	regular := createUser(t, db, "pleb", model.RoleUser)
+	auth := authCookie(t, boss.ID)
+	token := csrfCookie(t, app, auth)
+
+	// Cannot delete yourself (also the last-admin guard's first line).
+	if resp, _ := deleteReq(t, app, "/delete-user/"+strconv.Itoa(int(boss.ID)), token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("delete self: got status %d, want 400", resp.StatusCode)
+	}
+	// Bad ID and missing user.
+	if resp, _ := deleteReq(t, app, "/delete-user/abc", token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("delete bad id: got status %d, want 400", resp.StatusCode)
+	}
+	if resp, _ := deleteReq(t, app, "/delete-user/99999", token, auth); resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("delete missing: got status %d, want 404", resp.StatusCode)
+	}
+	// Regular user and second admin can go (fresh apps also seed a default
+	// admin, so boss plus the seed admin remain).
+	if resp, _ := deleteReq(t, app, "/delete-user/"+strconv.Itoa(int(regular.ID)), token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Errorf("delete regular: got status %d, want 200", resp.StatusCode)
+	}
+	if resp, _ := deleteReq(t, app, "/delete-user/"+strconv.Itoa(int(other.ID)), token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Errorf("delete second admin: got status %d, want 200", resp.StatusCode)
+	}
+	var admins int64
+	db.Model(&model.User{}).Where("role_id = ?", model.RoleAdmin).Count(&admins)
+	if admins != 2 {
+		t.Errorf("admins left = %d, want 2", admins)
+	}
+}
+
+func TestChangePassword(t *testing.T) {
+	app, db := newTestApp(t)
+	createUser(t, db, "alice", model.RoleUser)
+
+	token := csrfCookie(t, app)
+	resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token)
+	var before *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "jwt" {
+			before = c
+		}
+	}
+	if before == nil {
+		t.Fatal("login did not set a jwt cookie")
+	}
+
+	change := url.Values{"current_password": {"password123"}, "new_password": {"newsecret1"}, "confirm_password": {"newsecret1"}}
+	resp, _ = postForm(t, app, "/change-password", change, token, before)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("change password: got status %d", resp.StatusCode)
+	}
+	var fresh *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "jwt" {
+			fresh = c
+		}
+	}
+	if fresh == nil {
+		t.Fatal("password change did not re-issue a jwt cookie")
+	}
+
+	// Mismatched confirmation is rejected (with the still-valid session).
+	mismatch := url.Values{"current_password": {"newsecret1"}, "new_password": {"x"}, "confirm_password": {"y"}}
+	if resp, _ := postForm(t, app, "/change-password", mismatch, token, fresh); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("mismatch: got status %d, want 400", resp.StatusCode)
+	}
+
+	// The pre-change token was revoked with the other sessions.
+	if resp, _ := do(t, app, "GET", "/account", before); !isDenied(resp.StatusCode) {
+		t.Errorf("old token after password change: got status %d, want it rejected", resp.StatusCode)
+	}
+
+	// The new password works, the old one does not.
+	token2 := csrfCookie(t, app, fresh)
+	if resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"newsecret1"}}, token2); resp.StatusCode != fiber.StatusOK {
+		t.Errorf("login with new password: got status %d, want 200", resp.StatusCode)
+	}
+	if resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token2); resp.StatusCode != fiber.StatusUnauthorized {
+		t.Errorf("login with old password: got status %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestLegacyShopCleanup(t *testing.T) {
+	_, db := newTestApp(t)
+
+	db.Exec("CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT)")
+	db.Exec("CREATE TABLE product_categories (id INTEGER PRIMARY KEY, name TEXT)")
+	db.Exec("INSERT INTO plugins (name, author, version, enabled) VALUES ('ShopPlugin', 'x', '1.0', 0)")
+
+	// Second startup pass runs the cleanup.
+	setupFiberApp(db)
+
+	for _, table := range []string{"products", "product_categories"} {
+		if db.Migrator().HasTable(table) {
+			t.Errorf("legacy table %s still exists", table)
+		}
+	}
+	var n int64
+	db.Model(&model.Plugin{}).Where("name = ?", "ShopPlugin").Count(&n)
+	if n != 0 {
+		t.Error("legacy ShopPlugin row still exists")
 	}
 }
 

@@ -142,7 +142,7 @@ func SearchCategories(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Search for categories with pagination
 	var categories []model.Category
-	db.Where("name LIKE ?", "%"+searchQuery+"%").
+	db.Where("name LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Limit(pageSize).
 		Offset((pageInt - 1) * pageSize).
 		Find(&categories)
@@ -160,7 +160,7 @@ func SearchCategories(c *fiber.Ctx, db *gorm.DB) error {
 
 	var totalMatchingCount int64
 	db.Model(&model.Category{}).
-		Where("name LIKE ?", "%"+searchQuery+"%").
+		Where("name LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Count(&totalMatchingCount)
 	totalPages := pageCount(totalMatchingCount, pageSize)
 

@@ -68,13 +68,13 @@ func SearchCommentsView(c *fiber.Ctx, db *gorm.DB) error {
 	limit := 10
 	offset := (page - 1) * limit
 
-	db.Where("content LIKE ?", "%"+searchQuery+"%").Limit(limit).Offset(offset).Find(&comments)
+	db.Where("content LIKE ? ESCAPE '\\'", likePattern(searchQuery)).Limit(limit).Offset(offset).Find(&comments)
 
 	currentPage := page
 
 	/// count total comments for pagination ///
 	var totalComments int64
-	db.Model(&model.Comment{}).Where("content LIKE ?", "%"+searchQuery+"%").Count(&totalComments)
+	db.Model(&model.Comment{}).Where("content LIKE ? ESCAPE '\\'", likePattern(searchQuery)).Count(&totalComments)
 	TotalPages := pageCount(totalComments, limit)
 	if TotalPages == 0 {
 		TotalPages = 1

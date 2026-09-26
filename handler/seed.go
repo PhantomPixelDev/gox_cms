@@ -19,10 +19,20 @@ var seedImages = []string{"seed-1.jpg", "seed-2.jpg", "seed-3.jpg"}
 // comments, a primary menu, an about page and sample media. Every section is
 // gated on its own table being empty, so it never touches existing content.
 func SeedDemoContent(db *gorm.DB) {
+	cleanupLegacyShop(db)
 	seedMedia(db)
 	seedPosts(db)
 	seedMenu(db)
 	seedPages(db)
+}
+
+// cleanupLegacyShop drops the tables and plugin row left behind by the
+// removed ShopPlugin. It only affects pre-removal databases; on fresh
+// installs every statement is a no-op.
+func cleanupLegacyShop(db *gorm.DB) {
+	db.Exec("DROP TABLE IF EXISTS products")
+	db.Exec("DROP TABLE IF EXISTS product_categories")
+	db.Exec("DELETE FROM plugins WHERE name = ?", "ShopPlugin")
 }
 
 func seedAuthor(db *gorm.DB) (model.User, bool) {

@@ -218,7 +218,7 @@ func AdminSearchPosts(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Implement search logic with pagination
 	db.Preload("Categories").Preload("Tags").
-		Where("title LIKE ?", "%"+searchQuery+"%").
+		Where("title LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Order("created_at desc").
 		Limit(pageSize).
 		Offset((pageInt - 1) * pageSize).
@@ -227,7 +227,7 @@ func AdminSearchPosts(c *fiber.Ctx, db *gorm.DB) error {
 	// Calculate total pages
 	var count int64
 	db.Model(&model.Post{}).
-		Where("title LIKE ?", "%"+searchQuery+"%").
+		Where("title LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Count(&count)
 	totalPages := pageCount(count, pageSize)
 

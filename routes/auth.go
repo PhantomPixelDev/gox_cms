@@ -16,6 +16,11 @@ func setupAuthRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 			return c.Redirect("/")
 		}
 
+		settings, _ := c.Locals("Settings").(map[string]string)
+		if settings["RegistrationEnabled"] != "true" {
+			return c.Redirect("/login")
+		}
+
 		return c.Render("register", fiber.Map{
 			"Title":    "Register",
 			"Settings": c.Locals("Settings"),
@@ -41,5 +46,16 @@ func setupAuthRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 	app.Post("/logout", func(c *fiber.Ctx) error {
 
 		return handlers.Logout(c, db)
+	})
+
+	app.Get("/account", handlers.IsLoggedIn, func(c *fiber.Ctx) error {
+		return c.Render("account", fiber.Map{
+			"Title":    "Account",
+			"Settings": c.Locals("Settings"),
+		}, "main")
+	})
+
+	app.Post("/change-password", handlers.IsLoggedIn, func(c *fiber.Ctx) error {
+		return handlers.ChangePassword(c, db)
 	})
 }

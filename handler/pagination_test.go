@@ -26,6 +26,18 @@ func TestPageCount(t *testing.T) {
 	}
 }
 
+func TestEscapeLike(t *testing.T) {
+	if got := escapeLike(`100%_x\y`); got != `100\%\_x\\y` {
+		t.Errorf("escapeLike = %q", got)
+	}
+	if got := likePattern("a%b"); got != "%a\\%b%" {
+		t.Errorf("likePattern = %q", got)
+	}
+	if got := likePattern("plain"); got != "%plain%" {
+		t.Errorf("likePattern = %q", got)
+	}
+}
+
 func TestQueryPage(t *testing.T) {
 	cases := map[string]int{
 		"/":         1,

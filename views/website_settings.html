@@ -73,6 +73,19 @@
             </div>
         </div>
 
+        <!-- Access -->
+        <div class="card mb-3 mt-3 shadow rounded">
+            <div class="card-header">Access</div>
+            <div class="card-body">
+                <div class="form-check form-switch">
+                    <input type="checkbox" class="form-check-input" id="registration_enabled"
+                        name="registration_enabled" {{if eq .SettingsAdmin.RegistrationEnabled "true"}}checked{{end}}>
+                    <label for="registration_enabled" class="form-check-label">Allow public registration</label>
+                    <div class="form-text">When off, /register redirects to login. Existing accounts keep working.</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Social Media Links -->
         <div class="card mb-3 mt-3 shadow rounded">
             <div class="card-header">Social Media Links</div>

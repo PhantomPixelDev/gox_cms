@@ -275,8 +275,19 @@ func Logout(c *fiber.Ctx, db *gorm.DB) error {
 	return nil
 }
 
+// registrationEnabled reports whether public sign-ups are turned on in
+// Settings. Logins and existing accounts are unaffected.
+func registrationEnabled(db *gorm.DB) bool {
+	return SiteSettings(db)["RegistrationEnabled"] == "true"
+}
+
 func Register(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+
+		if !registrationEnabled(db) {
+			ShowToastError(c, "Registration is disabled")
+			return c.Status(fiber.StatusForbidden).SendString("Registration is disabled")
+		}
 
 		if !captchaPassed(c) {
 			return nil
@@ -361,6 +372,62 @@ func HashPassword(password string) (string, error) {
 		return "", err
 	}
 	return string(hashedPassword), nil
+}
+
+// ChangePassword updates the logged-in user's password after verifying the
+// current one. Other sessions are revoked via the session version; a fresh
+// token is issued for this session so the user stays logged in here.
+func ChangePassword(c *fiber.Ctx, db *gorm.DB) error {
+	user, ok := CurrentUser(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).SendString("Not logged in")
+	}
+
+	current := c.FormValue("current_password")
+	next := c.FormValue("new_password")
+	confirm := c.FormValue("confirm_password")
+
+	if next != confirm {
+		ShowToastError(c, "New passwords do not match")
+		return c.Status(fiber.StatusBadRequest).SendString("New passwords do not match")
+	}
+	if len(next) < 6 {
+		ShowToastError(c, "New password must be at least 6 characters")
+		return c.Status(fiber.StatusBadRequest).SendString("New password must be at least 6 characters")
+	}
+
+	var dbUser model.User
+	if err := db.First(&dbUser, user.ID).Error; err != nil {
+		ShowToastError(c, "User not found")
+		return c.Status(fiber.StatusNotFound).SendString("User not found")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(current)); err != nil {
+		ShowToastError(c, "Current password is incorrect")
+		return c.Status(fiber.StatusUnauthorized).SendString("Current password is incorrect")
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(next), bcrypt.DefaultCost)
+	if err != nil {
+		ShowToastError(c, "Could not update password")
+		return c.Status(fiber.StatusInternalServerError).SendString("Could not update password")
+	}
+
+	newVersion := dbUser.SessionVersion + 1
+	if err := db.Model(&model.User{}).Where("id = ?", dbUser.ID).
+		Updates(map[string]interface{}{"password": string(hash), "session_version": newVersion}).Error; err != nil {
+		ShowToastError(c, "Could not update password")
+		return c.Status(fiber.StatusInternalServerError).SendString("Could not update password")
+	}
+
+	tokenString, err := GenerateJWT(dbUser.ID, newVersion)
+	if err != nil {
+		ShowToastError(c, "Password changed, please log in again")
+		return c.Status(fiber.StatusOK).SendString("Password changed, please log in again")
+	}
+	SetJWTTokenCookie(c, tokenString)
+
+	ShowToast(c, "Password changed successfully")
+	return c.Status(fiber.StatusOK).SendString("Password changed successfully")
 }
 
 // IsTrue reads a boolean local. Missing or non-bool values count as false, so

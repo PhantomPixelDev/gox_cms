@@ -1,0 +1,30 @@
+<div class="wrapper col-12 col-sm-8 col-md-6 col-lg-4 mx-auto p-4 my-5">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h1 class="h3">Account</h1>
+            <p class="text-muted">Change your password. Other sessions are signed out immediately.</p>
+            <div id="password-result" role="alert" aria-live="polite"></div>
+            <hr>
+            <form id="password-form" hx-post="/change-password" hx-target="#password-result" hx-swap="innerHTML"
+                hx-disabled-elt="find button[type=submit]">
+                <div class="mb-3">
+                    <label for="current_password" class="form-label">Current password:</label>
+                    <input type="password" class="form-control" id="current_password" name="current_password" required
+                        autocomplete="current-password">
+                </div>
+                <div class="mb-3">
+                    <label for="new_password" class="form-label">New password:</label>
+                    <input type="password" class="form-control" id="new_password" name="new_password" required
+                        minlength="6" autocomplete="new-password" aria-describedby="new-password-hint">
+                    <div id="new-password-hint" class="form-text">At least 6 characters.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="confirm_password" class="form-label">Confirm new password:</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required
+                        minlength="6" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2">Change Password</button>
+            </form>
+        </div>
+    </div>
+</div>

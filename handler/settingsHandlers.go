@@ -67,38 +67,40 @@ func updateSettingsFromForm(settings *model.BasicWebsiteInfo, c *fiber.Ctx) mode
 	settings.Language = c.FormValue("language")               // Add or update based on your actual form and needs
 	settings.Locale = c.FormValue("locale")                   // Add or update based on your actual form and needs
 	settings.TimeZone = c.FormValue("timezone")               // Add or update based on your actual form and needs
+	settings.RegistrationEnabled = c.FormValue("registration_enabled") == "on"
 	return *settings
 }
 
 func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 	return map[string]string{
-		"Name":           settings.Name,
-		"Tagline":        settings.Tagline,
-		"Email":          settings.Email,
-		"Phone":          settings.Phone,
-		"Address":        settings.Address,
-		"About":          settings.About,
-		"LogoURL":        settings.LogoURL,
-		"FaviconURL":     settings.FaviconURL,
-		"FacebookURL":    settings.FacebookURL,
-		"TwitterURL":     settings.TwitterURL,
-		"LinkedInURL":    settings.LinkedInURL,
-		"SEOKeywords":    settings.SEOKeywords,
-		"SEODescription": settings.SEODescription,
-		"AnalyticsID":    settings.AnalyticsID,
-		"FooterText":     settings.FooterText,
-		"Theme":          settings.Theme,
-		"ContactEmail":   settings.ContactEmail,
-		"PrivacyPolicy":  settings.PrivacyPolicy,
-		"TermsOfService": settings.TermsOfService,
-		"Language":       settings.Language,
-		"Locale":         settings.Locale,
-		"TimeZone":       settings.TimeZone,
-		"SelectedTheme":  settings.SelectedTheme,
-		"ContainerClass": settings.ContainerClass,
-		"NavbarClass":    navbarClassForTheme(settings.Theme),
-		"CaptchaEnabled": strconv.FormatBool(viper.GetBool("captcha.enabled")),
-		"CaptchaSiteKey": viper.GetString("captcha.public_key"),
+		"Name":                settings.Name,
+		"Tagline":             settings.Tagline,
+		"Email":               settings.Email,
+		"Phone":               settings.Phone,
+		"Address":             settings.Address,
+		"About":               settings.About,
+		"LogoURL":             settings.LogoURL,
+		"FaviconURL":          settings.FaviconURL,
+		"FacebookURL":         settings.FacebookURL,
+		"TwitterURL":          settings.TwitterURL,
+		"LinkedInURL":         settings.LinkedInURL,
+		"SEOKeywords":         settings.SEOKeywords,
+		"SEODescription":      settings.SEODescription,
+		"AnalyticsID":         settings.AnalyticsID,
+		"FooterText":          settings.FooterText,
+		"Theme":               settings.Theme,
+		"ContactEmail":        settings.ContactEmail,
+		"PrivacyPolicy":       settings.PrivacyPolicy,
+		"TermsOfService":      settings.TermsOfService,
+		"Language":            settings.Language,
+		"Locale":              settings.Locale,
+		"TimeZone":            settings.TimeZone,
+		"SelectedTheme":       settings.SelectedTheme,
+		"ContainerClass":      settings.ContainerClass,
+		"NavbarClass":         navbarClassForTheme(settings.Theme),
+		"RegistrationEnabled": strconv.FormatBool(settings.RegistrationEnabled),
+		"CaptchaEnabled":      strconv.FormatBool(viper.GetBool("captcha.enabled")),
+		"CaptchaSiteKey":      viper.GetString("captcha.public_key"),
 	}
 }
 

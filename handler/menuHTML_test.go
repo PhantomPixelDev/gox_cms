@@ -14,7 +14,7 @@ func TestBuildMenuHTML(t *testing.T) {
 		{ID: 2, Title: `<script>alert(1)</script>`, Link: "/evil?a=1&b=2", Position: 2},
 	}
 
-	got := buildMenuHTML(menu, false, false, "/")
+	got := buildMenuHTML(menu, false, false, "/", true)
 
 	if strings.Contains(got, "<script>") {
 		t.Error("menu title not escaped")
@@ -35,9 +35,14 @@ func TestBuildMenuHTML(t *testing.T) {
 		t.Error("clear-cache must be a button, not a link")
 	}
 
-	admin := buildMenuHTML(menu, true, true, "/blog")
+	admin := buildMenuHTML(menu, true, true, "/blog", true)
 	if !strings.Contains(admin, "Admin Dashboard") || !strings.Contains(admin, "<button") {
 		t.Error("admin controls missing or not buttons")
+	}
+
+	closed := buildMenuHTML(menu, false, false, "/", false)
+	if strings.Contains(closed, `href="/register"`) {
+		t.Error("register link shown while registration is disabled")
 	}
 }
 

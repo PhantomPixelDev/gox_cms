@@ -89,7 +89,7 @@ func SearchTag(c *fiber.Ctx, db *gorm.DB) error {
 	pageInt := queryPage(c)
 
 	// Search for tags with pagination
-	db.Where("name LIKE ?", "%"+searchQuery+"%").
+	db.Where("name LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Limit(pageSize).
 		Offset((pageInt - 1) * pageSize).
 		Find(&tags)
@@ -108,7 +108,7 @@ func SearchTag(c *fiber.Ctx, db *gorm.DB) error {
 	// Count total tags that match the search query for pagination
 	var totalMatchingCount int64
 	db.Model(&model.Tag{}).
-		Where("name LIKE ?", "%"+searchQuery+"%").
+		Where("name LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Count(&totalMatchingCount)
 	totalPages := pageCount(totalMatchingCount, pageSize)
 

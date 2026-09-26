@@ -156,10 +156,10 @@ func SearchFiles(c *fiber.Ctx, db *gorm.DB) error {
 
 	if searchQuery != "" {
 		db.Model(&model.File{}).
-			Where("name LIKE ?", "%"+searchQuery+"%").
+			Where("name LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 			Count(&totalMatchingCount)
 
-		db.Where("name LIKE ?", "%"+searchQuery+"%").
+		db.Where("name LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 			Order("created_at DESC").
 			Offset((pageInt - 1) * pageSize).
 			Limit(pageSize).

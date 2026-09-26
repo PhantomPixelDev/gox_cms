@@ -140,15 +140,35 @@ func MoveMenuItem(c *fiber.Ctx, db *gorm.DB) error {
 	return SearchMenuAdminTable(c, db)
 }
 
+// menuParamsID parses a numeric :id param, answering 400 on garbage.
+func menuParamsID(c *fiber.Ctx) (int, error) {
+	id, err := c.ParamsInt("id")
+	if err != nil || id <= 0 {
+		ShowToastError(c, "Invalid ID")
+		return 0, c.Status(fiber.StatusBadRequest).SendString("Invalid ID")
+	}
+	return id, nil
+}
+
+func menuNotFound(c *fiber.Ctx, what string) error {
+	msg := what + " not found"
+	ShowToastError(c, msg)
+	return c.Status(fiber.StatusNotFound).SendString(msg)
+}
+
+func menuServerError(c *fiber.Ctx, what string) error {
+	ShowToastError(c, what)
+	return c.Status(fiber.StatusInternalServerError).SendString(what)
+}
+
 func DeleteMenu(c *fiber.Ctx, db *gorm.DB) error {
-	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := menuParamsID(c)
 	if err != nil {
 		return err
 	}
 
 	if err := db.Where("id = ?", id).Delete(&model.Menu{}).Error; err != nil {
-		return err
+		return menuServerError(c, "Could not delete menu")
 	}
 
 	ShowToast(c, "Menu and associated menu items deleted successfully")
@@ -156,14 +176,13 @@ func DeleteMenu(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func DeleteMenuItem(c *fiber.Ctx, db *gorm.DB) error {
-	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := menuParamsID(c)
 	if err != nil {
 		return err
 	}
 
 	if err := db.Where("id = ?", id).Delete(&model.MenuItem{}).Error; err != nil {
-		return err
+		return menuServerError(c, "Could not delete menu item")
 	}
 
 	ShowToast(c, "Menu item deleted successfully")
@@ -171,14 +190,13 @@ func DeleteMenuItem(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func RemoveSubmenuFromMenu(c *fiber.Ctx, db *gorm.DB) error {
-	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := menuParamsID(c)
 	if err != nil {
 		return err
 	}
 
 	if err := db.Model(&model.Menu{}).Where("id = ?", id).Update("parent_id", nil).Error; err != nil {
-		return err
+		return menuServerError(c, "Could not detach submenu")
 	}
 
 	ShowToast(c, "Submenu removed from menu successfully")
@@ -186,24 +204,23 @@ func RemoveSubmenuFromMenu(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func EditMenu(c *fiber.Ctx, db *gorm.DB) error {
-	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := menuParamsID(c)
 	if err != nil {
 		return err
 	}
 
 	var menu model.Menu
 	if err := db.First(&menu, id).Error; err != nil {
-		return err
+		return menuNotFound(c, "Menu")
 	}
 
-	menu.Title = c.FormValue("menu_title")
-	menu.Primary = c.FormValue("menu_primary") == "on"
-	position, posErr := strconv.Atoi(c.FormValue("menu_position"))
-	if posErr != nil {
-		return posErr
+	menu.Title = strings.TrimSpace(c.FormValue("menu_title"))
+	if menu.Title == "" {
+		ShowToastError(c, "Menu title is required")
+		return c.Status(fiber.StatusBadRequest).SendString("Menu title is required")
 	}
-	menu.Position = position
+	menu.Primary = c.FormValue("menu_primary") == "on"
+	menu.Position = optionalPosition(c.FormValue("menu_position"), db, nil)
 
 	optionel_parent_menu_id, err := strconv.Atoi(c.FormValue("parent_id"))
 	if err != nil {
@@ -221,7 +238,7 @@ func EditMenu(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	if err := db.Save(&menu).Error; err != nil {
-		return err
+		return menuServerError(c, "Could not update menu")
 	}
 
 	ShowToast(c, "Menu edited successfully")
@@ -229,35 +246,34 @@ func EditMenu(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func EditMenuItem(c *fiber.Ctx, db *gorm.DB) error {
-	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := menuParamsID(c)
 	if err != nil {
 		return err
 	}
 
 	var menuItem model.MenuItem
 	if err := db.First(&menuItem, id).Error; err != nil {
-		return err
+		return menuNotFound(c, "Menu item")
 	}
 
-	menuItem.Title = c.FormValue("menu_item_title")
-	menuItem.Link = c.FormValue("menu_item_link")
-	menuID := c.FormValue("menu_item_menu")
-	menuIDUint, err := strconv.Atoi(menuID)
-	if err != nil {
-		return err
+	menuItem.Title = strings.TrimSpace(c.FormValue("menu_item_title"))
+	menuItem.Link = strings.TrimSpace(c.FormValue("menu_item_link"))
+	if menuItem.Title == "" || menuItem.Link == "" {
+		ShowToastError(c, "Item title and link are required")
+		return c.Status(fiber.StatusBadRequest).SendString("Item title and link are required")
+	}
+	menuIDUint, err := strconv.Atoi(c.FormValue("menu_item_menu"))
+	if err != nil || menuIDUint <= 0 {
+		ShowToastError(c, "Pick a menu for the item")
+		return c.Status(fiber.StatusBadRequest).SendString("Pick a menu for the item")
 	}
 	menuIDUintConverted := uint(menuIDUint)
 	menuItem.MenuID = &menuIDUintConverted
 
-	position, posErr := strconv.Atoi(c.FormValue("item_position"))
-	if posErr != nil {
-		return ShowToastError(c, "Failed to update menu item: "+posErr.Error())
-	}
-	menuItem.Position = position
+	menuItem.Position = optionalPosition(c.FormValue("item_position"), db, &menuIDUintConverted)
 
 	if err := db.Save(&menuItem).Error; err != nil {
-		return ShowToastError(c, "Failed to update menu item: "+err.Error())
+		return menuServerError(c, "Could not update menu item")
 	}
 
 	ShowToast(c, "Menu item updated successfully")
@@ -265,21 +281,20 @@ func EditMenuItem(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func EditMenuView(c *fiber.Ctx, db *gorm.DB) error {
-	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := menuParamsID(c)
 	if err != nil {
 		return err
 	}
 
 	var menu model.Menu
 	if err := db.First(&menu, id).Error; err != nil {
-		return err
+		return menuNotFound(c, "Menu")
 	}
 
 	// Get all menus
 	var menus []model.Menu
 	if err := db.Find(&menus).Error; err != nil {
-		return err
+		return menuServerError(c, "Could not load menus")
 	}
 	menuID := uint(menu.ID)
 
@@ -291,21 +306,20 @@ func EditMenuView(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func EditMenuItemView(c *fiber.Ctx, db *gorm.DB) error {
-	idStr := c.Params("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := menuParamsID(c)
 	if err != nil {
 		return err
 	}
 
 	var menuItem model.MenuItem
 	if err := db.First(&menuItem, id).Error; err != nil {
-		return err
+		return menuNotFound(c, "Menu item")
 	}
 
 	// get all menus for the select dropdown
 	var menus []model.Menu
 	if err := db.Find(&menus).Error; err != nil {
-		return err
+		return menuServerError(c, "Could not load menus")
 	}
 
 	// Convert ID to the same type as MenuID
@@ -328,7 +342,7 @@ func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Search for menus with pagination and order them by position
 	// Ensure to order both menus and their items by their position
-	db.Where("title LIKE ?", "%"+searchQuery+"%").
+	db.Where("title LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Order("position ASC"). // Order menus by position
 		Preload("MenuItems", func(db *gorm.DB) *gorm.DB {
 			return db.Order("position ASC") // Order menu items by position within each menu
@@ -343,7 +357,7 @@ func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
 	// Count total menus that match the search query for pagination
 	var totalMatchingCount int64
 	db.Model(&model.Menu{}).
-		Where("title LIKE ?", "%"+searchQuery+"%").
+		Where("title LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Count(&totalMatchingCount)
 	totalPages := pageCount(totalMatchingCount, pageSize)
 
@@ -413,7 +427,7 @@ func GetPrimaryMenuRender(c *fiber.Ctx, db *gorm.DB) error {
 		isAdmin = false
 	}
 
-	htmlMenuString := buildMenuHTML(menu, isAdmin, userLoggedIn, c.Path())
+	htmlMenuString := buildMenuHTML(menu, isAdmin, userLoggedIn, c.Path(), registrationEnabled(db))
 
 	return c.SendString(htmlMenuString)
 }
@@ -422,7 +436,7 @@ func GetPrimaryMenuRender(c *fiber.Ctx, db *gorm.DB) error {
 // wrapper itself lives in views/partials/header.html so the mobile toggler
 // works before HTMX loads). Titles and links are escaped: menu content is
 // admin input rendered into every page.
-func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool, currentPath string) string {
+func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool, currentPath string, registrationOpen bool) string {
 	htmlMenuString := "<ul class=\"navbar-nav me-auto\">\n"
 
 	// Sort MenuItems and SubMenus together based on position
@@ -463,9 +477,9 @@ func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool, currentPath
 	}
 
 	if userLoggedIn {
-		htmlMenuString += userControls(true)
+		htmlMenuString += userControls(true, true)
 	} else {
-		htmlMenuString += userControls(false)
+		htmlMenuString += userControls(false, registrationOpen)
 	}
 
 	return htmlMenuString
@@ -477,14 +491,19 @@ func adminControls() string {
 		</div>`
 }
 
-func userControls(loggedIn bool) string {
+func userControls(loggedIn bool, registrationOpen bool) string {
 	if loggedIn {
 		return `<ul class="navbar-nav ms-auto">
+			<li class="nav-item me-lg-2"><a class="btn btn-sm btn-outline-secondary my-2 my-lg-0" href="/account">Account</a></li>
 			<li class="nav-item"><button hx-post="/logout" hx-swap="none" hx-target="body" hx-headers='{"X-No-Cache": "true"}' hx-confirm="Log out?" class="btn btn-sm btn-outline-secondary my-2 my-lg-0">Logout</button></li>
 			</ul>`
 	}
-	return `<ul class="navbar-nav ms-auto">
-		<li class="nav-item me-lg-2"><a class="btn btn-sm btn-outline-primary my-2 my-lg-0" href="/login">Login</a></li>
-		<li class="nav-item"><a class="btn btn-sm btn-primary my-2 my-lg-0" href="/register">Register</a></li>
+	out := `<ul class="navbar-nav ms-auto">
+		<li class="nav-item me-lg-2"><a class="btn btn-sm btn-outline-primary my-2 my-lg-0" href="/login">Login</a></li>`
+	if registrationOpen {
+		out += `
+		<li class="nav-item"><a class="btn btn-sm btn-primary my-2 my-lg-0" href="/register">Register</a></li>`
+	}
+	return out + `
 		</ul>`
 }

@@ -75,7 +75,7 @@ func SearchCustomPages(c *fiber.Ctx, db *gorm.DB) error {
 	pageInt := queryPage(c)
 
 	var custom_pages []model.CustomPage
-	db.Where("title LIKE ?", "%"+searchQuery+"%").
+	db.Where("title LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Limit(pageSize).
 		Offset((pageInt - 1) * pageSize).
 		Find(&custom_pages)
@@ -83,7 +83,7 @@ func SearchCustomPages(c *fiber.Ctx, db *gorm.DB) error {
 	// Calculate total pages
 	var count int64
 	db.Model(&model.CustomPage{}).
-		Where("title LIKE ?", "%"+searchQuery+"%").
+		Where("title LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
 		Count(&count)
 	totalPages := pageCount(count, pageSize)
 
