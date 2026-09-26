@@ -18,6 +18,10 @@
             <!-- Create the editor container (content via data-content, editor.js inits Quill) -->
             <div id="editor" data-content="{{ .Content }}"></div>
             <input type="hidden" id="content_input" name="content">
+            <div class="mt-2">
+            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#exampleModal"
+            hx-trigger="click" hx-get="/search-files" hx-target="#file-list-container" hx-headers='{"X-No-Cache": "true"}'>Insert image</button>
+            </div>
         </div>
         <div class="mb-3">
             <label for="template" class="form-label">Template:</label>
@@ -37,6 +41,7 @@
             <div class="invalid-feedback">Please provide a slug.</div>
         </div>
         <button type="submit" class="btn btn-primary">Update Custom Page</button>
+        <button type="button" class="btn btn-outline-secondary ms-2" data-preview="page">Preview</button>
     </form>
     <div id="responseContainer"></div>    
 </div>
@@ -61,4 +66,7 @@
 
 
 <!-- Quill init lives in /static/js/editor.js (loaded once from the layout). -->
+
+
+{{template "partials/file-picker" .}}
 

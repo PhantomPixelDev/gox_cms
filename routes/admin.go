@@ -59,6 +59,14 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 		return handlers.TogglePostStatus(c, db)
 	})
 
+	app.Post("/bulk-posts", handlers.IsAdmin, func(c *fiber.Ctx) error {
+		return handlers.BulkPosts(c, db)
+	})
+
+	app.Post("/bulk-comments", handlers.IsAdmin, func(c *fiber.Ctx) error {
+		return handlers.BulkComments(c, db)
+	})
+
 	app.Get("/search-posts", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AdminSearchPosts(c, db)
 	})
@@ -78,6 +86,11 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 	/// add tag
 	app.Post("/add-tag", handlers.IsAdmin, func(c *fiber.Ctx) error {
 		return handlers.AddTag(c, db)
+	})
+
+	/// create a tag/category inline from the post editor
+	app.Post("/add-taxonomy", handlers.IsAdmin, func(c *fiber.Ctx) error {
+		return handlers.AddTaxonomyInline(c, db)
 	})
 
 	/// add menu
@@ -261,6 +274,16 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 	app.Post("/admin/post/add", handlers.IsAdmin, func(c *fiber.Ctx) error {
 
 		return handlers.AdminAddBlogPost(c, db)
+	})
+
+	// Draft previews render unsaved content through the real templates.
+	// Nothing is written to the database.
+	app.Post("/preview-post", handlers.IsAdmin, func(c *fiber.Ctx) error {
+		return handlers.PreviewPost(c)
+	})
+
+	app.Post("/preview-page", handlers.IsAdmin, func(c *fiber.Ctx) error {
+		return handlers.PreviewPage(c)
 	})
 
 	app.Get("/admin", handlers.IsAdmin, func(c *fiber.Ctx) error {

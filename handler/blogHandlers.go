@@ -284,6 +284,38 @@ func AdminSearchPosts(c *fiber.Ctx, db *gorm.DB) error {
 	})
 }
 
+// deletePostByID removes a post with its category/tag links and comments.
+// Callers must run it inside a transaction.
+func deletePostByID(tx *gorm.DB, id int) error {
+	var post model.Post
+	if err := tx.First(&post, id).Error; err != nil {
+		return err
+	}
+	if err := tx.Exec("DELETE FROM post_categories WHERE post_id = ?", id).Error; err != nil {
+		return err
+	}
+	if err := tx.Exec("DELETE FROM post_tags WHERE post_id = ?", id).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("post_id = ?", id).Delete(&model.Comment{}).Error; err != nil {
+		return err
+	}
+	return tx.Delete(&post).Error
+}
+
+// parseBulkIDs reads a comma-separated "ids" form value into valid IDs.
+func parseBulkIDs(raw string) []uint {
+	var ids []uint
+	for _, part := range strings.Split(raw, ",") {
+		n, err := strconv.ParseUint(strings.TrimSpace(part), 10, 64)
+		if err != nil || n == 0 {
+			continue
+		}
+		ids = append(ids, uint(n))
+	}
+	return ids
+}
+
 func AdminDeletePost(c *fiber.Ctx, db *gorm.DB) error {
 	id, err := c.ParamsInt("id")
 	if err != nil || id <= 0 {
@@ -291,20 +323,7 @@ func AdminDeletePost(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	err = db.Transaction(func(tx *gorm.DB) error {
-		var post model.Post
-		if err := tx.First(&post, id).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec("DELETE FROM post_categories WHERE post_id = ?", id).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec("DELETE FROM post_tags WHERE post_id = ?", id).Error; err != nil {
-			return err
-		}
-		if err := tx.Where("post_id = ?", id).Delete(&model.Comment{}).Error; err != nil {
-			return err
-		}
-		return tx.Delete(&post).Error
+		return deletePostByID(tx, id)
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

@@ -1,0 +1,47 @@
+<!-- Shared file-picker modal for the post/page editors. The list container
+carries data-picker so Insert buttons (see file-manager.html) know an editor
+is waiting; the admin File Manager tab uses a plain container instead. -->
+<div class="modal modal-xl" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">File Manager</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container">
+                    <form hx-post="/upload-file" enctype="multipart/form-data" hx-swap="none" hx-trigger="submit"
+                        hx-headers='{"X-No-Cache": "true"}'>
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Choose File</label>
+                            <input type="file" class="form-control" name="file" id="file" accept="image/*">
+                        </div>
+                        <button id="upload-file" class="btn btn-primary" type="submit">Upload File</button>
+
+                    </form>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label for="search-input-files" class="visually-hidden">Search files</label>
+                        <input type="text" id="search-input-files" placeholder="Search files..."
+                        class="form-control w-50 mx-auto text-center shadow" hx-get="/search-files"
+                        hx-trigger="keyup delay:500ms changed" hx-target="#file-list-container"
+                        hx-headers='{"X-No-Cache": "true"}'
+                        hx-vars="query:document.getElementById('search-input-files').value">
+                    </div>
+
+                    <hr>
+
+                    <div id="file-list-container" data-picker="1"></div>
+
+
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

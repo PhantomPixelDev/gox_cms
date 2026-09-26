@@ -1,0 +1,51 @@
+<div class="col-12">
+    <h1 class="h2 mb-3">Search</h1>
+    <form action="/search" method="get" class="row g-2 mb-4" role="search">
+        <div class="col">
+            <label for="search-q" class="visually-hidden">Search posts and pages</label>
+            <input type="search" id="search-q" name="q" class="form-control" placeholder="Search posts and pages…"
+                value="{{.Query}}" autocomplete="off">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+    </form>
+
+    {{if .Query}}
+    {{if or .Posts .Pages}}
+    {{if .Posts}}
+    <h2 class="h4 mt-4">Posts</h2>
+    <div class="row">
+        {{range .Posts}}
+        <div class="col-12 col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="h5 card-title">
+                        <a href="/blog/post/{{.Slug}}" class="text-decoration-none">{{.Title}}</a>
+                    </h3>
+                    <p class="card-text text-muted small">{{.CreatedAt.Format "02 Jan 2006"}}</p>
+                    <p class="card-text excerpt">{{ truncate (escape .Content) 200 }}</p>
+                    <div class="mt-auto">
+                        <a href="/blog/post/{{.Slug}}" class="btn btn-outline-primary">Read More</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+    {{if .Pages}}
+    <h2 class="h4 mt-4">Pages</h2>
+    <ul class="list-group mb-4">
+        {{range .Pages}}
+        <li class="list-group-item"><a href="/{{.Slug}}">{{.Title}}</a></li>
+        {{end}}
+    </ul>
+    {{end}}
+    {{else}}
+    <div class="alert alert-info" role="alert">
+        Nothing found for “{{.Query}}”. Try different words or <a href="/blog">browse the blog</a>.
+    </div>
+    {{end}}
+    {{end}}
+</div>

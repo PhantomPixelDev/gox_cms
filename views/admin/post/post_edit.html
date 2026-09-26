@@ -31,6 +31,7 @@
     
                 <!-- Submit Button... -->
                 <button type="submit" class="btn btn-primary">Edit Post</button>
+                <button type="button" class="btn btn-outline-secondary ms-2" data-preview="post">Preview</button>
     
                             
     
@@ -59,6 +60,11 @@
             <hr>
                 <label for="image" class="form-label">Image URL:</label>
                 <input type="text" class="form-control" id="image" name="image" value="{{ .PostImage }}" required>
+                <img id="image-preview" class="img-fluid rounded mt-2{{if not .PostImage}} d-none{{end}}"{{if .PostImage}} src="{{ .PostImage }}"{{end}} alt="Image preview">
+                <div class="mt-2">
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exampleModal"
+                hx-trigger="click" hx-get="/search-files" hx-target="#file-list-container" hx-headers='{"X-No-Cache": "true"}'>Open File Manager</button>
+                </div>
             </div>
     
     
@@ -75,7 +81,7 @@
             <!-- Categories Select with Search -->
             <div class="mb-3">
                 <label for="categoriesSelect" class="form-label">Categories:</label>
-                <select class="form-select form-select-sm" id="categoriesSelect" name="categories" multiple="multiple" data-selected="{{ .PostCatIDs }}">
+                <select class="form-select form-select-sm" id="categoriesSelect" name="categories" data-kind="category" multiple="multiple" data-selected="{{ .PostCatIDs }}">
                     {{ range .Categories }}
                     <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
                     {{ end }}
@@ -86,7 +92,7 @@
             <!-- Tags Select with Search -->
             <div class="mb-3">
                 <label for="tagsSelect" class="form-label">Tags:</label>
-                <select class="form-select form-select-sm" id="tagsSelect" name="tags" multiple="multiple" data-selected="{{ .PostTagIDs }}">
+                <select class="form-select form-select-sm" id="tagsSelect" name="tags" data-kind="tag" multiple="multiple" data-selected="{{ .PostTagIDs }}">
                     {{ range .Tags }}
                     <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
                     {{ end }}
@@ -120,5 +126,9 @@
 
 
 
+
+
+
+{{template "partials/file-picker" .}}
 
 

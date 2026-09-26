@@ -8,6 +8,8 @@
                 <div class="card-body">
                     <p class="card-title text-truncate" title="{{.Name}}">{{ truncate .Name 20 }}</p>
                     <div class="btn-group btn-group-sm" role="group" aria-label="File actions">
+                        <button class="btn btn-sm btn-success" data-insert-url="{{.Path}}"
+                            aria-label="Insert image into editor"><i class="bi bi-plus-lg"></i></button>
                         <a href="{{.Path}}" class="btn btn-primary" target="_blank" rel="noopener"
                             aria-label="View file"><i class="bi bi-eye"></i></a>
                         <button class="btn btn-sm btn-danger" hx-delete="/delete-file"

@@ -33,15 +33,17 @@
             });
         }
 
+        // Bootstrap reads data-bs-theme from <html>, so toggle it there.
+        var root = document.documentElement;
         var btnSwitch = document.getElementById("btnSwitch");
         if (btnSwitch) {
             btnSwitch.addEventListener("click", function () {
-                var theme = document.body.getAttribute("data-bs-theme");
+                var theme = root.getAttribute("data-bs-theme");
                 if (theme === "dark") {
-                    document.body.setAttribute("data-bs-theme", "light");
+                    root.setAttribute("data-bs-theme", "light");
                     localStorage.setItem("data-bs-theme", "light");
                 } else {
-                    document.body.setAttribute("data-bs-theme", "dark");
+                    root.setAttribute("data-bs-theme", "dark");
                     localStorage.setItem("data-bs-theme", "dark");
                 }
             });
@@ -49,9 +51,9 @@
 
         var theme = localStorage.getItem("data-bs-theme");
         if (theme === "dark") {
-            document.body.setAttribute("data-bs-theme", "dark");
+            root.setAttribute("data-bs-theme", "dark");
         } else {
-            document.body.setAttribute("data-bs-theme", "light");
+            root.setAttribute("data-bs-theme", "light");
         }
     });
 })();

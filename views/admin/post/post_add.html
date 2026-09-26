@@ -32,6 +32,7 @@
     
                 <!-- Submit Button... -->
                 <button type="submit" class="btn btn-primary">Create Post</button>
+                <button type="button" class="btn btn-outline-secondary ms-2" data-preview="post">Preview</button>
     
                 <!-- Result... -->
                 <div id="result"></div>
@@ -71,7 +72,7 @@
             <!-- Categories Select with Search -->
             <div class="mb-3">
                 <label for="categoriesSelect" class="form-label">Categories:</label>
-                <select class="form-select" id="categoriesSelect" name="categories" multiple="multiple">
+                <select class="form-select" id="categoriesSelect" name="categories" data-kind="category" multiple="multiple">
                     {{ range .Categories }}
                     <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
                     {{ end }}
@@ -83,7 +84,7 @@
             <!-- Tags Select with Search -->
             <div class="mb-3">
                 <label for="tagsSelect" class="form-label">Tags:</label>
-                <select class="form-select" id="tagsSelect" name="tags" multiple="multiple">
+                <select class="form-select" id="tagsSelect" name="tags" data-kind="tag" multiple="multiple">
                     {{ range .Tags }}
                     <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
                     {{ end }}
@@ -97,49 +98,7 @@
 
 
 
-<!-- Modal -->
-<div class="modal modal-xl" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="exampleModalLabel">File Manager</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <h2 class="display-4 text-primary text-center p-3">File Manager</h2>
-                <div class="container">
-                    <form hx-post="/upload-file"  enctype="multipart/form-data" hx-swap="none" hx-trigger="submit">
-                        <div class="mb-3">
-                            <label for="file" class="form-label">Choose File</label>
-                            <input type="file" class="form-control" name="file" id="file">
-                        </div>
-                        <button id="upload-file" class="btn btn-primary" type="submit">Upload File</button> 
-                
-                    </form>
-                
-                    <hr>
-                
-                    <div class="mb-3">
-                        <input type="text" id="search-input-files" placeholder="Search files..."
-                        class="form-control w-50 mx-auto text-center shadow" hx-get="/search-files"
-                        hx-trigger="keyup delay:500ms changed" hx-target="#file-list-container"
-                        hx-vars="query:document.getElementById('search-input-files').value">
-                    </div>
-                
-                    <hr>
-                
-                    <div id="file-list-container"></div>
-                
-                
-                </div>
-    
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
+{{template "partials/file-picker" .}}
 
 
 <!-- Include Select2 CSS -->
@@ -162,5 +121,6 @@
 <!-- Quill init lives in /static/js/editor.js (loaded once from the layout). -->
 
 <!-- Selectize init lives in /static/js/editor.js (loaded once from the layout). -->
+
 
 

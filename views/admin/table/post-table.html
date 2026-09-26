@@ -1,7 +1,20 @@
+<div class="d-flex gap-2 align-items-center mb-2">
+    <label for="bulk-posts-action" class="visually-hidden">Bulk action</label>
+    <select class="form-select form-select-sm w-auto" id="bulk-posts-action" data-bulk-action>
+        <option value="">Bulk actions…</option>
+        <option value="publish">Publish selected</option>
+        <option value="unpublish">Unpublish selected</option>
+        <option value="delete">Delete selected</option>
+    </select>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-bulk-endpoint="/bulk-posts"
+        data-bulk-refresh="/search-posts" data-bulk-target="#post-table-container"
+        data-bulk-scope="#post-table-container">Apply</button>
+</div>
 <div class="table-responsive mt-3">
     <table class="table table-hover table-bordered table-striped align-middle admin-table">
         <thead>
             <tr>
+                <th scope="col"><input type="checkbox" class="form-check-input" data-select-all aria-label="Select all posts"></th>
                 <th scope="col">ID</th>
                 <th scope="col">Title</th>
                 <th scope="col">Categories</th>
@@ -17,6 +30,7 @@
             {{range .Posts}}
             <tr id="post-row-{{.ID}}">
 
+                <td><input type="checkbox" class="form-check-input bulk-check" value="{{.ID}}" aria-label="Select post {{.Title}}"></td>
                 <td>{{.ID}}</td>
                 <td>{{ truncate .Title 20 }}</td>
 

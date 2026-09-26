@@ -111,6 +111,79 @@
         }
     });
 
+    // Bulk actions: gather checked rows, confirm deletes, POST, refresh.
+    document.addEventListener("click", function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest("[data-bulk-endpoint]") : null;
+        if (!btn) {
+            return;
+        }
+        var scope = document.querySelector(btn.getAttribute("data-bulk-scope"));
+        if (!scope) {
+            return;
+        }
+        // The toolbar div holds both the button and its action select.
+        var toolbar = btn.closest("div");
+        var actionSel = toolbar ? toolbar.querySelector("[data-bulk-action]") : null;
+        var action = actionSel ? actionSel.value : "";
+        var ids = [];
+        scope.querySelectorAll(".bulk-check:checked").forEach(function (box) {
+            ids.push(box.value);
+        });
+        if (!action || ids.length === 0) {
+            htmx.trigger(document.body, "showToast", { value: "Pick an action and select rows first" });
+            return;
+        }
+        if (action === "delete" && !window.confirm("Apply '" + action + "' to " + ids.length + " item(s)?")) {
+            return;
+        }
+        var params = new URLSearchParams();
+        params.append("action", action);
+        params.append("ids", ids.join(","));
+        var match = document.cookie.match(/(?:^|;\s*)csrf_=([^;]*)/);
+        var headers = { "Content-Type": "application/x-www-form-urlencoded" };
+        if (match) {
+            headers["X-Csrf-Token"] = decodeURIComponent(match[1]);
+        }
+        fetch(btn.getAttribute("data-bulk-endpoint"), {
+            method: "POST",
+            headers: headers,
+            body: params.toString(),
+        }).then(function (resp) {
+            return resp.json().then(function (data) {
+                return { ok: resp.ok, data: data };
+            });
+        }).then(function (result) {
+            if (result.ok) {
+                refresh(
+                    btn.getAttribute("data-bulk-target"),
+                    btn.getAttribute("data-bulk-refresh")
+                );
+            }
+            htmx.trigger(document.body, "showToast", {
+                value: result.ok
+                    ? "Bulk action done"
+                    : (result.data && result.data.error) || "Bulk action failed",
+            });
+        }).catch(function () {
+            htmx.trigger(document.body, "showToast", { value: "Bulk action failed" });
+        });
+    });
+
+    // Select-all checkboxes (scoped to their table).
+    document.addEventListener("change", function (e) {
+        var master = e.target && e.target.closest ? e.target.closest("[data-select-all]") : null;
+        if (!master) {
+            return;
+        }
+        var table = master.closest("table");
+        if (!table) {
+            return;
+        }
+        table.querySelectorAll(".bulk-check").forEach(function (box) {
+            box.checked = master.checked;
+        });
+    });
+
     // Copy buttons rendered by the file manager (no inline onclick).
     document.addEventListener("click", function (e) {
         var btn = e.target && e.target.closest ? e.target.closest("[data-copy-url]") : null;

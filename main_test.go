@@ -668,6 +668,138 @@ func TestClearCache(t *testing.T) {
 	}
 }
 
+func TestHeaderHasToggleAndSearch(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	// NOTE: navbar color classes are asserted in TestUpdateSettings (the site
+	// settings cache is process-global, so color here depends on test order).
+	_, body := do(t, app, "GET", "/")
+	for _, want := range []string{`id="btnSwitch"`, `action="/search"`, `id="main-content"`, `skip-link`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("homepage missing %q", want)
+		}
+	}
+}
+
+func TestSiteSearch(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	resp, body := do(t, app, "GET", "/search?q=welcome")
+	if resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "Welcome to GoX CMS") {
+		t.Fatalf("search welcome: got status %d", resp.StatusCode)
+	}
+	// Wildcards must not break or broaden the search.
+	if resp, _ := do(t, app, "GET", "/search?q=%"); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("search %%: got status %d", resp.StatusCode)
+	}
+	if resp, body := do(t, app, "GET", "/search?q=zzz-no-such-thing"); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "Nothing found") {
+		t.Fatalf("empty search: got status %d", resp.StatusCode)
+	}
+}
+
+func TestPreviewEndpoints(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	// Anonymous users cannot render previews.
+	if resp, _ := postForm(t, app, "/preview-post", url.Values{"title": {"Hi"}}, token); !isDenied(resp.StatusCode) {
+		t.Errorf("anon preview: got status %d, want denied", resp.StatusCode)
+	}
+
+	form := url.Values{"title": {"Draft Peek"}, "content": {"<p>Hello</p><script>alert(1)</script>"}, "image": {"/img.png"}}
+	resp, body := postForm(t, app, "/preview-post", form, token, auth)
+	if resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "Draft Peek") {
+		t.Fatalf("post preview: got status %d", resp.StatusCode)
+	}
+	if strings.Contains(body, "alert(1)") {
+		t.Error("preview did not sanitize content")
+	}
+	if resp, _ := postForm(t, app, "/preview-page", url.Values{"title": {""}}, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("preview without title: got status %d, want 400", resp.StatusCode)
+	}
+	if resp, body := postForm(t, app, "/preview-page", url.Values{"title": {"About Draft"}, "content": {"<p>x</p>"}}, token, auth); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "About Draft") {
+		t.Errorf("page preview: got status %d", resp.StatusCode)
+	}
+}
+
+func TestAddTaxonomyInline(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	form := url.Values{"kind": {"tag"}, "name": {"Fresh Tag"}}
+	resp, body := postForm(t, app, "/add-taxonomy", form, token, auth)
+	if resp.StatusCode != fiber.StatusCreated || !strings.Contains(body, `"id"`) {
+		t.Fatalf("create tag inline: got status %d body %q", resp.StatusCode, body)
+	}
+	// Duplicate name returns the existing row.
+	if resp, _ := postForm(t, app, "/add-taxonomy", form, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Errorf("duplicate tag inline: got status %d, want 200", resp.StatusCode)
+	}
+	var n int64
+	db.Model(&model.Tag{}).Where("slug = ?", "fresh-tag").Count(&n)
+	if n != 1 {
+		t.Errorf("tag rows = %d, want 1", n)
+	}
+	if resp, _ := postForm(t, app, "/add-taxonomy", url.Values{"kind": {"nope"}, "name": {"x"}}, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("bad kind: got status %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestBulkActions(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	p1 := model.Post{Title: "B1", Content: "x", Slug: "bulk-1", UserID: admin.ID}
+	p2 := model.Post{Title: "B2", Content: "x", Slug: "bulk-2", UserID: admin.ID}
+	db.Create(&p1)
+	db.Create(&p2)
+	ids := strconv.Itoa(int(p1.ID)) + "," + strconv.Itoa(int(p2.ID))
+
+	pub := url.Values{"action": {"publish"}, "ids": {ids}}
+	if resp, _ := postForm(t, app, "/bulk-posts", pub, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("bulk publish: got status %d", resp.StatusCode)
+	}
+	var published int64
+	db.Model(&model.Post{}).Where("id IN ? AND published = ?", []uint{p1.ID, p2.ID}, true).Count(&published)
+	if published != 2 {
+		t.Fatalf("published = %d, want 2", published)
+	}
+
+	c1 := model.Comment{Content: "a", UserID: admin.ID, PostID: p1.ID, Status: "pending"}
+	c2 := model.Comment{Content: "b", UserID: admin.ID, PostID: p1.ID, Status: "pending"}
+	db.Create(&c1)
+	db.Create(&c2)
+	cids := strconv.Itoa(int(c1.ID)) + "," + strconv.Itoa(int(c2.ID))
+	if resp, _ := postForm(t, app, "/bulk-comments", url.Values{"action": {"approve"}, "ids": {cids}}, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("bulk approve: got status %d", resp.StatusCode)
+	}
+
+	del := url.Values{"action": {"delete"}, "ids": {ids}}
+	if resp, _ := postForm(t, app, "/bulk-posts", del, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("bulk delete: got status %d", resp.StatusCode)
+	}
+	var left int64
+	db.Model(&model.Post{}).Where("id IN ?", []uint{p1.ID, p2.ID}).Count(&left)
+	if left != 0 {
+		t.Fatalf("posts left = %d, want 0", left)
+	}
+	var commentsLeft int64
+	db.Model(&model.Comment{}).Where("post_id IN ?", []uint{p1.ID, p2.ID}).Count(&commentsLeft)
+	if commentsLeft != 0 {
+		t.Fatalf("orphan comments = %d, want 0", commentsLeft)
+	}
+
+	if resp, _ := postForm(t, app, "/bulk-posts", url.Values{"action": {"wipe"}, "ids": {ids}}, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("bad bulk action: got status %d, want 400", resp.StatusCode)
+	}
+}
+
 func TestMenuBuilderFlow(t *testing.T) {
 	app, db := newTestApp(t)
 	// Fresh test apps seed a primary menu; start clean for this flow.

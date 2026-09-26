@@ -12,7 +12,7 @@
                 <p class="card-text text-muted small">{{.CreatedAt.Format "02 Jan 2006"}}</p>
                 <p class="card-text excerpt">{{ truncate (escape .Content) 200 }}</p>
                 <div class="mt-auto">
-                    <a href="/blog/post/{{.Slug}}" class="btn btn-primary btn-sm">Read More</a>
+                    <a href="/blog/post/{{.Slug}}" class="btn btn-primary">Read More</a>
                 </div>
                 {{if or .Tags .Categories}}
                 <div class="mt-2 d-flex flex-wrap gap-1">
