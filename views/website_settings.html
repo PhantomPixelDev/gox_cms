@@ -122,13 +122,17 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label for="logo_url" class="form-label">Logo URL:</label>
-                        <input type="url" class="form-control" id="logo_url" name="logo_url"
-                            placeholder="https://example.com/logo.png" value="{{.SettingsAdmin.LogoURL}}">
+                        <input type="text" class="form-control" id="logo_url" name="logo_url"
+                            placeholder="/static/images/logo.png or https://…" value="{{.SettingsAdmin.LogoURL}}"
+                            aria-describedby="logo-url-hint">
+                        <div id="logo-url-hint" class="form-text">Absolute URL or site path (e.g. /static/uploads/logo.png).</div>
                     </div>
                     <div class="col-md-6">
                         <label for="favicon_url" class="form-label">Favicon URL:</label>
-                        <input type="url" class="form-control" id="favicon_url" name="favicon_url"
-                            placeholder="https://example.com/favicon.ico" value="{{.SettingsAdmin.FaviconURL}}">
+                        <input type="text" class="form-control" id="favicon_url" name="favicon_url"
+                            placeholder="/static/images/favicon.png or https://…" value="{{.SettingsAdmin.FaviconURL}}"
+                            aria-describedby="favicon-url-hint">
+                        <div id="favicon-url-hint" class="form-text">Absolute URL or site path.</div>
                     </div>
                 </div>
                 <div class="row mb-3">
@@ -150,17 +154,16 @@
                             placeholder="contact@example.com" value="{{.SettingsAdmin.ContactEmail}}">
                     </div>
                     <div class="col-md-6">
-                        <label for="privacy_policy" class="form-label">Privacy Policy URL:</label>
-                        <input type="url" class="form-control" id="privacy_policy" name="privacy_policy"
-                            placeholder="https://example.com/privacy-policy" value="{{.SettingsAdmin.PrivacyPolicy}}">
+                        <label for="privacy_policy" class="form-label">Privacy Policy:</label>
+                        <textarea class="form-control" id="privacy_policy" name="privacy_policy" rows="2"
+                            placeholder="Privacy policy text or URL">{{.SettingsAdmin.PrivacyPolicy}}</textarea>
                     </div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label for="terms_of_service" class="form-label">Terms Of Service URL:</label>
-                        <input type="url" class="form-control" id="terms_of_service" name="terms_of_service"
-                            placeholder="https://example.com/terms-of-service"
-                            value="{{.SettingsAdmin.TermsOfService}}">
+                        <label for="terms_of_service" class="form-label">Terms Of Service:</label>
+                        <textarea class="form-control" id="terms_of_service" name="terms_of_service" rows="2"
+                            placeholder="Terms of service text or URL">{{.SettingsAdmin.TermsOfService}}</textarea>
                     </div>
                     <div class="col-md-6">
                         <label for="language" class="form-label">Language:</label>

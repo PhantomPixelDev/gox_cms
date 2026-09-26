@@ -150,6 +150,26 @@ func TestAdminCanOpenAdminPanel(t *testing.T) {
 	}
 }
 
+func TestAdminSettingsRenders(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+
+	resp, body := do(t, app, "GET", "/admin-settings", authCookie(t, admin.ID))
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("admin GET /admin-settings: got status %d, want 200", resp.StatusCode)
+	}
+	// Logo/favicon hold site-relative paths, so they must not be url-typed
+	// (browsers block submit on prefilled relative values).
+	for _, want := range []string{`id="logo_url"`, `id="favicon_url"`, `id="privacy_policy"`, `id="terms_of_service"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("settings form missing %s", want)
+		}
+	}
+	if strings.Contains(body, `id="logo_url"`) && strings.Contains(body, `type="url" class="form-control" id="logo_url"`) {
+		t.Error("logo_url must not be type=url")
+	}
+}
+
 func TestAdminOverviewShowsCounts(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
