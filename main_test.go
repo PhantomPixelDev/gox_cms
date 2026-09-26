@@ -112,7 +112,7 @@ var adminRoutes = []struct{ method, path string }{
 	{"DELETE", "/delete-post/1"},
 	{"DELETE", "/delete-user/1"},
 	{"POST", "/upload-file"},
-	{"POST", "/admin/plugins/enable/ShopPlugin"},
+	{"POST", "/admin/plugins/enable/LatestPostsPlugin"},
 }
 
 func TestAdminRoutesRejectAnonymous(t *testing.T) {

@@ -12,7 +12,6 @@ GoX CMS is a project that combines Go and HTMX to create a snappy, and enjoyable
 - Custom pages
 - Comments
 - Simple plugin system
-    - Shop Plugin
     - Logger Plugin
     - Latest Post Plugin
 - Many different themes
