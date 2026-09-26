@@ -1,36 +1,22 @@
 
-.body {
-    font-family: 'Roboto', sans-serif !important;
-    font-size: 16px;
-    line-height: 1.5;
-    color: #212529;
-    background-color: #acd6ff !important;
-    padding: 20px; /* Add padding for better readability */
-    max-width: 800px; /* Limit the width to fit the Vapor layout */
-    margin: 0 auto; /* Center the content horizontally */
-}
-
 .logo {
-    background-color: #480072;
+    background-color: #2c3e50;
     color: #fff;
     font-size: 18px;
-    padding: 10px;
-    border-radius: 10px;
+    padding: 8px 16px;
+    border-radius: 8px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-weight: 600;
     line-height: 1.5;
     letter-spacing: 0.5px;
     text-decoration: none;
-    transition: background-color 0.3s ease, transform 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .logo:hover {
-    background-color: #ff00ff;
-    transform: scale(1.1);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    background-color: #1a252f;
+    color: #fff;
 }
 
 

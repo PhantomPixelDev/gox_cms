@@ -292,14 +292,14 @@ func CreateBasicWebsiteInfo(db *gorm.DB) {
 			AnalyticsID:    "UA-XXXXXXXX-X",
 			FooterText:     "© 2024 GoX CMS. All rights reserved.",
 			Maintenance:    false,
-			Theme:          "vapor",
+			Theme:          "flatly",
 			ContactEmail:   "support@goxcms.com",
 			PrivacyPolicy:  "Our privacy policy goes here...",
 			TermsOfService: "Our terms of service go here...",
 			Language:       "en",
 			Locale:         "en-US",
 			TimeZone:       "UTC",
-			SelectedTheme:  "vapor",
+			SelectedTheme:  "flatly",
 		}
 
 		result := db.Create(&newInfo)
