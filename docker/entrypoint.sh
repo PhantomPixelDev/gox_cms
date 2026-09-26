@@ -36,6 +36,10 @@ app:
   url: "${APP_URL}"
   secret: "${GOX_SECRET}"
   admin_password: "${ADMIN_PASSWORD:-}"
+  session_hours: ${GOX_SESSION_HOURS:-12}
+auth:
+  login_max_attempts: ${GOX_LOGIN_MAX_ATTEMPTS:-10}
+  login_window_minutes: ${GOX_LOGIN_WINDOW_MINUTES:-5}
 upload:
   max_size_mb: 50
 redis:

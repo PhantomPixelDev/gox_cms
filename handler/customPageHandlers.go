@@ -32,7 +32,7 @@ func normalizePageSlug(slug string) string {
 
 func AddCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	title := c.FormValue("title")
-	content := c.FormValue("content")
+	content := SanitizeRichHTML(c.FormValue("content"))
 	slug := normalizePageSlug(c.FormValue("slug"))
 	template := c.FormValue("template")
 
@@ -98,7 +98,7 @@ func SearchCustomPages(c *fiber.Ctx, db *gorm.DB) error {
 func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	id := c.FormValue("id")
 	title := c.FormValue("title")
-	content := c.FormValue("content")
+	content := SanitizeRichHTML(c.FormValue("content"))
 	slug := normalizePageSlug(c.FormValue("slug"))
 	template := c.FormValue("template")
 

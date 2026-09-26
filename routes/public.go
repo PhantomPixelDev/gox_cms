@@ -48,4 +48,12 @@ func setupPublicRoutes(app *fiber.App, db *gorm.DB) {
 		c.Type("xml", "utf-8")
 		return c.Send(utils.BuildSitemap(db))
 	})
+
+	// Health check for Docker/Caddy/load balancers. Anonymous on purpose.
+	app.Get("/healthz", func(c *fiber.Ctx) error {
+		if sqlDB, err := db.DB(); err != nil || sqlDB.Ping() != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"status": "unhealthy"})
+		}
+		return c.JSON(fiber.Map{"status": "ok"})
+	})
 }

@@ -75,9 +75,16 @@ func jwtKey() []byte {
 	return []byte(viper.GetString("app.secret"))
 }
 
-const jwtLifetime = 72 * time.Hour
+// jwtLifetime bounds how long a login stays valid. Overridable with
+// app.session_hours (default 12).
+func jwtLifetime() time.Duration {
+	if hours := viper.GetInt("app.session_hours"); hours > 0 {
+		return time.Duration(hours) * time.Hour
+	}
+	return 12 * time.Hour
+}
 
-func GenerateJWT(userID uint) (string, error) {
+func GenerateJWT(userID, sessionVersion uint) (string, error) {
 	key := jwtKey()
 	if len(key) == 0 {
 		return "", errors.New("app.secret is not configured")
@@ -85,38 +92,44 @@ func GenerateJWT(userID uint) (string, error) {
 
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(jwtLifetime).Unix(),
+		"sv":      sessionVersion,
+		"exp":     time.Now().Add(jwtLifetime()).Unix(),
 	}
 
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(key)
 }
 
 // parseJWT validates the token signature, algorithm and expiry and returns the
-// user ID it was issued for.
-func parseJWT(tokenString string) (uint, error) {
+// user ID and session version it was issued for.
+func parseJWT(tokenString string) (userID, sessionVersion uint, err error) {
 	key := jwtKey()
 	if tokenString == "" || len(key) == 0 {
-		return 0, errors.New("no token")
+		return 0, 0, errors.New("no token")
 	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return key, nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
 	if err != nil || !token.Valid {
-		return 0, errors.New("invalid token")
+		return 0, 0, errors.New("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return 0, errors.New("invalid claims")
+		return 0, 0, errors.New("invalid claims")
 	}
 
-	userID, ok := claims["user_id"].(float64)
-	if !ok || userID <= 0 {
-		return 0, errors.New("invalid user_id claim")
+	id, ok := claims["user_id"].(float64)
+	if !ok || id <= 0 {
+		return 0, 0, errors.New("invalid user_id claim")
 	}
 
-	return uint(userID), nil
+	var sv uint
+	if raw, ok := claims["sv"].(float64); ok && raw >= 0 {
+		sv = uint(raw)
+	}
+
+	return uint(id), sv, nil
 }
 
 func FormatValidationError(err error) string {
@@ -154,7 +167,7 @@ func SetJWTTokenCookie(c *fiber.Ctx, tokenString string) {
 	cookie.Secure = utils.SecureCookies()
 	cookie.SameSite = "Lax"
 	cookie.Path = "/"
-	cookie.Expires = time.Now().Add(jwtLifetime)
+	cookie.Expires = time.Now().Add(jwtLifetime())
 	c.Cookie(cookie)
 }
 
@@ -163,6 +176,11 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 
 		if !captchaPassed(c) {
 			return nil
+		}
+
+		if loginBlocked(c.IP()) {
+			ShowToastError(c, "Too many login attempts, try again later")
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many login attempts"})
 		}
 
 		type loginRequest struct {
@@ -178,14 +196,21 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 
 		var user model.User
 		if err := db.Where("username = ?", req.Username).First(&user).Error; err != nil {
+			// Same cost as a real password check, so unknown usernames do
+			// not fail visibly faster than wrong passwords.
+			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(req.Password))
+			recordLoginFailure(c.IP())
 			ShowToastError(c, "Invalid login credentials")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid login credentials"})
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+			recordLoginFailure(c.IP())
 			ShowToastError(c, "Invalid login credentials - Password does not match")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid login credentials"})
 		}
+
+		resetLoginAttempts(c.IP())
 
 		sess, err := store.Get(c)
 		if err != nil {
@@ -200,7 +225,7 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to initiate session"})
 		}
 
-		tokenString, err := GenerateJWT(user.ID)
+		tokenString, err := GenerateJWT(user.ID, user.SessionVersion)
 		if err != nil {
 			ShowToastError(c, "Failed to generate token")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
@@ -218,9 +243,17 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 	}
 }
 
-func Logout(c *fiber.Ctx) error {
-	sess := c.Locals("session").(*session.Session)
-	sess.Destroy()
+// Logout destroys the server session, revokes all JWTs issued to the user by
+// bumping their session version, and clears the login cookie.
+func Logout(c *fiber.Ctx, db *gorm.DB) error {
+	if sess, ok := c.Locals("session").(*session.Session); ok && sess != nil {
+		sess.Destroy()
+	}
+
+	if user, ok := CurrentUser(c); ok {
+		db.Model(&model.User{}).Where("id = ?", user.ID).
+			Update("session_version", gorm.Expr("session_version + 1"))
+	}
 
 	cookie := new(fiber.Cookie)
 	cookie.Name = "jwt"
@@ -280,7 +313,7 @@ func Register(db *gorm.DB) fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Registration failed"})
 		}
 
-		tokenString, err := GenerateJWT(user.ID)
+		tokenString, err := GenerateJWT(user.ID, user.SessionVersion)
 		if err != nil {
 			ShowToastError(c, "Error generating token")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error generating token"})
@@ -298,13 +331,19 @@ func AuthStatusMiddleware(db *gorm.DB) fiber.Handler {
 		c.Locals("isLoggedin", false)
 		c.Locals("isAdmin", false)
 
-		userID, err := parseJWT(c.Cookies("jwt"))
+		userID, sessionVersion, err := parseJWT(c.Cookies("jwt"))
 		if err != nil {
 			return c.Next()
 		}
 
 		var user model.User
 		if err := db.First(&user, userID).Error; err != nil {
+			return c.Next()
+		}
+
+		// Tokens issued before the latest logout (or any session-version
+		// bump) are rejected even if their signature is still valid.
+		if user.SessionVersion != sessionVersion {
 			return c.Next()
 		}
 

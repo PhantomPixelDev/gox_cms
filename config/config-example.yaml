@@ -25,6 +25,14 @@ app:
   # Password for the "admin" account created on first start. Leave empty to
   # generate a random one, which is printed once to the log.
   admin_password: ""
+  # Login sessions expire after this many hours. Logging out revokes all of
+  # the user's sessions immediately regardless of this value.
+  session_hours: 12
+# Brute-force guard for /login: this many failures from one IP per window
+# returns HTTP 429 until the window passes. A successful login resets it.
+auth:
+  login_max_attempts: 10
+  login_window_minutes: 5
 upload:
   max_size_mb: 50
 redis:

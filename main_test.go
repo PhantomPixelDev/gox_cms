@@ -64,7 +64,8 @@ func createUser(t *testing.T, db *gorm.DB, username string, role uint) model.Use
 
 func authCookie(t *testing.T, userID uint) *http.Cookie {
 	t.Helper()
-	token, err := handlers.GenerateJWT(userID)
+	// Fresh test users have session version 0.
+	token, err := handlers.GenerateJWT(userID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,6 +434,110 @@ func TestSitemap(t *testing.T) {
 		if strings.Contains(body, unwanted) {
 			t.Errorf("sitemap contains %q", unwanted)
 		}
+	}
+}
+
+func TestHealthz(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	resp, body := do(t, app, "GET", "/healthz")
+	if resp.StatusCode != fiber.StatusOK || !strings.Contains(body, `"ok"`) {
+		t.Fatalf("GET /healthz: got status %d, body %q", resp.StatusCode, body)
+	}
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	resp, _ := do(t, app, "GET", "/")
+	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Errorf("X-Content-Type-Options = %q, want nosniff", got)
+	}
+	if got := resp.Header.Get("Content-Security-Policy"); !strings.Contains(got, "object-src 'none'") {
+		t.Errorf("Content-Security-Policy missing object-src 'none': %q", got)
+	}
+}
+
+func TestLogoutRevokesJWT(t *testing.T) {
+	app, db := newTestApp(t)
+	createUser(t, db, "alice", model.RoleUser)
+
+	token := csrfCookie(t, app)
+	resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token)
+	var jwtCookie *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "jwt" {
+			jwtCookie = c
+		}
+	}
+	if jwtCookie == nil {
+		t.Fatal("login did not set a jwt cookie")
+	}
+
+	if resp, _ := postForm(t, app, "/logout", url.Values{}, token, jwtCookie); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("logout: got status %d, want 200", resp.StatusCode)
+	}
+
+	// The same token must no longer authenticate.
+	if resp, _ := do(t, app, "GET", "/admin", jwtCookie); !isDenied(resp.StatusCode) {
+		t.Errorf("stale token after logout: got status %d, want it rejected", resp.StatusCode)
+	}
+}
+
+func TestLoginThrottleBlocksBruteForce(t *testing.T) {
+	app, db := newTestApp(t)
+	createUser(t, db, "alice", model.RoleUser)
+	handlers.ResetLoginAttemptsForIP("192.0.2.1")
+	viper.Set("auth.login_max_attempts", 3)
+	t.Cleanup(func() {
+		viper.Set("auth.login_max_attempts", 10)
+		handlers.ResetLoginAttemptsForIP("192.0.2.1")
+	})
+	token := csrfCookie(t, app)
+	bad := url.Values{"username": {"nobody"}, "password": {"wrong"}}
+
+	for i := 0; i < 3; i++ {
+		if resp, _ := postForm(t, app, "/login", bad, token); resp.StatusCode != fiber.StatusUnauthorized {
+			t.Fatalf("bad login %d: got status %d, want 401", i+1, resp.StatusCode)
+		}
+	}
+	if resp, _ := postForm(t, app, "/login", bad, token); resp.StatusCode != fiber.StatusTooManyRequests {
+		t.Fatalf("login after 3 failures: got status %d, want 429", resp.StatusCode)
+	}
+	// Even correct credentials are refused while blocked.
+	good := url.Values{"username": {"alice"}, "password": {"password123"}}
+	if resp, _ := postForm(t, app, "/login", good, token); resp.StatusCode != fiber.StatusTooManyRequests {
+		t.Fatalf("good login while blocked: got status %d, want 429", resp.StatusCode)
+	}
+}
+
+func TestPostContentIsSanitized(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	form := url.Values{
+		"title":     {"XSS"},
+		"content":   {`<script>alert(1)</script><p>Safe</p>`},
+		"post_slug": {"xss-test"},
+		"image":     {"/img.png"},
+	}
+	if resp, _ := postForm(t, app, "/admin/post/add", form, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("add post: got status %d", resp.StatusCode)
+	}
+
+	resp, body := do(t, app, "GET", "/blog/post/xss-test", auth)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("GET post: got status %d", resp.StatusCode)
+	}
+	// NOTE: the page layout itself ships inline <script> blocks, so only the
+	// stored payload may be asserted on.
+	if strings.Contains(body, "alert(1)") {
+		t.Error("stored script survived sanitization")
+	}
+	if !strings.Contains(body, "Safe") {
+		t.Error("safe markup was lost during sanitization")
 	}
 }
 

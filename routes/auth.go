@@ -40,6 +40,6 @@ func setupAuthRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 
 	app.Post("/logout", func(c *fiber.Ctx) error {
 
-		return handlers.Logout(c)
+		return handlers.Logout(c, db)
 	})
 }

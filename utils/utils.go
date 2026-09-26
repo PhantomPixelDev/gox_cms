@@ -57,6 +57,13 @@ func InitConfig() {
 	viper.SetDefault("captcha.public_key", "")
 	viper.SetDefault("captcha.secret_key", "")
 	viper.SetDefault("captcha.enabled", false)
+	// Login sessions last app.session_hours (JWT expiry); logout revokes
+	// them immediately via the user's session version.
+	viper.SetDefault("app.session_hours", 12)
+	// Brute-force guard: auth.login_max_attempts failures per
+	// auth.login_window_minutes from one IP -> HTTP 429 on /login.
+	viper.SetDefault("auth.login_max_attempts", 10)
+	viper.SetDefault("auth.login_window_minutes", 5)
 
 	if viper.GetBool("redis.enabled") {
 		log.Println("Redis enabled")

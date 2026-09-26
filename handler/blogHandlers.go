@@ -26,7 +26,7 @@ type postForm struct {
 func parsePostForm(c *fiber.Ctx) (postForm, bool) {
 	f := postForm{
 		title:       strings.TrimSpace(c.FormValue("title")),
-		content:     c.FormValue("content"),
+		content:     SanitizeRichHTML(c.FormValue("content")),
 		slug:        strings.TrimSpace(c.FormValue("post_slug")),
 		image:       strings.TrimSpace(c.FormValue("image")),
 		categoryIDs: extractIDs(c.FormValue("categories_input")),

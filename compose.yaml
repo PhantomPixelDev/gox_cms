@@ -17,6 +17,9 @@ services:
       APP_URL: "${APP_URL:-http://localhost:4120}"
       GOX_SECRET: "${GOX_SECRET:-}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      GOX_SESSION_HOURS: "${GOX_SESSION_HOURS:-12}"
+      GOX_LOGIN_MAX_ATTEMPTS: "${GOX_LOGIN_MAX_ATTEMPTS:-10}"
+      GOX_LOGIN_WINDOW_MINUTES: "${GOX_LOGIN_WINDOW_MINUTES:-5}"
     volumes:
       - gox-data:/app/data
       - gox-uploads:/app/static/uploads

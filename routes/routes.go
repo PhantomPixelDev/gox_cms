@@ -16,6 +16,8 @@ import (
 // SetupRoutes installs the auth and settings middleware and registers the
 // public, auth and admin routes.
 func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html.Engine) {
+	app.Use(handlers.SecurityHeaders())
+
 	app.Use(handlers.AuthStatusMiddleware(db))
 
 	app.Use(func(c *fiber.Ctx) error {
