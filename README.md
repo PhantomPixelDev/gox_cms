@@ -55,6 +55,23 @@ Run the test suite in Docker (no local Go needed):
 docker build --target test .
 ```
 
+## Security notes
+
+- Post and custom-page HTML is sanitized on save (allowlist), and every
+  response carries `Content-Security-Policy`, `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy` (+ HSTS over HTTPS).
+- Logins are JWT cookies (`app.session_hours`, default 12h). Logging out
+  revokes all of the user's sessions immediately.
+- `/login` allows `auth.login_max_attempts` failures per IP per
+  `auth.login_window_minutes` (defaults 10 / 5min), then returns HTTP 429.
+- Anonymous health check: `GET /healthz` → `{"status":"ok"}` (used by
+  Docker/Caddy).
+
+## Backups (SQLite)
+
+Snapshot the `gox-data` / `gox-uploads` volumes regularly, e.g. the nightly
+cron in `portfolio-hosting-zap/apps/gox-cms-dev/backup.sh` on the VPS.
+
 ### Configuration notes
 
 - `app.url`: set it to the public URL. Cookies are marked `Secure` when it starts with `https://`, and it is used for the sitemap and as the default CORS origin.
