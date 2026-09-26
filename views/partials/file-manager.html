@@ -1,27 +1,28 @@
-    <div class="row">
+    <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 g-3">
         {{range .Files}}
-        <div class="flex flex-column col-auto mb-3">
-            <div class="card shadow" >
+        <div class="col">
+            <div class="card file-card shadow-sm h-100">
                 <div class="card-img-container">
-                    <img src="{{.Path}}" alt="Image Preview" class="card-img-top" style="width: 100%; height: 100px; object-fit: cover;">
+                    <img src="{{.Path}}" alt="Image Preview" class="card-img-top" loading="lazy">
                 </div>
                 <div class="card-body">
-                    <p class="card-title">{{ truncate .Name 20 }}</p>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <a href="{{.Path}}" class="btn btn-primary" target="_blank">🔍</a>
+                    <p class="card-title text-truncate" title="{{.Name}}">{{ truncate .Name 20 }}</p>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="File actions">
+                        <a href="{{.Path}}" class="btn btn-primary" target="_blank" rel="noopener"
+                            aria-label="View file"><i class="bi bi-eye"></i></a>
                         <button class="btn btn-sm btn-danger" hx-delete="/delete-file"
                             hx-vals='{"name": "{{.Name}}"}'
                             hx-confirm="Are you sure you want to delete this file?"
-                    
-                            hx-on::after-request="updateFileList()">Delete</button>
-                       
-                        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('{{.Path}}')">Copy URL</button>
+                            hx-on::after-request="updateFileList()"
+                            aria-label="Delete file"><i class="bi bi-trash"></i></button>
+                        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('{{.Path}}')"
+                            aria-label="Copy file URL"><i class="bi bi-clipboard"></i></button>
                     </div>
                 </div>
             </div>
         </div>
         {{end}}
-    </div> 
+    </div>
 
 
 <div id="pagination-container">
@@ -74,17 +75,27 @@
 
 <script>
     function copyToClipboard(text) {
+        function done() {
+            /// send showToast using htmx to trigger htmx.on showToast
+            htmx.trigger(document.body, 'showToast', {
+                value: 'URL Copied to Clipboard',
+            });
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text); done(); });
+            return;
+        }
+        legacyCopy(text);
+        done();
+    }
+
+    function legacyCopy(text) {
         const el = document.createElement('textarea');
         el.value = text;
         document.body.appendChild(el);
         el.select();
         document.execCommand('copy');
         document.body.removeChild(el);
-        
-        /// send showToast using htmx to trigger htmx.on showToast
-        htmx.trigger(document.body, 'showToast', {
-            value: 'URL Copied to Clipboard',
-        }); 
     }
 
     function updateFileList() {

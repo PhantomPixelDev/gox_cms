@@ -271,16 +271,26 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 			})
 		}
 
-		var enabled_plugins int64
+		var enabled_plugins, post_count, user_count, pending_comments, page_count, file_count int64
 		db.Model(&model.Plugin{}).Where("enabled = ?", true).Count(&enabled_plugins)
+		db.Model(&model.Post{}).Count(&post_count)
+		db.Model(&model.User{}).Count(&user_count)
+		db.Model(&model.Comment{}).Where("status = ?", "pending").Count(&pending_comments)
+		db.Model(&model.CustomPage{}).Count(&page_count)
+		db.Model(&model.File{}).Count(&file_count)
 
 		return c.Render("admin/admin", fiber.Map{
-			"Title":          "Admin Panel",
-			"IsAdmin":        c.Locals("isAdmin"),
-			"IsLoggedIn":     c.Locals("isLoggedin"),
-			"Settings":       c.Locals("Settings"),
-			"Plugins":        pluginData,
-			"EnabledPlugins": enabled_plugins,
+			"Title":           "Admin Panel",
+			"IsAdmin":         c.Locals("isAdmin"),
+			"IsLoggedIn":      c.Locals("isLoggedin"),
+			"Settings":        c.Locals("Settings"),
+			"Plugins":         pluginData,
+			"EnabledPlugins":  enabled_plugins,
+			"PostCount":       post_count,
+			"UserCount":       user_count,
+			"PendingComments": pending_comments,
+			"PageCount":       page_count,
+			"FileCount":       file_count,
 		}, "main")
 	})
 }

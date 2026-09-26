@@ -150,6 +150,23 @@ func TestAdminCanOpenAdminPanel(t *testing.T) {
 	}
 }
 
+func TestAdminOverviewShowsCounts(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	db.Create(&model.Post{Title: "One", Content: "x", Slug: "one", Published: true})
+	db.Create(&model.Post{Title: "Two", Content: "x", Slug: "two"})
+
+	resp, body := do(t, app, "GET", "/admin", authCookie(t, admin.ID))
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("admin GET /admin: got status %d, want 200", resp.StatusCode)
+	}
+	for _, want := range []string{"Overview", "stat-card", "Pending Comments", "Plugins"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("admin panel missing %q", want)
+		}
+	}
+}
+
 func TestForgedJWTIsRejected(t *testing.T) {
 	sign := func(t *testing.T, method jwt.SigningMethod, key interface{}, claims jwt.MapClaims) string {
 		token, err := jwt.NewWithClaims(method, claims).SignedString(key)

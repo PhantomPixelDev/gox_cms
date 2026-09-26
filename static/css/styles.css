@@ -145,3 +145,83 @@
 .selectize-input::placeholder {
     color: #999;
 }
+
+/* ---- Admin panel ---- */
+
+.admin-sidebar {
+    position: sticky;
+    top: 1rem;
+}
+
+@media (max-width: 767.98px) {
+    .admin-sidebar {
+        position: static;
+    }
+
+    #admin-tabs {
+        padding-bottom: 0.25rem;
+    }
+
+    #admin-tabs .nav-link {
+        white-space: nowrap;
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+.stat-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.stat-label {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.9rem;
+}
+
+#admin-tabs-content input[type="text"],
+#admin-tabs-content input[type="search"] {
+    margin: 0.75rem 0;
+}
+
+#admin-tabs-content input[type="text"]:focus,
+#admin-tabs-content input[type="search"]:focus {
+    border-color: var(--bs-primary, #007bff);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+}
+
+.admin-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bs-body-bg, #fff);
+    z-index: 1;
+    white-space: nowrap;
+}
+
+.file-card .card-img-container {
+    overflow: hidden;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.file-card .card-img-top {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+}
+
+#upload-file-form + #progress,
+#progress {
+    width: 100%;
+    height: 0.75rem;
+    margin-bottom: 0.5rem;
+}
