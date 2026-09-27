@@ -344,84 +344,132 @@ func AdminDeletePost(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func BlogPage(c *fiber.Ctx, db *gorm.DB) error {
-
 	// Clamped: an unbounded /blog/99999999 turns into a full-table scan.
 	pageNumber := clampPage(c.Params("page"))
-
-	postsPerPage := 10
-
-	offset := (pageNumber - 1) * postsPerPage
-
-	var posts []model.Post
-	// Ordered explicitly: with LIMIT/OFFSET and no ORDER BY SQLite returns an
-	// arbitrary order, so posts could repeat or vanish as the visitor paged.
-	result := db.Preload("Categories").Preload("Tags").Where("published = ?", true).
-		Order("created_at DESC").Offset(offset).Limit(postsPerPage).Find(&posts)
-	if result.Error != nil {
-		log.Printf("blog list: %v", result.Error)
-		return c.Status(500).SendString("Could not load posts")
-	}
-
-	var totalPosts int64
-	result = db.Model(&model.Post{}).Where("published = ?", true).Count(&totalPosts)
-	if result.Error != nil {
-		log.Printf("blog count: %v", result.Error)
-		return c.Status(500).SendString("Could not load posts")
-	}
-
-	totalPages := 1
-	if totalPosts > 0 {
-		totalPages = pageCount(totalPosts, postsPerPage)
-	}
-
-	var totalPagesArray []int
-	for i := 1; i <= totalPages; i++ {
-		totalPagesArray = append(totalPagesArray, i)
-	}
-
-	if pageNumber > totalPages {
-		return c.Redirect("/blog/1")
-	}
-
-	return RenderSite(c, "blog/blog", fiber.Map{
-		"Title":         "Blog",
-		"Posts":         posts,
-		"IsAdmin":       c.Locals("isAdmin"),
-		"IsLoggedIn":    c.Locals("isLoggedin"),
-		"TotalPages":    totalPagesArray,
-		"TotalPagesInt": totalPages,
-		"NextPage":      pageNumber + 1,
-		"PrevPage":      pageNumber - 1,
-		"CurrentPage":   pageNumber,
-		"Settings":      c.Locals("Settings"),
-	})
+	return renderPostList(c, db, "blog/blog", "Blog", pageNumber, nil)
 }
 
-func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
+// renderPostList renders a page of published posts, and is shared with the
+// /frag/blog endpoint so the two can never disagree about the data contract.
+//
+// scope narrows the query to a category or tag; nil means the whole blog.
+func renderPostList(c *fiber.Ctx, db *gorm.DB, view, title string, pageNumber int, scope *postScope) error {
+	data, err := postListData(db, view, title, pageNumber, scope)
+	if err != nil {
+		return c.Status(500).SendString("Could not load posts")
+	}
+	// A page past the end redirects to the last page rather than rendering an
+	// empty list, so a stale bookmark still shows something. Fragments must not
+	// redirect: an hx-get that 302s swaps the response of the redirect target,
+	// which is a full page, into the panel.
+	if data["__overRange"] == true {
+		return c.Redirect(scope.lastPageURL(data["TotalPagesInt"].(int)))
+	}
+	return RenderSite(c, view, data)
+}
+
+// postListData loads one page of posts and the pagination window.
+//
+// The over-range case is reported in the map as __overRange rather than
+// redirecting, so a fragment can render an empty panel instead of triggering a
+// navigation.
+func postListData(db *gorm.DB, view, title string, pageNumber int, scope *postScope) (fiber.Map, error) {
+	offset := (pageNumber - 1) * postsPerPage
+
+	query := db.Preload("Categories").Preload("Tags").Model(&model.Post{})
+	countQuery := db.Model(&model.Post{})
+	if scope != nil {
+		query = scope.apply(query)
+		countQuery = scope.apply(countQuery)
+	}
+	query = query.Where("published = ?", true).Order("created_at DESC").
+		Offset(offset).Limit(postsPerPage)
+	countQuery = countQuery.Where("published = ?", true)
+
+	var posts []model.Post
+	if err := query.Find(&posts).Error; err != nil {
+		return nil, err
+	}
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, err
+	}
+	totalPages := pageCount(total, postsPerPage)
+
+	extra := fiber.Map{"Posts": posts}
+	if scope != nil {
+		extra["Slug"] = scope.slug
+		extra["CategoryName"] = scope.name
+		extra["TagName"] = scope.name
+	}
+	data := listDataNoCtx(title, pageNumber, totalPages, extra)
+	if pageNumber > totalPages {
+		data["__overRange"] = true
+	}
+	return data, nil
+}
+
+// postScope narrows a post list to one taxonomy term. It carries the redirect
+// base too, so the out-of-range redirect matches the list it came from.
+type postScope struct {
+	join   string
+	clause string
+	args   []any
+	slug   string
+	name   string
+	base   string
+}
+
+func (s *postScope) apply(q *gorm.DB) *gorm.DB {
+	return q.Joins(s.join).Where(s.clause, s.args...)
+}
+
+// lastPageURL is where an out-of-range page number should send the visitor.
+func (s *postScope) lastPageURL(page int) string {
+	if s == nil {
+		return "/blog/" + strconv.Itoa(page)
+	}
+	return s.base + "/" + strconv.Itoa(page)
+}
+
+// errNotFound distinguishes "no such post" from a database failure, so a
+// broken link is a 404 rather than a 500 in the logs.
+var errNotFound = errors.New("not found")
+
+// postPageData assembles the data for a single post and its comments. Shared
+// by the page handler and the /frag/post and /frag/comments fragments, so all
+// three agree on the shape.
+func postPageData(c *fiber.Ctx, db *gorm.DB) (fiber.Map, error) {
 	slug := c.Params("slug")
-
-	userID := currentUserID(c)
-
 	if slug == "" {
-		return c.Redirect("/blog")
+		return nil, errNotFound
 	}
 
 	var post model.Post
-	result := db.Preload("Categories").Preload("Tags").Where("Slug = ?", slug).First(&post)
-	if result.Error != nil || post.ID == 0 {
-		return RenderNotFound(c)
+	// published is checked in Go below rather than in SQL so an admin can
+	// preview a draft; the check is not skipped for an admin here, it is
+	// applied after the load.
+	if err := db.Preload("Categories").Preload("Tags").Where("slug = ?", slug).First(&post).Error; err != nil || post.ID == 0 {
+		return nil, errNotFound
+	}
+
+	// An unpublished post is a 404 for everyone but an admin. This has to
+	// happen before the comments are loaded, so a draft's comments are not
+	// fetched for a visitor who is about to be refused.
+	if !post.Published && !IsTrue(c, "isAdmin") {
+		return nil, errNotFound
 	}
 
 	comments := []model.Comment{}
-	db.Preload("User").Where("post_id = ? AND status != ?", post.ID, "pending").Find(&comments)
-
-	// Handle unpublished posts
-	if !post.Published && !IsTrue(c, "isAdmin") {
-		return RenderNotFound(c)
+	if err := db.Preload("User").
+		Where("post_id = ? AND status != ?", post.ID, "pending").
+		Find(&comments).Error; err != nil {
+		return nil, err
 	}
 
-	return RenderSite(c, "blog/blog_post", fiber.Map{
-		"UserID":     userID,
+	return fiber.Map{
+		"UserID":     currentUserID(c),
 		"Title":      post.Title,
 		"Post":       post,
 		"Comments":   comments,
@@ -432,7 +480,23 @@ func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
 		"IsAdmin":    c.Locals("isAdmin"),
 		"IsLoggedIn": c.Locals("isLoggedin"),
 		"Settings":   c.Locals("Settings"),
-	})
+	}, nil
+}
+
+func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return c.Redirect("/blog")
+	}
+
+	data, err := postPageData(c, db)
+	if err != nil {
+		if err == errNotFound {
+			return RenderNotFound(c)
+		}
+		return c.Status(500).SendString("Could not load post")
+	}
+	return RenderSite(c, "blog/blog_post", data)
 }
 
 func TogglePostStatus(c *fiber.Ctx, db *gorm.DB) error {

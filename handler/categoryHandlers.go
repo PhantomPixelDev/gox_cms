@@ -18,55 +18,22 @@ func BlogCategoryPage(c *fiber.Ctx, db *gorm.DB) error {
 	// Clamped: see clampPage.
 	pageNumber := clampPage(c.Params("page"))
 
-	postsPerPage := 5
-
-	offset := (pageNumber - 1) * postsPerPage
-
 	var category model.Category
-	result := db.Where("Slug = ?", slug).First(&category)
-	if result.Error != nil || category.ID == 0 {
+	// Parameterised, not interpolated: this is what the raw-string First() used
+	// to do, and a slug like "x' OR '1'='1" is exactly the input to try.
+	if err := db.Where("slug = ?", slug).First(&category).Error; err != nil || category.ID == 0 {
 		return RenderNotFound(c)
 	}
 
-	var posts []model.Post
-	db.Joins("JOIN post_categories ON post_categories.post_id = posts.id").
-		Where("post_categories.category_id = ? AND posts.published = ?", category.ID, true).
-		Order("posts.created_at desc").
-		Limit(postsPerPage).
-		Offset(offset).
-		Find(&posts)
-
-	var totalPosts int64
-	db.Model(&model.Post{}).
-		Joins("JOIN post_categories ON post_categories.post_id = posts.id").
-		Where("post_categories.category_id = ? AND posts.published = ?", category.ID, true).
-		Count(&totalPosts)
-
-	totalPages := pageCount(totalPosts, postsPerPage)
-
-	if totalPosts > 0 && pageNumber > totalPages {
-		return c.Redirect("/blog/category/" + slug + "/1")
+	scope := &postScope{
+		join:   "JOIN post_categories ON post_categories.post_id = posts.id",
+		clause: "post_categories.category_id = ? AND posts.published = ?",
+		args:   []any{category.ID, true},
+		slug:   category.Slug,
+		name:   category.Name,
+		base:   "/blog/category/" + category.Slug,
 	}
-
-	var totalPagesArray []int
-	for i := 1; i <= totalPages; i++ {
-		totalPagesArray = append(totalPagesArray, i)
-
-	}
-
-	return RenderSite(c, "blog/blog_category", fiber.Map{
-		"Title":         category.Name,
-		"Posts":         posts,
-		"Slug":          category.Slug,
-		"IsAdmin":       c.Locals("isAdmin"),
-		"IsLoggedIn":    c.Locals("isLoggedin"),
-		"TotalPages":    totalPagesArray,
-		"TotalPagesInt": totalPages,
-		"NextPage":      pageNumber + 1,
-		"PrevPage":      pageNumber - 1,
-		"CurrentPage":   pageNumber,
-		"Settings":      c.Locals("Settings"),
-	})
+	return renderPostList(c, db, "blog/blog_category", category.Name, pageNumber, scope)
 }
 
 func AddCategory(c *fiber.Ctx, db *gorm.DB) error {

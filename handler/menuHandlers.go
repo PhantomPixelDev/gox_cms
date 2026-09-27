@@ -1,10 +1,7 @@
 package handlers
 
 import (
-	"fmt"
 	"goxcms/model"
-	htmlstd "html"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -13,6 +10,10 @@ import (
 )
 
 func AddMenu(c *fiber.Ctx, db *gorm.DB) error {
+	// The navigation tree is cached; drop it before the change so the next
+	// page load rebuilds it.
+	InvalidateMenuCache()
+
 	title := strings.TrimSpace(c.FormValue("menu_title"))
 	if title == "" {
 		ShowToastError(c, "Menu title is required")
@@ -70,6 +71,10 @@ func AddMenu(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func AddMenuItem(c *fiber.Ctx, db *gorm.DB) error {
+	// The navigation tree is cached; drop it before the change so the next
+	// page load rebuilds it.
+	InvalidateMenuCache()
+
 	title := strings.TrimSpace(c.FormValue("menu_item_title"))
 	link := strings.TrimSpace(c.FormValue("menu_item_link"))
 	menuIDStr := c.FormValue("menu_item_menu")
@@ -111,6 +116,10 @@ func AddMenuItem(c *fiber.Ctx, db *gorm.DB) error {
 // MoveMenuItem swaps an item with its neighbour inside the same menu, so
 // ordering never needs manual position numbers.
 func MoveMenuItem(c *fiber.Ctx, db *gorm.DB) error {
+	// The navigation tree is cached; drop it before the change so the next
+	// page load rebuilds it.
+	InvalidateMenuCache()
+
 	id, err := c.ParamsInt("id")
 	if err != nil || id <= 0 {
 		return c.Status(fiber.StatusBadRequest).SendString("Invalid ID")
@@ -171,6 +180,10 @@ func menuServerError(c *fiber.Ctx, what string) error {
 }
 
 func DeleteMenu(c *fiber.Ctx, db *gorm.DB) error {
+	// The navigation tree is cached; drop it before the change so the next
+	// page load rebuilds it.
+	InvalidateMenuCache()
+
 	id, err := menuParamsID(c)
 	if err != nil {
 		return err
@@ -202,6 +215,10 @@ func DeleteMenu(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func DeleteMenuItem(c *fiber.Ctx, db *gorm.DB) error {
+	// The navigation tree is cached; drop it before the change so the next
+	// page load rebuilds it.
+	InvalidateMenuCache()
+
 	id, err := menuParamsID(c)
 	if err != nil {
 		return err
@@ -216,6 +233,10 @@ func DeleteMenuItem(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func RemoveSubmenuFromMenu(c *fiber.Ctx, db *gorm.DB) error {
+	// The navigation tree is cached; drop it before the change so the next
+	// page load rebuilds it.
+	InvalidateMenuCache()
+
 	id, err := menuParamsID(c)
 	if err != nil {
 		return err
@@ -230,6 +251,10 @@ func RemoveSubmenuFromMenu(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func EditMenu(c *fiber.Ctx, db *gorm.DB) error {
+	// The navigation tree is cached; drop it before the change so the next
+	// page load rebuilds it.
+	InvalidateMenuCache()
+
 	id, err := menuParamsID(c)
 	if err != nil {
 		return err
@@ -290,6 +315,10 @@ func EditMenu(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func EditMenuItem(c *fiber.Ctx, db *gorm.DB) error {
+	// The navigation tree is cached; drop it before the change so the next
+	// page load rebuilds it.
+	InvalidateMenuCache()
+
 	id, err := menuParamsID(c)
 	if err != nil {
 		return err
@@ -493,123 +522,23 @@ func maxMenuPosition(db *gorm.DB, menuID *uint) int {
 	return *maxPos + 1
 }
 
+// GetPrimaryMenuRender serves the navigation as a layout-less fragment.
+//
+// It used to return a Go-built Bootstrap string that the header fetched with
+// htmx on every page load. The menu is now rendered inline from the active
+// theme, and this endpoint is kept for themes that want to refresh the nav
+// without a full page load.
+func GetPrimaryMenuRender(c *fiber.Ctx, db *gorm.DB) error {
+	return RenderSharedFragment(c, "menu", fiber.Map{
+		"Title": "Menu",
+		"Menu":  BuildMenuData(db, c),
+	})
+}
+
 // optionalPosition parses an explicit position, falling back to end-of-list.
 func optionalPosition(raw string, db *gorm.DB, menuID *uint) int {
 	if n, err := strconv.Atoi(raw); err == nil && n > 0 {
 		return n
 	}
 	return maxMenuPosition(db, menuID)
-}
-
-func GetPrimaryMenuRender(c *fiber.Ctx, db *gorm.DB) error {
-
-	var menu model.Menu
-	// Attempt to preload MenuItems and directly associated SubMenus
-	if err := db.Where("is_primary = ?", true).Order("position ASC").Preload("MenuItems").First(&menu).Error; err != nil {
-		// Set menu to default value if no menu is found
-		menu = model.Menu{ID: 1}
-	}
-
-	// Manually load and order SubMenus if necessary
-	if err := db.Where("parent_id = ?", menu.ID).Order("position ASC").Preload("MenuItems").Find(&menu.SubMenus).Error; err != nil {
-		menu = model.Menu{ID: 1}
-	}
-
-	userLoggedIn, ok := c.Locals("isLoggedin").(bool)
-	if !ok {
-		userLoggedIn = false
-	}
-
-	isAdmin, ok := c.Locals("isAdmin").(bool)
-	if !ok {
-		isAdmin = false
-	}
-
-	htmlMenuString := buildMenuHTML(menu, isAdmin, userLoggedIn, c.Path(), registrationEnabled(db))
-
-	return c.SendString(htmlMenuString)
-}
-
-// buildMenuHTML renders the inner content of the navbar collapse wrapper (the
-// wrapper itself lives in views/partials/header.html so the mobile toggler
-// works before HTMX loads). Titles and links are escaped: menu content is
-// admin input rendered into every page.
-func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool, currentPath string, registrationOpen bool) string {
-	htmlMenuString := "<ul class=\"navbar-nav me-auto\">\n"
-
-	// Sort MenuItems and SubMenus together based on position
-	sort.SliceStable(menu.MenuItems, func(i, j int) bool {
-		return menu.MenuItems[i].Position < menu.MenuItems[j].Position
-	})
-
-	// Loop through top-level MenuItems
-	for _, menuItem := range menu.MenuItems {
-		active := ""
-		aria := ""
-		if menuItem.Link == currentPath {
-			active = " active"
-			aria = " aria-current=\"page\""
-		}
-		htmlMenuString += fmt.Sprintf("\t\t<li class=\"nav-item\"><a class=\"nav-link%s\"%s href=\"%s\">%s</a></li>\n",
-			active, aria, htmlstd.EscapeString(menuItem.Link), htmlstd.EscapeString(menuItem.Title))
-	}
-
-	// Render SubMenus if available
-	for _, subMenu := range menu.SubMenus {
-		dropdownID := "navbarDropdownMenuLink-" + strconv.Itoa(int(subMenu.ID))
-		htmlMenuString += "\t\t<li class=\"nav-item dropdown\">\n"
-		htmlMenuString += "\t\t\t<a class=\"nav-link dropdown-toggle\" href=\"#\" id=\"" + dropdownID + "\" role=\"button\" data-bs-toggle=\"dropdown\" aria-expanded=\"false\">" + htmlstd.EscapeString(subMenu.Title) + "</a>\n"
-		htmlMenuString += "\t\t\t<ul class=\"dropdown-menu\" aria-labelledby=\"" + dropdownID + "\">\n"
-		for _, subMenuItem := range subMenu.MenuItems {
-			htmlMenuString += "\t\t\t\t<li><a class=\"dropdown-item\" href=\"" + htmlstd.EscapeString(subMenuItem.Link) + "\">" + htmlstd.EscapeString(subMenuItem.Title) + "</a></li>\n"
-		}
-		htmlMenuString += "\t\t\t</ul>\n"
-		htmlMenuString += "\t\t</li>\n"
-	}
-
-	htmlMenuString += "</ul>\n"
-
-	// Right-hand controls in a single flex group. They used to be two
-	// separate siblings, one with me-auto and one with ms-auto: the auto
-	// margins cancelled, so the menu collapsed against the logo and every
-	// control drifted right.
-	htmlMenuString += "<div class=\"d-flex align-items-center gap-2 ms-auto ms-lg-3 flex-wrap\">\n"
-
-	// Admin and user controls
-	if isAdmin {
-		htmlMenuString += adminControls()
-	}
-
-	if userLoggedIn {
-		htmlMenuString += userControls(true, true)
-	} else {
-		htmlMenuString += userControls(false, registrationOpen)
-	}
-
-	htmlMenuString += "</div>\n"
-
-	return htmlMenuString
-}
-
-// adminControls renders the admin-only navbar links. "Clear Cache" used to
-// live here too; it is a maintenance action and now only appears on the
-// dashboard, which keeps the header narrow.
-func adminControls() string {
-	return `<a href="/admin" class="btn btn-sm btn-outline-primary">Admin Dashboard</a>`
-}
-
-// userControls renders Account/Logout for a signed-in visitor, or
-// Login/Register for an anonymous one. Plain buttons, not a navbar-nav list:
-// the caller already provides the flex group.
-func userControls(loggedIn bool, registrationOpen bool) string {
-	if loggedIn {
-		return `<a href="/account" class="btn btn-sm btn-outline-secondary">Account</a>
-		<button hx-post="/logout" hx-swap="none" hx-target="body" hx-headers='{"X-No-Cache": "true"}' hx-confirm="Log out?" class="btn btn-sm btn-outline-secondary">Logout</button>`
-	}
-	out := `<a href="/login" class="btn btn-sm btn-outline-primary">Login</a>`
-	if registrationOpen {
-		out += `
-		<a href="/register" class="btn btn-sm btn-primary">Register</a>`
-	}
-	return out
 }

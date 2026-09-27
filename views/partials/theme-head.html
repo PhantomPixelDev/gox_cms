@@ -1,0 +1,33 @@
+{{/*
+    Shared <head> for a site theme.
+
+    A theme layout should include this rather than wiring up the plumbing
+    itself, because getting it wrong is silent and expensive:
+
+    - htmx must be present for any hx-* attribute to work at all
+    - /static/js/site.js injects the X-Csrf-Token header on every htmx request;
+      without it every unsafe htmx call fails with 403 "session expired"
+    - site.js also applies the saved light/dark preference
+
+    A theme's own stylesheet is loaded from {{ .Theme.Assets }} (that is
+    /static/themes/<name>), so a theme ships its CSS under
+    static/themes/<name>/ and needs no CDN.
+*/}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ if .Title }}{{ .Title }} - {{ end }}{{ .Settings.Name }}</title>
+{{ if .Settings.SEODescription }}
+<meta name="description" content="{{ .Settings.SEODescription }}">
+{{ end }}
+<meta name="color-scheme" content="light dark">
+{{ if .Settings.FaviconURL }}
+<link rel="icon" href="{{ .Settings.FaviconURL }}">
+{{ end }}
+
+{{/* Theme stylesheet, when the theme ships one. */}}
+{{ if .Theme }}
+<link rel="stylesheet" href="{{ .Theme.Assets }}/style.css">
+{{ end }}
+
+<script src="/static/vendor/htmx.min.js" defer></script>
+<script src="/static/js/site.js" defer></script>

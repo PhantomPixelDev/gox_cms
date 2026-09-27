@@ -22,6 +22,10 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, store *session.Store, engine *html
 
 	app.Use(func(c *fiber.Ctx) error {
 		c.Locals("Settings", handlers.SiteSettings(db))
+		// The db handle is put in locals so the render helpers can attach
+		// per-request data (the navigation tree) without every call site
+		// having to thread it through.
+		c.Locals("db", db)
 		return c.Next()
 	})
 

@@ -50,16 +50,6 @@
     <p class="notice"><a href="/login">Log in</a> to leave a comment.</p>
     {{ end }}
 
-    {{ if .Comments }}
-    {{ range .Comments }}
-    <div class="comment" id="comment-{{ .ID }}">
-        <p class="who">{{ .User.Username }}</p>
-        <p>{{ unescape .Content }}</p>
-        <p class="muted small">{{ .CreatedAt.Format "02 Jan 2006" }}</p>
-    </div>
-    {{ end }}
-    {{ else }}
-    <p class="muted">No comments yet.</p>
-    {{ end }}
+    {{ template "partials/comments" . }}
 </section>
 {{ end }}

@@ -39,13 +39,19 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 
 		themes_list := []string{"cerulean", "cosmo", "cyborg", "darkly", "flatly", "journal", "litera", "lumen", "lux", "materia", "minty", "pulse", "sandstone", "simplex", "sketchy", "slate", "solar", "spacelab", "superhero", "united", "yeti", "morph", "quartz", "vapor", "zephyr"}
 		containers_list := []string{"container", "container-fluid"}
+		// Discovered from views/site/*, not a Go list, so a theme created on
+		// disk shows up here without a code change or rebuild.
+		var activeTheme string
+		if s, ok := c.Locals("Settings").(map[string]string); ok {
+			activeTheme = s["SiteTemplate"]
+		}
 		return c.Render("website_settings", fiber.Map{
 			"Title":         "Admin Settings",
 			"Settings":      c.Locals("Settings"),
 			"SettingsAdmin": handlers.MapSettingsToMap(settings_cms),
 			"Themes":        themes_list,
 			"Containers":    containers_list,
-			"SiteTemplates": handlers.SiteTemplateSets(),
+			"TemplateSets":  handlers.DiscoverThemes(activeTheme),
 		})
 
 	})

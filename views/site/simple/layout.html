@@ -9,19 +9,7 @@
     lang="{{ .Settings.Language }}">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ if .Title }}{{ .Title }} - {{ end }}{{ .Settings.Name }}</title>
-    <meta name="description" content="{{ .Settings.SEODescription }}">
-    <meta name="color-scheme" content="light dark">
-    {{ if .Settings.FaviconURL }}
-    <link rel="icon" href="{{ .Settings.FaviconURL }}">
-    {{ end }}
-    <link rel="stylesheet" href="/static/css/site-simple.css">
-    <script src="https://unpkg.com/htmx.org@1.9.10"
-        integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xSi8nO7UC"
-        crossorigin="anonymous" defer></script>
-    <script src="/static/js/site.js" defer></script>
+    {{ template "partials/theme-head" . }}
 </head>
 
 <body>
@@ -31,11 +19,25 @@
         <div class="bar wrap-wide">
             <a class="brand" href="/">{{ .Settings.Name }}</a>
 
+            {{/* The menu is data, not markup: a theme draws it however it
+                 likes. See partials/menu.html for the Bootstrap-flavoured
+                 default, and docs/THEMES.md for the shape. */}}
             <nav class="site-nav" aria-label="Main">
                 <ul>
-                    <li><a href="/">Home</a></li>
-                    <li><a href="/blog">Blog</a></li>
-                    <li><a href="/search">Search</a></li>
+                    {{ range .Menu.Items }}
+                    {{ if .HasChildren }}
+                    <li class="has-children{{ if .Active }} active{{ end }}">
+                        <span>{{ .Title }}</span>
+                        <ul>
+                            {{ range .Children }}
+                            <li><a href="{{ .Link }}">{{ .Title }}</a></li>
+                            {{ end }}
+                        </ul>
+                    </li>
+                    {{ else }}
+                    <li><a href="{{ .Link }}"{{ if .Active }} aria-current="page"{{ end }}>{{ .Title }}</a></li>
+                    {{ end }}
+                    {{ end }}
                 </ul>
             </nav>
 
@@ -79,14 +81,7 @@
         </div>
     </footer>
 
-    <div class="toast-stack" aria-live="assertive" aria-atomic="true">
-        <div class="toast" id="toast" role="alert">
-            <div id="toast-body"></div>
-        </div>
-        <div class="toast is-error" id="toast-error" role="alert">
-            <div id="toast-body-error"></div>
-        </div>
-    </div>
+    {{ template "partials/theme-foot" . }}
 
 </body>
 

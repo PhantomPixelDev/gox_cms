@@ -1,0 +1,35 @@
+{{/*
+    Site navigation, rendered from handler.MenuData.
+
+    This used to be built in Go as a string with hard-coded Bootstrap classes
+    (navbar-nav / nav-link / dropdown-menu), which meant a framework-free theme
+    could not restyle or restructure the menu at all. Themes now get the data
+    and draw it however they like; this is the Bootstrap-flavoured default
+    markup that the "default" theme includes.
+
+    Expects `.Menu` (handler.MenuData). Tolerates it being absent so a theme
+    that draws its own nav can skip this partial entirely.
+*/}}
+{{ if .Menu }}
+<ul class="navbar-nav me-auto">
+    {{ range .Menu.Items }}
+    {{ if .HasChildren }}
+    {{ $id := printf "menu-dropdown-%d" .ID }}
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle{{ if .Active }} active{{ end }}" href="#" id="{{ $id }}"
+            role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ .Title }}</a>
+        <ul class="dropdown-menu" aria-labelledby="{{ $id }}">
+            {{ range .Children }}
+            <li><a class="dropdown-item{{ if .Active }} active{{ end }}" href="{{ .Link }}">{{ .Title }}</a></li>
+            {{ end }}
+        </ul>
+    </li>
+    {{ else }}
+    <li class="nav-item">
+        <a class="nav-link{{ if .Active }} active{{ end }}" href="{{ .Link }}"
+            {{ if .Active }}aria-current="page"{{ end }}>{{ .Title }}</a>
+    </li>
+    {{ end }}
+    {{ end }}
+</ul>
+{{ end }}

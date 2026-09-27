@@ -1,0 +1,21 @@
+{{/*
+    Shared closing block for a site theme: the toast stack and the theme's own
+    script.
+
+    The toast element ids are load-bearing. Site.js looks them up by id and
+    falls back to a Bootstrap-free implementation when window.bootstrap is
+    absent, so a framework-free theme still gets toasts. Omit this partial and
+    every HX-Trigger toast in the app is silently dropped.
+*/}}
+<div class="toast-stack" aria-live="assertive" aria-atomic="true">
+    <div id="toast" class="toast" role="alert">
+        <div id="toast-body"></div>
+    </div>
+    <div id="toast-error" class="toast is-error" role="alert">
+        <div id="toast-body-error"></div>
+    </div>
+</div>
+
+{{ if .Theme }}
+<script src="{{ .Theme.Assets }}/theme.js" defer></script>
+{{ end }}

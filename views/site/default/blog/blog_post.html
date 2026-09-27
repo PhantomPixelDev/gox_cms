@@ -35,7 +35,6 @@
 </article>
 
 <hr class="my-4">
-
 {{if not .Preview}}
 <div class="post-comments">
     <div class="row">
@@ -47,7 +46,8 @@
         {{if .IsLoggedIn }}
 
         <div class="col-12 mb-3 shadow-sm p-3 rounded" id="comment-form">
-            <form hx-post="/add-comment" hx-headers='{"X-No-Cache": "true"}' hx-swap="outerHTML" hx-target="#comment-form">
+            <form hx-post="/add-comment" hx-headers='{"X-No-Cache": "true"}' hx-swap="outerHTML"
+                hx-target="#comment-form">
                 <div class="mb-3">
                     <label for="comment" class="form-label">Comment:</label>
                     <textarea class="form-control" id="comment" name="comment" rows="3" required maxlength="2000"
@@ -69,31 +69,20 @@
             <div class="alert alert-info" role="alert">
                 Please <a href="/login">login</a> to post a comment.
             </div>
-
         </div>
-
 
         {{end}}
 
-        {{if .Comments}}
-        {{range .Comments}}
-        <div class="col-12 mb-3" id="comment-{{.ID}}">
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h5 class="card-title h6">{{.User.Username }}</h5>
-                    <p class="card-text">{{ unescape .Content }}</p>
-                    <p class="card-text"><small class="text-muted">{{.CreatedAt.Format "02 Jan 2006"}}</small></p>
-                </div>
-            </div>
-        </div>
-        {{end}}
-        {{else}}
+        {{/* The list is a shared partial so a new comment can refresh just the
+             list. It is theme-neutral markup, styled by the theme's CSS, for
+             two reasons: Go templates cannot compute a template name, so a
+             per-theme copy could not be included from here; and a template
+             that fails to parse takes the whole site down, not just one
+             theme, so the fewer parse-time references a theme has, the
+             better. */}}
         <div class="col-12">
-            <div class="alert alert-info" role="alert">
-                No comments found.
-            </div>
+            {{ template "partials/comments" . }}
         </div>
-        {{end}}
     </div>
 </div>
 {{end}}

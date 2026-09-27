@@ -1,0 +1,38 @@
+{{/*
+    The comment list for one post, shared by every theme.
+
+    Two reasons this is shared rather than a per-theme template:
+
+    - Go templates cannot compute a template name, so
+      {{template (printf "site/%s/blog/comments" .Theme.Name) .}} is a parse
+      error. A per-theme copy therefore cannot be included from the theme's own
+      post template.
+    - A template that fails to parse takes the whole site down, not just the one
+      theme, because they all share one template set. Fewer parse-time
+      references in a theme is fewer ways to break every page.
+
+    The markup is theme-neutral on purpose: each theme styles .comment-list
+    from its own stylesheet, so the appearance is still the theme's choice
+    without the fragment endpoint depending on which theme is active.
+
+    Separating the list from the form is what lets a new comment refresh only
+    the list, instead of re-rendering the whole post and losing the reader's
+    scroll position.
+*/}}
+<div id="comments" class="comment-list">
+    {{ if .Comments }}
+    {{ range .Comments }}
+    <article class="comment" id="comment-{{ .ID }}">
+        <header class="comment-head">
+            <span class="comment-author">{{ .User.Username }}</span>
+            <time class="comment-date" datetime="{{ .CreatedAt.Format "2006-01-02" }}">
+                {{ .CreatedAt.Format "02 Jan 2006" }}
+            </time>
+        </header>
+        <div class="comment-body">{{ unescape .Content }}</div>
+    </article>
+    {{ end }}
+    {{ else }}
+    <p class="comment-empty">No comments yet.</p>
+    {{ end }}
+</div>

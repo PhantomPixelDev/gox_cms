@@ -54,7 +54,13 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 	buildMode := viper.GetString("build.mode")
 
 	engine.Debug(buildMode != "production")
+	// In development, templates are re-parsed on every render so edits show up
+	// without a restart. In production they are frozen, and
+	// handlers.ReloadTemplates clears Engine.Loaded so a newly created theme
+	// is picked up when an admin activates it.
 	engine.Reload(buildMode != "production")
+	handlers.SetTemplateEngine(engine)
+	handlers.InitThemeSystem()
 
 	trustedProxies := viper.GetStringSlice("server.trusted_proxies")
 

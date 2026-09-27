@@ -27,22 +27,31 @@
     <link href="/static/css/themes/flatly/bootstrap.min.css" rel="stylesheet">
     {{ end }}
 
-    <!-- Bootstrap CSS -->
-
-
     <link rel="stylesheet" href="/static/css/styles.css">
-
-    <script src="https://unpkg.com/htmx.org@1.9.10"
-        integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
-        crossorigin="anonymous" defer></script>
+    {{/* htmx is vendored, so a site theme only needs two first-party scripts.
+         site.js is required here: it injects the X-Csrf-Token header on every
+         htmx request (without it every unsafe htmx call 403s) and drives the
+         toasts and the theme switch. */}}
+    <script src="/static/vendor/htmx.min.js" defer></script>
+    <script src="/static/js/site.js" defer></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
+    {{/* hCaptcha is 101 KB of third-party JS on every public page. It is only
+         ever used by the login, register and comment forms, so it is now loaded
+         only when the feature is actually on. */}}
+    {{ if eq .Settings.CaptchaEnabled "true" }}
     <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
-    <script src="/static/js/site.js" defer></script>
+    {{ end }}
+    {{/* Only the admin needs these: a public visitor was paying for both, and
+         editor.js starts a polling timer waiting for a Quill editor that is
+         never there. */}}
+    {{ if .IsAdmin }}
     <script src="/static/js/admin.js" defer></script>
     <script src="/static/js/editor.js" defer></script>
+    {{ end }}
 
 </head>
+
 
 <body>
 

@@ -21,6 +21,16 @@ func UpdateSettings(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Error retrieving current settings")
 	}
 
+	// A theme is only accepted if every required template is present and
+	// parses. Rejecting here, with the reason, is what keeps a half-written
+	// theme from taking the public site down: the previous behaviour silently
+	// normalised an unknown name to "default", which hid the mistake.
+	requested := c.FormValue("site_template")
+	if msg := ValidateTheme(requested); msg != "" {
+		ShowToastError(c, msg)
+		return c.Status(fiber.StatusBadRequest).SendString(msg)
+	}
+
 	// Update settings with form data
 	updatedSettings := updateSettingsFromForm(&settings, c)
 
@@ -33,6 +43,10 @@ func UpdateSettings(c *fiber.Ctx, db *gorm.DB) error {
 	// Refresh the cached settings and this request's copy.
 	ReloadSiteSettings(db)
 	c.Locals("Settings", SiteSettings(db))
+	// The theme may have just been created on disk; re-scan and re-register
+	// templates so it takes effect without a restart.
+	ReloadThemes()
+	ReloadTemplates()
 
 	// Show success message
 	ShowToast(c, "Settings updated successfully")
@@ -50,10 +64,8 @@ func updateSettingsFromForm(settings *model.BasicWebsiteInfo, c *fiber.Ctx) mode
 	// For theme, the form uses "theme", so it's correctly mapped
 	settings.Theme = c.FormValue("theme")
 	settings.ContainerClass = c.FormValue("container_class")
-	// Site template set: whitelisted, anything unknown falls back to default.
-	if set := SiteTemplateSet(c.FormValue("site_template")); set != "" {
-		settings.SiteTemplate = set
-	}
+	// Already validated by UpdateSettings before this runs.
+	settings.SiteTemplate = c.FormValue("site_template")
 	// Update social media URLs based on your form's input names
 	settings.FacebookURL = c.FormValue("facebookUrl") // Changed from "facebookURL" to match form name attribute
 	settings.TwitterURL = c.FormValue("twitterUrl")   // Changed from "twitter_url" to match form name attribute

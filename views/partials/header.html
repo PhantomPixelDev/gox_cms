@@ -1,7 +1,18 @@
+{{/* Site header for the "default" (Bootstrap) theme.
+
+   The menu is rendered inline from .Menu (see partials/menu.html) rather than
+   fetched from /get-primary-menu with htmx. That was four extra queries and a
+   whole HTTP round trip on every page load, for a navbar that changes about
+   once a month, and the {{timestamp}} cache-buster in the old URL changed every
+   second so no HTTP cache could ever help.
+
+   The fragment endpoint is still available at /frag/menu for themes that want
+   to swap the menu without a full page load.
+*/}}
 <nav class="navbar navbar-expand-lg shadow-sm sticky-top {{ .Settings.NavbarClass }}">
     <div class="{{ .Settings.ContainerClass }}">
 
-        <a class="navbar-brand logo" href="/">GOXCMS</a>
+        <a class="navbar-brand logo" href="/">{{ .Settings.Name }}</a>
         {{/* No ms-auto here: the collapse below is flex-grow-1 and the menu
              inside it supplies the only auto margin, so a second one here
              would cancel it and collapse the layout. */}}
@@ -17,18 +28,26 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarNavDropdown">
-            <div hx-get="/get-primary-menu?timestamp={{timestamp}}"
-                hx-trigger="load" hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}'
-                class="d-lg-flex flex-lg-grow-1 align-items-lg-center">
-                <noscript>
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/blog">Blog</a></li>
-                    </ul>
-                </noscript>
-                <span class="navbar-text placeholder-glow" aria-hidden="true">
-                    <span class="placeholder col-2"></span>
-                </span>
+            <div class="d-lg-flex flex-lg-grow-1 align-items-lg-center">
+                {{ template "partials/menu" . }}
+                {{/* Right-hand account controls. Previously a second sibling
+                     with ms-auto, which cancelled the menu's me-auto and made
+                     the whole layout collapse. */}}
+                <div class="d-flex align-items-center gap-2 ms-auto ms-lg-3 flex-wrap">
+                    {{ if .IsAdmin }}
+                    <a href="/admin" class="btn btn-sm btn-outline-primary">Admin Dashboard</a>
+                    {{ end }}
+                    {{ if .IsLoggedIn }}
+                    <a href="/account" class="btn btn-sm btn-outline-secondary">Account</a>
+                    <button hx-post="/logout" hx-swap="none" hx-target="body" hx-headers='{"X-No-Cache": "true"}'
+                        hx-confirm="Log out?" class="btn btn-sm btn-outline-secondary">Logout</button>
+                    {{ else }}
+                    <a href="/login" class="btn btn-sm btn-outline-primary">Login</a>
+                    {{ if .Menu.RegistrationOpen }}
+                    <a href="/register" class="btn btn-sm btn-primary">Register</a>
+                    {{ end }}
+                    {{ end }}
+                </div>
             </div>
             <form class="d-flex my-2 my-lg-0 ms-lg-3 flex-shrink-0" action="/search" method="get" role="search">
                 <label for="nav-search" class="visually-hidden">Search</label>

@@ -39,6 +39,14 @@ func setupPublicRoutes(app *fiber.App, db *gorm.DB) {
 		return handlers.GetPrimaryMenuRender(c, db)
 	})
 
+	// Layout-less fragments for HTMX swaps.
+	//
+	// hx-get on a normal page URL injects a whole second <html> document into
+	// the current one, which is why themes could not do partial updates before
+	// this. A fragment renders the same template with no layout, so the
+	// response is exactly the markup to swap in.
+	setupFragmentRoutes(app, db)
+
 	app.Post("/add-comment", handlers.IsLoggedIn, func(c *fiber.Ctx) error {
 		return handlers.AddComment(c, db)
 	})

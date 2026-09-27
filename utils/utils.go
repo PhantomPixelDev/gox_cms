@@ -113,10 +113,23 @@ func randomString(length int) string {
 	return string(out)
 }
 
-func SetupEngine() *html.Engine {
-	engine := html.New("./views", ".html")
+// ViewsDir is where the template engine looks for templates, and the root that
+// site theme discovery scans (see handlers.SetViewsRoot).
+const ViewsDir = "./views"
 
-	funcMap := template.FuncMap{
+// SetupEngine builds the HTML engine.
+func SetupEngine() *html.Engine {
+	engine := html.New(ViewsDir, ".html")
+	engine.AddFuncMap(TemplateFuncMap())
+	return engine
+}
+
+// TemplateFuncMap is every helper available inside a template, exported so the
+// theme validator can parse a candidate theme with exactly the same function
+// set the engine will use. A theme referencing a helper that does not exist
+// would otherwise fail only at render time.
+func TemplateFuncMap() template.FuncMap {
+	return template.FuncMap{
 		"timestamp": func() string {
 			return fmt.Sprintf("?v=%d", time.Now().Unix())
 		},
@@ -176,6 +189,16 @@ func SetupEngine() *html.Engine {
 		"gt":  gt,
 		"le":  le,
 		"lt":  lt,
+		// window returns the page numbers to show in a pager: a first page, a
+		// few either side of the current one, and a last page, with 0 marking
+		// where an ellipsis belongs.
+		//
+		// It exists because the old pager rendered one <li> per page: 200
+		// posts produced 200 page links, which is a wall of buttons that
+		// dwarfs the table it paginates.
+		"window": pageWindow,
+		// ellipsis is the marker value window uses for a gap.
+		"ellipsis": func() int { return 0 },
 		// dict builds a map for passing named params to sub-templates:
 		// {{template "partials/pagination" dict "Base" "/search-posts" ...}}
 		"dict": func(values ...interface{}) map[string]interface{} {
@@ -188,10 +211,55 @@ func SetupEngine() *html.Engine {
 			return m
 		},
 	}
+}
 
-	engine.AddFuncMap(funcMap)
+// pageWindow builds a bounded page list for pagination controls.
+// current <= 0 or total <= 0 is treated as "no pager".
+func pageWindow(current, total, span int) []int {
+	if total < 1 {
+		return nil
+	}
+	if current < 1 {
+		current = 1
+	}
+	if current > total {
+		current = total
+	}
+	if span < 1 {
+		span = 2
+	}
 
-	return engine
+	var out []int
+	add := func(n int) {
+		if n < 1 || n > total {
+			return
+		}
+		if len(out) > 0 && out[len(out)-1] == n {
+			return
+		}
+		out = append(out, n)
+	}
+	gap := func() {
+		if len(out) > 0 && out[len(out)-1] != 0 {
+			out = append(out, 0)
+		}
+	}
+
+	first := current - span
+	last := current + span
+
+	add(1)
+	if first > 2 {
+		gap()
+	}
+	for n := max(first, 2); n <= min(last, total-1); n++ {
+		add(n)
+	}
+	if last < total-1 {
+		gap()
+	}
+	add(total)
+	return out
 }
 
 func SetupStore(app *fiber.App) *session.Store {

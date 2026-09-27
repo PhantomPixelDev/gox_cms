@@ -1140,7 +1140,7 @@ func TestSiteTemplateSwitch(t *testing.T) {
 	}
 
 	_, simple := do(t, app, "GET", "/")
-	if !strings.Contains(simple, "site-simple.css") {
+	if !strings.Contains(simple, "themes/simple/style.css") {
 		t.Error("simple set did not load its own stylesheet")
 	}
 	if strings.Contains(simple, "bootstrap.min.css") {
@@ -1156,7 +1156,7 @@ func TestSiteTemplateSwitch(t *testing.T) {
 	// Blog, search and 404 must all follow the switch, not just the home page.
 	for _, path := range []string{"/blog", "/search?q=welcome"} {
 		_, body := do(t, app, "GET", path)
-		if !strings.Contains(body, "site-simple.css") {
+		if !strings.Contains(body, "themes/simple/style.css") {
 			t.Errorf("GET %s: simple set not applied", path)
 		}
 	}
@@ -1164,7 +1164,7 @@ func TestSiteTemplateSwitch(t *testing.T) {
 	if resp.StatusCode != fiber.StatusNotFound {
 		t.Errorf("404 handler: got status %d", resp.StatusCode)
 	}
-	if !strings.Contains(notFound, "site-simple.css") {
+	if !strings.Contains(notFound, "themes/simple/style.css") {
 		t.Error("404 did not follow the template set")
 	}
 
@@ -1192,7 +1192,7 @@ func TestCustomPageFollowsTemplateSet(t *testing.T) {
 	}
 
 	_, def := do(t, app, "GET", "/contact")
-	if strings.Contains(def, "site-simple.css") {
+	if strings.Contains(def, "themes/simple/style.css") {
 		t.Fatal("custom page rendered the simple set before the switch")
 	}
 
@@ -1205,7 +1205,7 @@ func TestCustomPageFollowsTemplateSet(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("GET /contact: got status %d", resp.StatusCode)
 	}
-	if !strings.Contains(simple, "site-simple.css") {
+	if !strings.Contains(simple, "themes/simple/style.css") {
 		t.Error("custom page did not follow the template set")
 	}
 	if !strings.Contains(simple, "Reach us") {

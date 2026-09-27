@@ -19,54 +19,21 @@ func BlogTagPage(c *fiber.Ctx, db *gorm.DB) error {
 	// Clamped: see clampPage.
 	pageNumber := clampPage(c.Params("page"))
 
-	postsPerPage := 5
-
-	offset := (pageNumber - 1) * postsPerPage
-
 	var tag model.Tag
-	result := db.Where("Slug = ?", slug).First(&tag)
-	if result.Error != nil || tag.ID == 0 {
+	// Parameterised, as in the category handler.
+	if err := db.Where("slug = ?", slug).First(&tag).Error; err != nil || tag.ID == 0 {
 		return RenderNotFound(c)
 	}
 
-	var posts []model.Post
-	db.Joins("JOIN post_tags ON post_tags.post_id = posts.id").
-		Where("post_tags.tag_id = ? AND posts.published = ?", tag.ID, true).
-		Order("posts.created_at desc").
-		Limit(postsPerPage).
-		Offset(offset).
-		Find(&posts)
-
-	var totalPosts int64
-	db.Model(&model.Post{}).
-		Joins("JOIN post_tags ON post_tags.post_id = posts.id").
-		Where("post_tags.tag_id = ? AND posts.published = ?", tag.ID, true).
-		Count(&totalPosts)
-
-	totalPages := pageCount(totalPosts, postsPerPage)
-
-	if totalPosts > 0 && pageNumber > totalPages {
-		return c.Redirect("/blog/tag/" + slug + "/1")
+	scope := &postScope{
+		join:   "JOIN post_tags ON post_tags.post_id = posts.id",
+		clause: "post_tags.tag_id = ? AND posts.published = ?",
+		args:   []any{tag.ID, true},
+		slug:   tag.Slug,
+		name:   tag.Name,
+		base:   "/blog/tag/" + tag.Slug,
 	}
-
-	var totalPagesArray []int
-	for i := 1; i <= totalPages; i++ {
-		totalPagesArray = append(totalPagesArray, i)
-	}
-
-	return RenderSite(c, "blog/blog_tag", fiber.Map{
-		"Title":         tag.Name,
-		"Posts":         posts,
-		"Slug":          tag.Slug,
-		"IsAdmin":       c.Locals("isAdmin"),
-		"IsLoggedIn":    c.Locals("isLoggedin"),
-		"TotalPages":    totalPagesArray,
-		"TotalPagesInt": totalPages,
-		"NextPage":      pageNumber + 1,
-		"PrevPage":      pageNumber - 1,
-		"CurrentPage":   pageNumber,
-		"Settings":      c.Locals("Settings"),
-	})
+	return renderPostList(c, db, "blog/blog_tag", tag.Name, pageNumber, scope)
 }
 
 func SearchTag(c *fiber.Ctx, db *gorm.DB) error {
