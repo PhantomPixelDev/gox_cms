@@ -46,32 +46,47 @@
         </div>
 
         <!-- Themes -->
-        <div class="card mb-3 mt-3 shadow rounded">
-            <div class="card-header">Theme</div>
+        <div class="card mb-3 shadow rounded">
+            <div class="card-header">Theme &amp; templates</div>
             <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="theme" class="form-label">Theme:</label>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label for="theme" class="form-label">Colour theme</label>
                         <select class="form-select" id="theme" name="theme">
-                            <option value="">Select a theme...</option><!-- Debugging output -->
+                            <option value="">Select a theme...</option>
                             {{range .Themes}}
                             <option value="{{.}}" {{if eq . $.SettingsAdmin.Theme}} selected {{end}}>{{.}}</option>
                             {{end}}
                         </select>
+                        <div class="form-text">A Bootswatch colour scheme. Applied on top of whichever template
+                            set is active.</div>
                     </div>
-                   <!-- Container settings -->
-                    <div class="col-md-6">
-                        <label for="container" class="form-label">Container:</label>
+                    <div class="col-md-4">
+                        <label for="site_template" class="form-label">Template set</label>
+                        <select class="form-select" id="site_template" name="site_template">
+                            {{range .SiteTemplates}}
+                            <option value="{{.}}" {{if eq . $.SettingsAdmin.SiteTemplate}} selected {{end}}>{{.}}</option>
+                            {{end}}
+                        </select>
+                        <div class="form-text">Chooses the public page templates. <strong>simple</strong> is
+                            framework-free (no Bootstrap), handy for testing template changes. Log in, register and
+                            account screens always use the default templates.</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="container_class" class="form-label">Container width</label>
                         <select class="form-select" id="container_class" name="container_class">
-                            <option value="">Select a container...</option><!-- Debugging output -->
+                            <option value="">Select a container...</option>
                             {{range .Containers}}
                             <option value="{{.}}" {{if eq . $.SettingsAdmin.ContainerClass}} selected {{end}}>{{.}}</option>
                             {{end}}
                         </select>
+                        <div class="form-text">Ignored by the <strong>simple</strong> template set, which uses a
+                            fixed reading measure.</div>
                     </div>
                 </div>
             </div>
         </div>
+
 
         <!-- Access -->
         <div class="card mb-3 mt-3 shadow rounded">

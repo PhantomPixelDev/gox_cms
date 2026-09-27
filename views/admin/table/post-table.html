@@ -22,8 +22,10 @@
                 <th scope="col">Created</th>
                 <th scope="col">Delete</th>
                 <th scope="col">Status</th>
+                <th scope="col">Change Status</th>
                 <th scope="col">View</th>
                 <th scope="col">Edit</th>
+
             </tr>
         </thead>
         <tbody>
@@ -66,33 +68,46 @@
 
 
                 <td>
-                    <button class="btn btn-sm btn-danger" hx-delete="/delete-post/{{.ID}}"
+                    <button class="btn btn-sm btn-outline-danger" hx-delete="/delete-post/{{.ID}}"
                         hx-confirm="Are you sure you want to delete this post?" hx-target="#post-row-{{.ID}}"
-                        hx-swap="outerHTML">Delete</button>
+                        hx-swap="outerHTML" aria-label="Delete post {{.Title}}">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
                 </td>
 
                 <td>
+                    {{/* A badge as well as the toggle: the column used to hold
+                         only the button, so status was unreadable at a glance. */}}
+                    {{if .Published}}
+                    <span class="badge text-bg-success">Published</span>
+                    {{else}}
+                    <span class="badge text-bg-warning">Draft</span>
+                    {{end}}
+                </td>
 
+                <td>
                     {{template "partials/post-status-button" .}}
-
                 </td>
 
                 <td>
-                    <a href="/blog/post/{{.Slug}}" class="btn btn-sm btn-primary" aria-label="View post"><i
-                            class="bi bi-eye"></i></a>
+                    <a href="/blog/post/{{.Slug}}" class="btn btn-sm btn-outline-secondary"
+                        aria-label="View post {{.Title}} on the site" title="View on the site"><i
+                            class="bi bi-eye" aria-hidden="true"></i></a>
                 </td>
 
                 <td>
-                    <a href="/admin/post/edit/{{.ID}}" class="btn btn-sm btn-warning" aria-label="Edit post"><i
-                            class="bi bi-pencil"></i></a>
+                    <a href="/admin/post/edit/{{.ID}}" class="btn btn-sm btn-outline-secondary"
+                        aria-label="Edit post {{.Title}}" title="Edit"><i class="bi bi-pencil"
+                            aria-hidden="true"></i></a>
                 </td>
 
             </tr>
             {{else}}
             <tr>
-                <td colspan="10" class="text-center text-muted py-4">No posts match this search.</td>
+                <td colspan="11" class="text-center text-muted py-4">No posts match this search.</td>
             </tr>
             {{end}}
+
         </tbody>
 
 

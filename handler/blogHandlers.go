@@ -184,7 +184,7 @@ func AdminEditBlogPost(c *fiber.Ctx, db *gorm.DB) error {
 		"IsAdmin":     c.Locals("isAdmin"),
 		"IsLoggedIn":  c.Locals("isLoggedin"),
 		"Settings":    c.Locals("Settings"),
-	}, "main")
+	}, AdminLayout)
 }
 
 func AdminUpdateBlogPost(c *fiber.Ctx, db *gorm.DB) error {
@@ -388,7 +388,7 @@ func BlogPage(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Redirect("/blog/1")
 	}
 
-	return c.Render("blog/blog", fiber.Map{
+	return RenderSite(c, "blog/blog", fiber.Map{
 		"Title":         "Blog",
 		"Posts":         posts,
 		"IsAdmin":       c.Locals("isAdmin"),
@@ -399,7 +399,7 @@ func BlogPage(c *fiber.Ctx, db *gorm.DB) error {
 		"PrevPage":      pageNumber - 1,
 		"CurrentPage":   pageNumber,
 		"Settings":      c.Locals("Settings"),
-	}, "main")
+	})
 }
 
 func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
@@ -414,10 +414,7 @@ func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
 	var post model.Post
 	result := db.Preload("Categories").Preload("Tags").Where("Slug = ?", slug).First(&post)
 	if result.Error != nil || post.ID == 0 {
-		return c.Status(404).Render("404", fiber.Map{
-			"Title":    "404",
-			"Settings": c.Locals("Settings"),
-		}, "main")
+		return RenderNotFound(c)
 	}
 
 	comments := []model.Comment{}
@@ -425,13 +422,10 @@ func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
 
 	// Handle unpublished posts
 	if !post.Published && !IsTrue(c, "isAdmin") {
-		return c.Status(404).Render("404", fiber.Map{
-			"Title":    "404",
-			"Settings": c.Locals("Settings"),
-		}, "main")
+		return RenderNotFound(c)
 	}
 
-	return c.Render("blog/blog_post", fiber.Map{
+	return RenderSite(c, "blog/blog_post", fiber.Map{
 		"UserID":     userID,
 		"Title":      post.Title,
 		"Post":       post,
@@ -443,7 +437,7 @@ func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
 		"IsAdmin":    c.Locals("isAdmin"),
 		"IsLoggedIn": c.Locals("isLoggedin"),
 		"Settings":   c.Locals("Settings"),
-	}, "main")
+	})
 }
 
 func TogglePostStatus(c *fiber.Ctx, db *gorm.DB) error {

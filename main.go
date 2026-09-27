@@ -116,10 +116,7 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 
 	// 404 catch-all: must stay last.
 	app.Use(func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusNotFound).Render("404", fiber.Map{
-			"Title":    "404 - Page Not Found",
-			"Settings": c.Locals("Settings"),
-		}, "main")
+		return handlers.RenderNotFound(c)
 	})
 
 	utils.CreateBasicWebsiteInfo(db)

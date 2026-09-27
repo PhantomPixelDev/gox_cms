@@ -18,6 +18,23 @@
         var toastErrorElement = document.getElementById("toast-error");
         var toastErrorBody = document.getElementById("toast-body-error");
 
+        function show(el, body, value) {
+            if (!el || !body) {
+                return;
+            }
+            body.textContent = value;
+            if (window.bootstrap) {
+                return;
+            }
+            // The "simple" template set ships no Bootstrap, so drive the
+            // .show class the framework-free stylesheet already styles.
+            el.classList.add("show");
+            window.clearTimeout(el._goxTimer);
+            el._goxTimer = window.setTimeout(function () {
+                el.classList.remove("show");
+            }, 3000);
+        }
+
         if (window.bootstrap && toastElement && toastErrorElement) {
             var toast = new bootstrap.Toast(toastElement, { delay: 2000 });
             var toastError = new bootstrap.Toast(toastErrorElement, { delay: 2000 });
@@ -30,6 +47,13 @@
             htmx.on("ShowToastError", function (e) {
                 toastErrorBody.textContent = e.detail.value;
                 toastError.show();
+            });
+        } else {
+            htmx.on("showToast", function (e) {
+                show(toastElement, toastBody, e.detail.value);
+            });
+            htmx.on("ShowToastError", function (e) {
+                show(toastErrorElement, toastErrorBody, e.detail.value);
             });
         }
 

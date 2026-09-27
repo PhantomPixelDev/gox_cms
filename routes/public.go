@@ -2,22 +2,37 @@ package routes
 
 import (
 	handlers "goxcms/handler"
+	"goxcms/model"
 	"goxcms/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
+// RenderSite renders a public view from the template set the site has
+// configured. Exposed from the handlers package so the route layer (and
+// custom pages, which live here) can use the same resolver.
+func RenderSite(c *fiber.Ctx, name string, data fiber.Map) error {
+	return handlers.RenderSite(c, name, data)
+}
+
 // setupPublicRoutes registers the pages anyone can see.
 func setupPublicRoutes(app *fiber.App, db *gorm.DB) {
 	app.Get("/", func(c *fiber.Ctx) error {
 
-		return c.Render("index", fiber.Map{
+		// Recent posts are passed in the render data rather than fetched by
+		// the LatestPostsPlugin: that plugin is disabled by default and emits
+		// Bootstrap markup, which the "simple" template set cannot use.
+		recent := []model.Post{}
+		db.Where("published = ?", true).Order("created_at desc").Limit(5).Find(&recent)
+
+		return RenderSite(c, "index", fiber.Map{
 			"Title":      "GoX CMS - HomePage",
+			"Posts":      recent,
 			"IsLoggedIn": c.Locals("isLoggedin"),
 			"IsAdmin":    c.Locals("isAdmin"),
 			"Settings":   c.Locals("Settings"),
-		}, "main")
+		})
 	})
 
 	app.Get("/get-primary-menu", func(c *fiber.Ctx) error {

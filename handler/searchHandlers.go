@@ -31,7 +31,7 @@ func SearchSite(c *fiber.Ctx, db *gorm.DB) error {
 			Find(&pages)
 	}
 
-	return c.Render("search", fiber.Map{
+	return RenderSite(c, "search", fiber.Map{
 		"Title":      "Search",
 		"Query":      query,
 		"Posts":      posts,
@@ -39,5 +39,5 @@ func SearchSite(c *fiber.Ctx, db *gorm.DB) error {
 		"IsAdmin":    c.Locals("isAdmin"),
 		"IsLoggedIn": c.Locals("isLoggedin"),
 		"Settings":   c.Locals("Settings"),
-	}, "main")
+	})
 }

@@ -33,10 +33,7 @@ func BlogCategoryPage(c *fiber.Ctx, db *gorm.DB) error {
 	var category model.Category
 	result := db.Where("Slug = ?", slug).First(&category)
 	if result.Error != nil || category.ID == 0 {
-		return c.Status(404).Render("404", fiber.Map{
-			"Title":    "404",
-			"Settings": c.Locals("Settings"),
-		}, "main")
+		return RenderNotFound(c)
 	}
 
 	var posts []model.Post
@@ -65,7 +62,7 @@ func BlogCategoryPage(c *fiber.Ctx, db *gorm.DB) error {
 
 	}
 
-	return c.Render("blog/blog_category", fiber.Map{
+	return RenderSite(c, "blog/blog_category", fiber.Map{
 		"Title":         category.Name,
 		"Posts":         posts,
 		"Slug":          category.Slug,
@@ -77,7 +74,7 @@ func BlogCategoryPage(c *fiber.Ctx, db *gorm.DB) error {
 		"PrevPage":      pageNumber - 1,
 		"CurrentPage":   pageNumber,
 		"Settings":      c.Locals("Settings"),
-	}, "main")
+	})
 }
 
 func AddCategory(c *fiber.Ctx, db *gorm.DB) error {

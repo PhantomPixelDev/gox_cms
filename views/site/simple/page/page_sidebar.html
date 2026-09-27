@@ -1,0 +1,11 @@
+{{/*
+    "Sidebar" page. The simple set has no sidebar component, so the layout
+    choice degrades to the same single column as page.html rather than
+    rendering something broken. Kept as its own file so the per-page Template
+    selection still resolves inside this set.
+*/}}
+<h1>{{ .Title }}</h1>
+<div class="post-content">
+    {{ .Content }}
+</div>
+<p class="small"><a href="/">Back to home</a></p>

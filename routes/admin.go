@@ -45,6 +45,7 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 			"SettingsAdmin": handlers.MapSettingsToMap(settings_cms),
 			"Themes":        themes_list,
 			"Containers":    containers_list,
+			"SiteTemplates": handlers.SiteTemplateSets(),
 		})
 
 	})
@@ -194,7 +195,7 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 		return c.Render("page/page_add", fiber.Map{
 			"TitleView": "Add Custom Page",
 			"Settings":  c.Locals("Settings"),
-		}, "main")
+		}, handlers.AdminLayout)
 	})
 
 	app.Get("/edit-custompage/:id", handlers.IsAdmin, func(c *fiber.Ctx) error {
@@ -216,7 +217,7 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 			"Slug":     customPage.Slug,
 			"Template": customPage.Template,
 			"Settings": c.Locals("Settings"),
-		}, "main")
+		}, handlers.AdminLayout)
 	})
 
 	app.Post("/edit-custompage", handlers.IsAdmin, func(c *fiber.Ctx) error {
@@ -268,7 +269,7 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 			"IsAdmin":    c.Locals("isAdmin"),
 			"IsLoggedIn": c.Locals("isLoggedin"),
 			"Settings":   c.Locals("Settings"),
-		}, "main")
+		}, handlers.AdminLayout)
 	})
 
 	app.Post("/admin/post/add", handlers.IsAdmin, func(c *fiber.Ctx) error {
@@ -319,6 +320,7 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 			"PendingComments": pending_comments,
 			"PageCount":       page_count,
 			"FileCount":       file_count,
-		}, "main")
+		}, handlers.AdminLayout)
 	})
+
 }

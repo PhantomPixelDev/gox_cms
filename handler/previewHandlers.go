@@ -24,7 +24,7 @@ func PreviewPost(c *fiber.Ctx) error {
 		CreatedAt: time.Now(),
 	}
 
-	return c.Render("blog/blog_post", fiber.Map{
+	return RenderSite(c, "blog/blog_post", fiber.Map{
 		"UserID":     currentUserID(c),
 		"Title":      post.Title,
 		"Post":       post,
@@ -34,7 +34,7 @@ func PreviewPost(c *fiber.Ctx) error {
 		"IsLoggedIn": c.Locals("isLoggedin"),
 		"Preview":    true,
 		"Settings":   c.Locals("Settings"),
-	}, "main")
+	})
 }
 
 // PreviewPage renders unsaved page data through the real page template.
@@ -45,9 +45,9 @@ func PreviewPage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString("Title is required for preview")
 	}
 
-	return c.Render("page/page", fiber.Map{
+	return RenderSite(c, "page/page", fiber.Map{
 		"Title":    title,
 		"Content":  template.HTML(SanitizeRichHTML(c.FormValue("content"))),
 		"Settings": c.Locals("Settings"),
-	}, "main")
+	})
 }

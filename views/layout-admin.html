@@ -1,0 +1,101 @@
+{{/*
+    Admin layout: same head, dependencies, toast stack and theme switch as the
+    public "main" layout, but without the site navbar and four-column footer.
+
+    Those two partials used to wrap every admin screen, and neither contains a
+    link back to /admin, so the only way out of the post editor was the
+    browser Back button.
+*/}}<!DOCTYPE html>
+<html data-bs-theme="{{ if .Settings.InitialTheme }}{{ .Settings.InitialTheme }}{{ else }}light{{ end }}"
+    lang="{{ .Settings.Language }}">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ if .Title }}{{ .Title }} - {{ end }}{{ .Settings.Name }} Admin</title>
+    {{ if .Settings.FaviconURL }}
+    <link rel="icon" href="{{ .Settings.FaviconURL }}">
+    {{ end }}
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://unpkg.com">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous" defer></script>
+    {{ if .Settings.Theme }}
+    <link href="/static/css/themes/{{ .Settings.Theme }}/bootstrap.min.css" rel="stylesheet">
+    {{ else }}
+    <link href="/static/css/themes/flatly/bootstrap.min.css" rel="stylesheet">
+    {{ end }}
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"
+        integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xSi8nO7UC"
+        crossorigin="anonymous" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="/static/js/site.js" defer></script>
+    <script src="/static/js/admin.js" defer></script>
+    <script src="/static/js/editor.js" defer></script>
+</head>
+
+<body class="admin-body">
+
+    <nav class="navbar navbar-dark admin-topbar shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/admin">
+                <i class="bi bi-speedometer2" aria-hidden="true"></i> {{ .Settings.Name }} Admin
+            </a>
+            <div class="d-flex align-items-center gap-2 ms-auto">
+                <a href="/" class="btn btn-sm btn-outline-light">View site</a>
+                <button class="btn btn-sm btn-outline-light" type="button" data-theme-toggle
+                    aria-label="Toggle dark mode" title="Toggle dark mode" aria-pressed="false">
+                    <i class="bi bi-moon-stars" aria-hidden="true"></i>
+                </button>
+                <form hx-post="/logout" hx-swap="none" hx-target="body" hx-headers='{"X-No-Cache": "true"}'
+                    hx-confirm="Log out?" class="m-0">
+                    <button type="submit" class="btn btn-sm btn-outline-light">Log out</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="admin-shell container-fluid">
+        <main id="main-content" tabindex="-1">
+            {{if .Title}}
+            <nav aria-label="Breadcrumb" class="mb-3">
+                <ol class="breadcrumb admin-breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/admin">Admin</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ .Title }}</li>
+                </ol>
+            </nav>
+            {{end}}
+
+            {{embed}}
+
+        </main>
+    </div>
+
+    <!-- One stack for both toasts: separate fixed wrappers sat in the same
+         corner and the error toast covered the success one. -->
+    <div class="position-fixed top-0 end-0 p-3 toast-stack d-flex flex-column gap-2">
+        <div id="toast" class="toast align-items-center border-0 rounded-3 shadow-lg" role="alert"
+            aria-live="assertive" aria-atomic="true">
+            <div class="d-flex p-2 rounded-3">
+                <div id="toast-body" class="toast-body"></div>
+                <button type="button" class="btn-close ms-2 my-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+
+        <div id="toast-error" class="toast align-items-center border-0 rounded-3 shadow-lg bg-danger text-white"
+            role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex p-2 rounded-3">
+                <div id="toast-body-error" class="toast-body"></div>
+                <button type="button" class="btn-close ms-2 my-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

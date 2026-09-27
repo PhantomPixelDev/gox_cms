@@ -1,0 +1,20 @@
+{{/*
+    File list + search, shared by the admin File Manager tab and the editor's
+    file-picker modal.
+
+    "Picker" marks the list so the Insert buttons rendered by
+    partials/file-manager.html know an editor is waiting (see admin.js).
+
+    NOTE: shares #file-list-container and #search-input-files with the other
+    call site; they never render on the same page.
+*/}}
+<div class="mb-2">
+    <label for="search-input-files" class="visually-hidden">Search files</label>
+    <input type="search" id="search-input-files" name="query" placeholder="Search files…"
+        class="form-control" hx-get="/search-files" hx-trigger="keyup delay:500ms changed"
+        hx-target="#file-list-container" hx-headers='{"X-No-Cache": "true"}'>
+</div>
+
+<div id="file-list-container" data-picker="1">
+    <p class="text-muted mb-0">Loading files…</p>
+</div>

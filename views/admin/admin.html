@@ -1,24 +1,32 @@
 <div class="row row-cols-1">
     <div class="col-md-3">
         <div class="admin-sidebar">
-            <h6 class="text-primary">Admin Panel</h6>
-            <hr>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <h2 class="h6 text-primary mb-0">Admin Panel</h2>
+                {{/* Shared by every tab link and search box via
+                     hx-indicator, so htmx requests are visible. */}}
+                <span id="admin-spinner" class="spinner-border spinner-border-sm text-primary htmx-indicator"
+                    role="status" aria-live="polite">
+                    <span class="visually-hidden">Loading…</span>
+                </span>
+            </div>
             <ul class="nav nav-pills flex-md-column flex-row flex-nowrap overflow-auto me-md-3 mb-3" id="admin-tabs"
                 role="tablist">
+
                 <li class="nav-item">
                     <a class="nav-link active" id="overview-tab" data-bs-toggle="tab" href="#overview" role="tab"
                         aria-controls="overview" aria-selected="true"><i class="bi bi-speedometer2"></i> Overview</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" id="table-tab" data-bs-toggle="tab" href="#table" role="tab"
-                        aria-controls="table" hx-get="/search-users" hx-trigger="load" load-indicator="dots"
+                        aria-controls="table" hx-get="/search-users" hx-trigger="shown.bs.tab" hx-indicator="#admin-spinner"
                         hx-target="#user-table-container" hx-swap="innerHTML" aria-selected="false"><i
                             class="bi bi-people"></i> Users</a>
                 </li>
             <li class="nav-item">
                 <a class="nav-link" id="post-tab" data-bs-toggle="tab" href="#post" role="tab" aria-controls="post"
                     hx-get="/search-posts" hx-trigger="click" hx-target="#post-table-container" hx-swap="innerHTML"
-                    hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false"><i
+                    hx-headers='{"X-No-Cache": "true"}' hx-indicator="#admin-spinner" aria-selected="false"><i
                         class="bi bi-journal-text"></i> Posts </a>
 
             </li>
@@ -27,7 +35,7 @@
             <li class="nav-item">
                 <a class="nav-link" id="tags-tab" data-bs-toggle="tab" href="#tags" role="tab" aria-controls="tags"
                     hx-get="/search-tags" hx-trigger="click" hx-target="#tag-table-container" hx-swap="innerHTML"
-                    hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false"><i
+                    hx-headers='{"X-No-Cache": "true"}' hx-indicator="#admin-spinner" aria-selected="false"><i
                         class="bi bi-tag"></i>
                     Tags</a>
             </li>
@@ -35,7 +43,7 @@
             <li class="nav-item">
                 <a class="nav-link" id="categories-tab" data-bs-toggle="tab" href="#categories" role="tab"
                     hx-get="/search-categories" hx-trigger="click" hx-target="#category-table-container"
-                    hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}' load-indicator="dots"
+                    hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}' hx-indicator="#admin-spinner"
                     aria-controls="categories" aria-selected="false"><i class="bi bi-grid"></i>
                     Categories</a>
             </li>
@@ -43,7 +51,7 @@
             <li class="nav-item">
                 <a class="nav-link" id="comments-tab" data-bs-toggle="tab" href="#comments" role="tab"
                     hx-get="/search-comments" hx-headers='{"X-No-Cache": "true"}' hx-trigger="click"
-                    hx-target="#comment-table-container" hx-swap="innerHTML" load-indicator="dots"
+                    hx-target="#comment-table-container" hx-swap="innerHTML" hx-indicator="#admin-spinner"
                     aria-controls="comments" aria-selected="false"><i class="bi bi-chat-dots"></i> Comments</a>
 
             </li>
@@ -51,7 +59,7 @@
             <li class="nav-item">
                 <a class="nav-link" id="custompages-tab" data-bs-toggle="tab" href="#custompages" role="tab"
                     hx-get="/search-custompages" hx-trigger="click" hx-target="#custompage-table-container"
-                    hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}' load-indicator="dots"
+                    hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}' hx-indicator="#admin-spinner"
                     aria-controls="custompages" aria-selected="false"><i class="bi bi-file-earmark"></i>
                     Custom Pages</a>
 
@@ -61,7 +69,7 @@
             <li class="nav-item">
                 <a class="nav-link" id="menu-tab" data-bs-toggle="tab" href="#menu" role="tab" aria-controls="menu"
                     hx-get="/search-menu" hx-trigger="click" hx-target="#menu-table-container" hx-swap="innerHTML"
-                    hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false"><i
+                    hx-headers='{"X-No-Cache": "true"}' hx-indicator="#admin-spinner" aria-selected="false"><i
                         class="bi bi-list"></i>
                     Menu</a>
             </li>
@@ -71,7 +79,7 @@
             <li class="nav-item">
                 <a class="nav-link" id="settings-tab" data-bs-toggle="tab" href="#settings" role="tab"
                     aria-controls="settings" hx-get="/admin-settings" hx-trigger="click" hx-target="#settings-container"
-                    hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-selected="false">
+                    hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}' hx-indicator="#admin-spinner" aria-selected="false">
                     <i class="bi bi-gear"></i> Settings
                 </a>
             </li>
@@ -80,7 +88,7 @@
             <li class="nav-item">
                 <a class="nav-link" id="filemanager-tab" data-bs-toggle="tab" href="#filemanager" role="tab"
                     hx-get="/search-files" hx-trigger="click" hx-target="#file-list-container" hx-swap="innerHTML"
-                    hx-headers='{"X-No-Cache": "true"}' load-indicator="dots" aria-controls="filemanager"
+                    hx-headers='{"X-No-Cache": "true"}' hx-indicator="#admin-spinner" aria-controls="filemanager"
                     aria-selected="false"><i class="bi bi-folder"></i> File
                     Manager</a>
             </li>
@@ -178,14 +186,12 @@
                             </a>
                         </div>
                         <div class="col">
-                            <a href="#menu" class="card stat-card shadow-sm h-100 d-block text-decoration-none"
-                                id="menu-card-tab" role="tab" data-bs-toggle="tab" aria-controls="menu"
-                                hx-get="/search-menu" hx-trigger="click" hx-target="#menu-table-container"
-                                hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}'>
+                            <a href="#plugins" class="card stat-card shadow-sm h-100 d-block text-decoration-none"
+                                role="tab" data-bs-toggle="tab" aria-controls="plugins">
                                 <div class="card-body">
-                                    <div class="stat-label mb-1"><i class="bi bi-puzzle"></i> Plugins Enabled</div>
                                     <div class="stat-value">{{.EnabledPlugins}}</div>
-                                    <div class="stat-hint mt-1">Build navigation</div>
+                                    <div class="stat-label"><i class="bi bi-puzzle"></i> Plugins Enabled</div>
+                                    <div class="stat-hint mt-1">Manage extensions</div>
                                 </div>
                             </a>
                         </div>
@@ -474,57 +480,36 @@
                     </div>
                     <div class="row">
                         <div class="col-md-12">
-                            <div hx-get="/admin-settings" hx-target="#settings-container" hx-swap="innerHTML"
-                                hx-headers='{"X-No-Cache": "true"}'></div>
-
+                            {{/* No hx-trigger here, which defaults to "load" and
+                                 made every /admin page load fetch the whole
+                                 200-line settings form it never displayed.
+                                 The sidebar tab already loads it on click. */}}
                             <div id="settings-container"></div>
                         </div>
                     </div>
+
                 </div>
 
             </div>
             <div class="tab-pane fade" id="filemanager" role="tabpanel" aria-labelledby="filemanager-tab">
                 <div class="container">
-
                     <div class="row">
                         <div class="col">
-                            <h2 class="text-primary">File Manager</h2>
+                            <h1 class="h4 text-primary">File Manager</h1>
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-12">
-                            <form hx-post="/upload-file" enctype="multipart/form-data" hx-swap="none"
-                                hx-trigger="submit" hx-headers='{"X-No-Cache": "true"}' id="upload-file-form"
-                                
-                                data-after="updateFileList">
-                                <div class="mb-3">
-                                    <label for="file" class="form-label">Choose File</label>
-                                    <input type="file" class="form-control" name="file" id="file">
-                                </div>
-                                <div class="mb-3">
-                                    <button id="upload-file" class="btn btn-primary" type="submit">Upload File</button>
-                                </div>
-                            </form>
-                            <progress id='progress' class="" value="0" max="100"></progress>
-
+                            {{template "partials/file-upload" .}}
                             <hr>
-
-                            <div class="mb-3">
-                                <input type="text" id="search-input-files" placeholder="Search files..."
-                                    class="form-control" hx-get="/search-files" hx-trigger="keyup delay:500ms changed"
-                                    hx-target="#file-list-container" hx-headers='{"X-No-Cache": "true"}'
-                                    hx-vars="query:document.getElementById('search-input-files').value">
-                            </div>
-
-                            <hr>
-
-                            <div id="file-list-container"></div>
+                            {{template "partials/file-browser" .}}
                         </div>
                     </div>
 
                 </div>
             </div>
+
 
 
             <div class="tab-pane fade" id="plugins" role="tabpanel" aria-labelledby="plugins-tab">
@@ -559,4 +544,5 @@
 </div>
 
 <!-- Admin helpers live in /static/js/admin.js (loaded once from the layout). -->
+
 

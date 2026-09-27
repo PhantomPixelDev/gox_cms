@@ -1,72 +1,60 @@
-<div class="container py-5">
-    <form id="editCustomPageForm" class="needs-validation" hx-post="/edit-custompage" hx-target="#responseContainer" hx-swap="outerHTML" novalidate>
-        <input type="hidden" id="id" name="id" value="{{.ID}}"> <!-- Assuming you pass the page ID here -->
-        <div class="mb-3">
-            <label for="title" class="form-label">Title:</label>
-            <input type="text" class="form-control" id="title" name="title" value="{{.Title}}" required>
-            <div class="invalid-feedback">Please provide a title.</div>
-        </div>
-        <div class="mb-3">
-            <label for="content" class="form-label">Content:</label>
+<div class="container py-4">
+    <h1 class="h4">Edit Custom Page</h1>
+    <form id="editCustomPageForm" class="row g-4 shadow rounded p-3 mb-3" hx-post="/edit-custompage"
+        hx-target="#responseContainer" hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}' novalidate>
 
-            <!-- Create the toolbar container -->
-            <div id="toolbar">
-      
-            </div>
-            
+        <input type="hidden" id="id" name="id" value="{{ .ID }}">
 
-            <!-- Create the editor container (content via data-content, editor.js inits Quill) -->
-            <div id="editor" data-content="{{ .Content }}"></div>
-            <input type="hidden" id="content_input" name="content">
-            <div class="mt-2">
-            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#exampleModal"
-            hx-trigger="click" hx-get="/search-files" hx-target="#file-list-container" hx-headers='{"X-No-Cache": "true"}'>Insert image</button>
+        <div class="col-12 col-lg-8">
+            <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="title" name="title" value="{{ .Title }}" required>
+                <div class="invalid-feedback">Please provide a title.</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="editor" class="form-label">Content</label>
+                <div id="editor" role="textbox" aria-multiline="true" aria-label="Page content"
+                    data-content="{{ .Content }}"></div>
+                <input type="hidden" id="content_input" name="content">
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">Update Custom Page</button>
+                <button type="button" class="btn btn-outline-secondary" data-preview="page">Preview</button>
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                    data-bs-target="#exampleModal" hx-trigger="click" hx-get="/search-files"
+                    hx-target="#file-list-container" hx-headers='{"X-No-Cache": "true"}'>Insert image</button>
             </div>
         </div>
-        <div class="mb-3">
-            <label for="template" class="form-label">Template:</label>
-            <select id="template" name="template" class="form-select" required aria-describedby="template-hint">
-                <option value="page" {{if eq .Template "page"}}selected{{end}}>Default page</option>
-                <option value="page_sidebar" {{if eq .Template "page_sidebar"}}selected{{end}}>Page with sidebar</option>
-                <option value="page_fullwidth" {{if eq .Template "page_fullwidth"}}selected{{end}}>Full-width page</option>
-            </select>
-            <div id="template-hint" class="form-text">Controls the page layout.</div>
+
+        <div class="col-12 col-lg-4">
+            <div class="mb-3">
+                <label for="slug" class="form-label">Slug</label>
+                <input type="text" class="form-control" id="slug" name="slug" value="{{ .Slug }}" required
+                    pattern="[a-z0-9-]+" aria-describedby="slug-hint">
+                <div id="slug-hint" class="form-text">Lowercase letters, numbers and dashes.</div>
+                <div class="invalid-feedback">Please provide a slug.</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="template" class="form-label">Template</label>
+                <select id="template" name="template" class="form-select" required aria-describedby="template-hint">
+                    <option value="page" {{ if eq .Template "page" }}selected{{ end }}>Default page</option>
+                    <option value="page_sidebar" {{ if eq .Template "page_sidebar" }}selected{{ end }}>Page with
+                        sidebar</option>
+                    <option value="page_fullwidth" {{ if eq .Template "page_fullwidth" }}selected{{ end }}>Full-width
+                        page</option>
+                </select>
+                <div id="template-hint" class="form-text">Controls the page layout within the active site
+                    template.</div>
+            </div>
         </div>
-     
-        <div class="mb-3">
-            <label for="slug" class="form-label">Slug:</label>
-            <input type="text" class="form-control" id="slug" name="slug" value="{{.Slug}}" required pattern="[a-z0-9-]+"
-                aria-describedby="slug-hint">
-            <div id="slug-hint" class="form-text">Lowercase letters, numbers and dashes.</div>
-            <div class="invalid-feedback">Please provide a slug.</div>
-        </div>
-        <button type="submit" class="btn btn-primary">Update Custom Page</button>
-        <button type="button" class="btn btn-outline-secondary ms-2" data-preview="page">Preview</button>
     </form>
-    <div id="responseContainer"></div>    
+
+    <div id="responseContainer" role="alert" aria-live="polite"></div>
 </div>
-
-
-<!-- Include Bootstrap 5 CSS -->
-
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-
-<script
-  src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/js/selectize.min.js"
-  integrity="sha512-IOebNkvA/HZjMM7MxL0NYeLYEalloZ8ckak+NDtOViP7oiYzG5vn6WVXyrJDiJPhl4yRdmNAG49iuLmhkUdVsQ=="
-  crossorigin="anonymous"
-  referrerpolicy="no-referrer"
-></script>
-<!-- Main Quill library -->
-<script src="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.js"></script>
-
-<!-- Theme included stylesheets -->
-<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.snow.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.bubble.css" rel="stylesheet" />
-
-
-<!-- Quill init lives in /static/js/editor.js (loaded once from the layout). -->
-
 
 {{template "partials/file-picker" .}}
 
+{{template "partials/editor-assets" .}}

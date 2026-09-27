@@ -1,126 +1,86 @@
-<div id="result"></div>
-
 <div class="container">
-    <h3>Add Post</h3>
-    <hr>
+    <h1 class="h4">Add Post</h1>
 </div>
 
-
 <div class="container">
-    <div class="row g-4 mb-3 shadow rounded p-2">
+    {{/*
+        The <form> is the flex container itself. It used to open inside the
+        first column and close inside the second, so the </div> that closed
+        the column popped the still-open form and every sidebar control
+        (image, slug, categories, tags) was left outside it — meaning it was
+        never submitted and the post could not be saved.
+    */}}
+    <form id="post-form" class="row g-4 mb-3 shadow rounded p-3" hx-post="/admin/post/add"
+        hx-target="#result" hx-headers='{"X-No-Cache": "true"}'>
+
         <div class="col-12 col-lg-8">
-            <form hx-post="/admin/post/add" hx-target="#result">
-                <!-- Title Field -->
-                <div class="mb-3">
-                    <label for="title" class="form-label">Title:</label>
-                    <input type="text" class="form-control" id="title" name="title" required>
-                </div>
-    
-                <div class="mb-3">
-                    <label for="content" class="form-label">Content:</label>
-    
-                    <!-- Create the toolbar container -->
-                    <div id="toolbar">
-                    
-                    </div>
-    
-                    <!-- Create the editor container (content via data-content, editor.js inits Quill) -->
-                    <div id="editor" data-content="{{ .Content }}"></div>
-
-                    <input type="hidden" id="content_input" name="content">
-                </div>
-    
-                <!-- Submit Button... -->
-                <button type="submit" class="btn btn-primary">Create Post</button>
-                <button type="button" class="btn btn-outline-secondary ms-2" data-preview="post">Preview</button>
-    
-                <!-- Result... -->
-                <div id="result"></div>
-    
-    
-    
-        </div>
-        <div class="col-12 col-lg-4">
-
-            <!-- Image Field -->
             <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="title" name="title" required>
+            </div>
 
-                <label for="image" class="form-label">Image:</label>
+            <div class="mb-3">
+                <label for="editor" class="form-label">Content</label>
+                <!-- Quill's own toolbar is inserted before this element by
+                     static/js/editor.js; the old empty #toolbar div was dead
+                     markup that rendered as a stray gap. -->
+                <div id="editor" role="textbox" aria-multiline="true" aria-label="Post content"
+                    data-content="{{ .Content }}"></div>
+                <input type="hidden" id="content_input" name="content">
+            </div>
 
-                <input type="text" id="image" name="image" class="form-control" placeholder="Image Link" required>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary">Create Post</button>
+                <button type="button" class="btn btn-outline-secondary" data-preview="post">Preview</button>
+            </div>
+
+            <div id="result" class="mt-3" role="alert" aria-live="polite"></div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="mb-3">
+                <label for="image" class="form-label">Image</label>
+                <input type="text" id="image" name="image" class="form-control" placeholder="Image URL (optional)">
                 <img id="image-preview" class="img-fluid rounded mt-2 d-none" alt="Image preview">
                 <div class="mt-2">
-                <!--- add button to open a dialog with partial file manager! -->
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exampleModal" id="upload-btn"
-                hx-trigger="click" hx-get="/search-files" hx-target="#file-list-container">Open File Manager</button>
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+                        data-bs-target="#exampleModal" hx-trigger="click" hx-get="/search-files"
+                        hx-target="#file-list-container" hx-headers='{"X-No-Cache": "true"}'>Open File
+                        Manager</button>
                 </div>
+            </div>
 
-            </div>
-    
-    
-    
-            <!-- Slug Field -->
             <div class="mb-3">
-                <label for="post_slug" class="form-label">Slug:</label>
-                <input type="text" class="form-control" id="post_slug" name="post_slug" required pattern="[a-z0-9-]+"
-                    aria-describedby="post-slug-hint">
-                <div id="post-slug-hint" class="form-text">Lowercase letters, numbers and dashes — fills in from the title.</div>
-    
-    
+                <label for="post_slug" class="form-label">Slug</label>
+                <input type="text" class="form-control" id="post_slug" name="post_slug" required
+                    pattern="[a-z0-9-]+" aria-describedby="post-slug-hint">
+                <div id="post-slug-hint" class="form-text">Lowercase letters, numbers and dashes — fills in from
+                    the title.</div>
             </div>
-    
-            <!-- Categories Select with Search -->
+
             <div class="mb-3">
-                <label for="categoriesSelect" class="form-label">Categories:</label>
-                <select class="form-select" id="categoriesSelect" name="categories" data-kind="category" multiple="multiple">
+                <label for="categoriesSelect" class="form-label">Categories</label>
+                <select class="form-select" id="categoriesSelect" name="categories" data-kind="category" multiple>
                     {{ range .Categories }}
-                    <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                    <option value="{{ .ID }}">{{ .Name }}</option>
                     {{ end }}
-                
                 </select>
-                <input type="hidden" id="categories_input" name="categories_input"> 
+                <input type="hidden" id="categories_input" name="categories_input">
             </div>
-    
-            <!-- Tags Select with Search -->
+
             <div class="mb-3">
-                <label for="tagsSelect" class="form-label">Tags:</label>
-                <select class="form-select" id="tagsSelect" name="tags" data-kind="tag" multiple="multiple">
+                <label for="tagsSelect" class="form-label">Tags</label>
+                <select class="form-select" id="tagsSelect" name="tags" data-kind="tag" multiple>
                     {{ range .Tags }}
-                    <option value="{{ .ID }}">{{ truncate .Name 15 }}</option>
+                    <option value="{{ .ID }}">{{ .Name }}</option>
                     {{ end }}
                 </select>
                 <input type="hidden" id="tags_input" name="tags_input">
             </div>
-            </form>
         </div>
-    </div>
+    </form>
 </div>
-
-
 
 {{template "partials/file-picker" .}}
 
-
-<!-- Include Select2 CSS -->
-
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-
-<script
-  src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/js/selectize.min.js"
-  integrity="sha512-IOebNkvA/HZjMM7MxL0NYeLYEalloZ8ckak+NDtOViP7oiYzG5vn6WVXyrJDiJPhl4yRdmNAG49iuLmhkUdVsQ=="
-  crossorigin="anonymous"
-  referrerpolicy="no-referrer"
-></script>
-<!-- Main Quill library -->
-<script src="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.js"></script>
-
-<!-- Theme included stylesheets -->
-<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.snow.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-beta.0/dist/quill.bubble.css" rel="stylesheet" />
-
-<!-- Quill init lives in /static/js/editor.js (loaded once from the layout). -->
-
-<!-- Selectize init lives in /static/js/editor.js (loaded once from the layout). -->
-
-
-
+{{template "partials/editor-assets" .}}

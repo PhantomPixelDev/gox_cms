@@ -50,6 +50,10 @@ func updateSettingsFromForm(settings *model.BasicWebsiteInfo, c *fiber.Ctx) mode
 	// For theme, the form uses "theme", so it's correctly mapped
 	settings.Theme = c.FormValue("theme")
 	settings.ContainerClass = c.FormValue("container_class")
+	// Site template set: whitelisted, anything unknown falls back to default.
+	if set := SiteTemplateSet(c.FormValue("site_template")); set != "" {
+		settings.SiteTemplate = set
+	}
 	// Update social media URLs based on your form's input names
 	settings.FacebookURL = c.FormValue("facebookUrl") // Changed from "facebookURL" to match form name attribute
 	settings.TwitterURL = c.FormValue("twitterUrl")   // Changed from "twitter_url" to match form name attribute
@@ -98,6 +102,7 @@ func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 		"ContainerClass":      settings.ContainerClass,
 		"NavbarClass":         navbarClassForTheme(settings.Theme),
 		"InitialTheme":        initialTheme(settings.Theme),
+		"SiteTemplate":        SiteTemplateSet(settings.SiteTemplate),
 		"RegistrationEnabled": strconv.FormatBool(settings.RegistrationEnabled),
 		"CaptchaEnabled":      strconv.FormatBool(viper.GetBool("captcha.enabled")),
 		"CaptchaSiteKey":      viper.GetString("captcha.public_key"),

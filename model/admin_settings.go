@@ -35,4 +35,8 @@ type BasicWebsiteInfo struct {
 	// NOTE: a legacy selected_theme column may exist in old databases; it is
 	// ignored. Theme is the single source of truth.
 	ContainerClass string `json:"container_class" default:"container"`
+	// SiteTemplate picks which set of public view templates renders the site
+	// (views/site/<name>/). Distinct from Theme, which is only a Bootswatch
+	// colour scheme. Empty means "default"; see handlers.SiteTemplateSet.
+	SiteTemplate string `json:"site_template" gorm:"default:'default'"`
 }

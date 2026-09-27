@@ -1,0 +1,40 @@
+<h1>Search</h1>
+
+<form action="/search" method="get" role="search">
+    <div class="field">
+        <label for="search-q">Search posts and pages</label>
+        <input type="search" id="search-q" name="q" value="{{ .Query }}" autocomplete="off">
+    </div>
+    <button class="btn btn-primary" type="submit">Search</button>
+</form>
+
+{{ if .Query }}
+{{ if or .Posts .Pages }}
+
+{{ if .Posts }}
+<h2>Posts</h2>
+<ul class="post-list">
+    {{ range .Posts }}
+    <li>
+        <h3><a href="/blog/post/{{ .Slug }}">{{ .Title }}</a></h3>
+        <p class="post-meta">{{ .CreatedAt.Format "02 Jan 2006" }}</p>
+        <p class="excerpt">{{ truncate (escape .Content) 180 }}</p>
+    </li>
+    {{ end }}
+</ul>
+{{ end }}
+
+{{ if .Pages }}
+<h2>Pages</h2>
+<ul>
+    {{ range .Pages }}
+    <li><a href="/{{ .Slug }}">{{ .Title }}</a></li>
+    {{ end }}
+</ul>
+{{ end }}
+
+{{ else }}
+<p class="notice">Nothing found for &ldquo;{{ .Query }}&rdquo;. Try different words, or
+    <a href="/blog">browse the blog</a>.</p>
+{{ end }}
+{{ end }}

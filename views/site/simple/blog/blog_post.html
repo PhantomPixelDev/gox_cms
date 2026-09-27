@@ -1,0 +1,65 @@
+<article>
+    <h1>{{ .Title }}</h1>
+    <p class="post-meta">
+        <time datetime="{{ .CreatedAt.Format "2006-01-02" }}">{{ .CreatedAt.Format "02 Jan 2006" }}</time>
+        {{ if .IsAdmin }}
+        &middot; <a href="/admin/post/edit/{{ .Post.ID }}">Edit post</a>
+        {{ end }}
+    </p>
+
+    {{ if .Post.ImageURL }}
+    <img class="thumb" src="{{ .Post.ImageURL }}" alt="{{ .Title }}">
+    {{ end }}
+
+    {{/* Post content is sanitized rich HTML, so it is emitted as markup. */}}
+    <div class="post-content">
+        {{ .Content }}
+    </div>
+
+    {{ if or .Tags .Categories }}
+    <ul class="badge-list">
+        {{ range .Tags }}
+        <li><a href="/blog/tag/{{ .Slug }}">{{ .Name }}</a></li>
+        {{ end }}
+        {{ range .Categories }}
+        <li><a href="/blog/category/{{ .Slug }}">{{ .Name }}</a></li>
+        {{ end }}
+    </ul>
+    {{ end }}
+</article>
+
+{{ if not .Preview }}
+<hr>
+
+<section aria-labelledby="comments-heading">
+    <h2 id="comments-heading">Comments</h2>
+
+    {{ if .IsLoggedIn }}
+    <form hx-post="/add-comment" hx-swap="outerHTML" hx-target="#comment-form"
+        hx-headers='{"X-No-Cache": "true"}' id="comment-form">
+        <div class="field">
+            <label for="comment">Your comment</label>
+            <textarea id="comment" name="comment" rows="4" required maxlength="2000"
+                aria-describedby="comment-hint"></textarea>
+            <p id="comment-hint" class="muted small">Comments appear once approved.</p>
+        </div>
+        <input type="hidden" name="post_id" value="{{ .Post.ID }}">
+        <button class="btn btn-primary" type="submit">Post comment</button>
+    </form>
+    {{ else }}
+    <p class="notice"><a href="/login">Log in</a> to leave a comment.</p>
+    {{ end }}
+
+    {{ if .Comments }}
+    {{ range .Comments }}
+    <div class="comment" id="comment-{{ .ID }}">
+        <p class="who">{{ .User.Username }}</p>
+        <p>{{ unescape .Content }}</p>
+        <p class="muted small">{{ .CreatedAt.Format "02 Jan 2006" }}</p>
+    </div>
+    {{ end }}
+    {{ else }}
+    <p class="muted">No comments yet.</p>
+    {{ end }}
+</section>
+{{ end }}

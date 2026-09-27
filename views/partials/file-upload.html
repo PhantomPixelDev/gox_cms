@@ -1,0 +1,26 @@
+{{/*
+    Upload form shared by the admin File Manager tab and the editor's
+    file-picker modal.
+
+    The modal's copy previously had no data-after hook and no #progress, so
+    uploading from inside the editor was silent and the new file never
+    appeared in the grid.
+
+    NOTE: these ids are unique per page (the picker only exists on editor
+    pages, the tab only on /admin), which is how the existing markup already
+    worked. They are still a latent collision if both are ever rendered
+    together.
+*/}}
+<form id="upload-file-form" hx-post="/upload-file" enctype="multipart/form-data" hx-swap="none"
+    hx-trigger="submit" hx-headers='{"X-No-Cache": "true"}' data-after="updateFileList">
+    <div class="mb-2">
+        <label for="file" class="form-label mb-1">Choose a file</label>
+        <input type="file" class="form-control" name="file" id="file" accept="image/*" required>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <button class="btn btn-primary" type="submit">Upload File</button>
+        <label for="progress" class="visually-hidden">Upload progress</label>
+        <progress id="progress" class="flex-grow-1" value="0" max="100"
+            aria-label="Upload progress"></progress>
+    </div>
+</form>

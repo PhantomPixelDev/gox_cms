@@ -34,9 +34,7 @@ func BlogTagPage(c *fiber.Ctx, db *gorm.DB) error {
 	var tag model.Tag
 	result := db.Where("Slug = ?", slug).First(&tag)
 	if result.Error != nil || tag.ID == 0 {
-		return c.Status(404).Render("404", fiber.Map{
-			"Title": "404",
-		}, "main")
+		return RenderNotFound(c)
 	}
 
 	var posts []model.Post
@@ -64,7 +62,7 @@ func BlogTagPage(c *fiber.Ctx, db *gorm.DB) error {
 		totalPagesArray = append(totalPagesArray, i)
 	}
 
-	return c.Render("blog/blog_tag", fiber.Map{
+	return RenderSite(c, "blog/blog_tag", fiber.Map{
 		"Title":         tag.Name,
 		"Posts":         posts,
 		"Slug":          tag.Slug,
@@ -76,7 +74,7 @@ func BlogTagPage(c *fiber.Ctx, db *gorm.DB) error {
 		"PrevPage":      pageNumber - 1,
 		"CurrentPage":   pageNumber,
 		"Settings":      c.Locals("Settings"),
-	}, "main")
+	})
 }
 
 func SearchTag(c *fiber.Ctx, db *gorm.DB) error {

@@ -45,10 +45,13 @@ func SetupCustomPageRoutes(app *fiber.App, db *gorm.DB) {
 			return c.Next()
 		}
 
-		return c.Render("page/"+handlers.CustomPageTemplate(customPage.Template), fiber.Map{
+		// Rendered from the site's configured template set, like every other
+		// public page. The per-page Template only chooses between the three
+		// page layouts inside that set.
+		return RenderSite(c, "page/"+handlers.CustomPageTemplate(customPage.Template), fiber.Map{
 			"Title":    customPage.Title,
 			"Content":  template.HTML(customPage.Content),
 			"Settings": c.Locals("Settings"),
-		}, "main")
+		})
 	})
 }

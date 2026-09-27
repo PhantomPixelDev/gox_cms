@@ -114,6 +114,12 @@
 
 }
 
+/* Quill's toolbar does not wrap, so on a narrow column it drove horizontal
+   page scroll. */
+.ql-toolbar {
+    flex-wrap: wrap;
+}
+
 .ql-editor {
     min-height: 300px;
 }
@@ -416,11 +422,64 @@
     }
 }
 
+/* ---- Admin layout (views/layout-admin.html) ---- */
+
+.admin-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+.admin-body {
+    /* The admin topbar is sticky, so the shell needs its own top offset
+       rather than relying on the public nav's --navbar-h. */
+    padding-bottom: 3rem;
+}
+
+.admin-shell {
+    padding: 1.25rem 1rem;
+}
+
+.admin-shell:focus {
+    outline: none;
+}
+
+.admin-breadcrumb {
+    font-size: 0.9rem;
+}
+
 /* ---- Admin panel ---- */
 
-.admin-sidebar {
-    position: sticky;
-    top: 1rem;
+/* The sticky navbar is ~56px tall and z-index 1020. The admin sidebar used
+   to stick at top: 1rem with no z-index, so on scroll its heading and first
+   tab slid underneath the navbar and became unreadable. */
+:root {
+    --navbar-h: 3.5rem;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar {
+        position: sticky;
+        top: calc(var(--navbar-h) + 1rem);
+        max-height: calc(100vh - var(--navbar-h) - 2rem);
+        overflow-y: auto;
+    }
+}
+
+/* htmx loading feedback. The markup used the htmx 0.x "load-indicator"
+   attribute, which the current library ignores, so tab switches and debounced
+   searches showed nothing at all while in flight. */
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.htmx-request .htmx-indicator {
+    opacity: 1;
+}
+
+.htmx-request.htmx-indicator {
+    opacity: 1;
 }
 
 /* The admin shell already supplies a gutter (container-fluid.p-3 plus the
@@ -533,9 +592,10 @@ a.stat-card:hover {
     line-height: 1.4;
 }
 
-@media (max-width: 767.98px) {
+@media (max-width: 991.98px) {
     .admin-sidebar {
         position: static;
+        max-height: none;
     }
 
     #admin-tabs {
@@ -549,15 +609,17 @@ a.stat-card:hover {
     }
 }
 
-#admin-tabs-content input[type="text"],
-#admin-tabs-content input[type="search"] {
+/* Spacing for the admin search boxes only. This used to target every
+   text input in the panel, which added 24px between all 17 fields of the
+   injected settings form and made its rhythm nothing like the rest of the
+   app. The search inputs are the only ones with an id of this shape. */
+#admin-tabs-content input[id^="search-input-"] {
     margin: 0.75rem 0;
 }
 
-#admin-tabs-content input[type="text"]:focus,
-#admin-tabs-content input[type="search"]:focus {
-    border-color: var(--bs-primary, #007bff);
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+#admin-tabs-content input[id^="search-input-"]:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.15);
 }
 
 .admin-table thead th {

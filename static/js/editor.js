@@ -105,20 +105,26 @@
         });
 
         document.body.addEventListener("clearForm", function () {
-            var form = document.querySelector("form");
+            // Scoped to the form that owns the editor. This used
+            // document.querySelector("form"), which picks whichever form is
+            // first in the document — on a page carrying the file-picker
+            // that is only correct by accident of DOM order.
+            var editorEl = document.getElementById("editor");
+            var form = editorEl ? editorEl.closest("form") : null;
             if (form) {
                 form.reset();
+                ["categoriesSelect", "tagsSelect"].forEach(function (id) {
+                    var el = form.querySelector("#" + id);
+                    if (el && el.selectize) {
+                        el.selectize.clear();
+                    }
+                });
             }
             var quillEl = document.querySelector(".ql-editor");
             if (quillEl) {
                 quillEl.innerHTML = "";
             }
-            ["categoriesSelect", "tagsSelect"].forEach(function (id) {
-                var el = document.getElementById(id);
-                if (el && el.selectize) {
-                    el.selectize.clear();
-                }
-            });
+            markClean();
         });
     }
 
@@ -217,6 +223,10 @@
         if (match) {
             headers["X-Csrf-Token"] = decodeURIComponent(match[1]);
         }
+        // Open a blank tab synchronously: popup blockers only allow
+        // window.open() inside the user-gesture task, so waiting on the
+        // fetch first gets the window blocked.
+        var tab = window.open("", "_blank");
         fetch("/preview-" + btn.getAttribute("data-preview"), {
             method: "POST",
             headers: headers,
@@ -227,33 +237,49 @@
             }
             return resp.text();
         }).then(function (html) {
-            var tab = window.open("", "_blank");
-            if (tab) {
-                tab.document.write(html);
-                tab.document.close();
+            if (!tab) {
+                throw new Error("popup blocked");
             }
+            // Writing into about:blank leaves the document with an opaque
+            // origin, so every relative asset (/static/css/styles.css, post
+            // images) resolved against about:blank and 404'd. A blob: URL
+            // keeps them relative to the real site.
+            var blobUrl = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+            tab.location.replace(blobUrl);
+            // A preview is not an edit, so stop the unsaved-changes guard
+            // from firing when the admin leaves the editor afterwards.
+            markClean();
         }).catch(function () {
+            if (tab) {
+                tab.close();
+            }
             htmx.trigger(document.body, "showToast", { value: "Preview needs a title" });
         });
     });
 
     // Unsaved-changes guard: navigating away with edits warns first.
-    // Armed only on pages carrying an editor.
+    // Armed only on pages carrying an editor. The flag is module-level so the
+    // preview handler can clear it.
+    var formIsDirty = false;
+
+    function markClean() {
+        formIsDirty = false;
+    }
+
     function initDirtyGuard() {
         if (!document.getElementById("editor")) {
             return;
         }
-        var dirty = false;
         document.addEventListener("input", function (e) {
             if (e.target && e.target.closest && e.target.closest("form")) {
-                dirty = true;
+                formIsDirty = true;
             }
         });
         document.addEventListener("submit", function () {
-            dirty = false;
+            markClean();
         });
         window.addEventListener("beforeunload", function (e) {
-            if (dirty) {
+            if (formIsDirty) {
                 e.preventDefault();
                 e.returnValue = "";
             }
@@ -262,7 +288,7 @@
         var quillTimer = setInterval(function () {
             if (window._goxQuill) {
                 window._goxQuill.on("text-change", function () {
-                    dirty = true;
+                    formIsDirty = true;
                 });
                 clearInterval(quillTimer);
             }

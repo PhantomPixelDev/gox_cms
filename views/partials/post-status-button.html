@@ -1,7 +1,13 @@
-<button id="post-status-button-{{.ID}}"
-    class="btn btn-sm {{if .Published}}btn-secondary{{else}}btn-success{{end}}"
+{{/*
+    Publish/unpublish toggle. Always rendered as a neutral outline button:
+    it used to be btn-success when the post was a draft, which put a green
+    button in the same row as the yellow "Draft" badge and read as
+    "published". Colour now lives only on the status badge.
+*/}}
+<button id="post-status-button-{{.ID}}" class="btn btn-sm btn-outline-secondary"
     hx-post="/toggle-post-status" hx-vals='{"id": "{{.ID}}"}'
     hx-target="#post-status-button-{{.ID}}" hx-swap="outerHTML"
+    aria-label="{{if .Published}}Unpublish this post{{else}}Publish this post{{end}}"
     hx-confirm="Are you sure you want to change the status of this post?">
     {{if .Published}}Unpublish{{else}}Publish{{end}}
 </button>

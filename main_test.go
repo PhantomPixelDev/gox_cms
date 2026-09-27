@@ -949,6 +949,201 @@ func TestAccountProfileUpdate(t *testing.T) {
 	}
 }
 
+// The post editor used to open <form> inside the first column and close it
+// inside the second, so the </div> closing the column popped the form and the
+// image/slug/categories/tags controls were never submitted: the editor could
+// not save anything. This parses the served markup instead of posting fields
+// directly, which is what missed the bug originally.
+func TestPostEditorSidebarInputsAreInsideForm(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+
+	post := model.Post{Title: "Editable", Content: "x", Slug: "editable", UserID: admin.ID}
+	db.Create(&post)
+
+	for _, path := range []string{"/admin/post/add", "/admin/post/edit/" + strconv.Itoa(int(post.ID))} {
+		resp, body := do(t, app, "GET", path, auth)
+		if resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("GET %s: got status %d", path, resp.StatusCode)
+		}
+
+		// Anchor on the post form itself: the admin layout has a logout form
+		// in its topbar that appears earlier in the document.
+		open := strings.Index(body, `<form id="post-form"`)
+		if open < 0 {
+			t.Fatalf("GET %s: no post form", path)
+		}
+		rel := strings.Index(body[open:], "</form>")
+		if rel < 0 {
+			t.Fatalf("GET %s: form never closed", path)
+		}
+		end := open + rel
+
+		// The real invariant: every sidebar control is inside the form.
+		for _, name := range []string{`name="image"`, `name="post_slug"`, `name="categories_input"`, `name="tags_input"`} {
+			idx := strings.Index(body, name)
+			if idx < 0 {
+				t.Errorf("GET %s: missing %s", path, name)
+				continue
+			}
+			if idx < open || idx > end {
+				t.Errorf("GET %s: %s is outside the post <form>", path, name)
+			}
+		}
+
+		// Both columns must be direct flex children of the form, not wrapped
+		// in a div that would close before the second one starts.
+		formHTML := body[open:end]
+		if !strings.Contains(formHTML, `<div class="col-12 col-lg-8">`) ||
+			!strings.Contains(formHTML, `<div class="col-12 col-lg-4">`) {
+			t.Errorf("GET %s: both editor columns are not inside the form", path)
+		}
+	}
+}
+
+// An <a> cannot be a <form>, and only one #result may exist or htmx targets
+// the wrong one.
+func TestPostEditorMarkupSanity(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+
+	for _, path := range []string{"/admin/post/add", "/add-custompage"} {
+		_, body := do(t, app, "GET", path, auth)
+		if n := strings.Count(body, `id="result"`); n > 1 {
+			t.Errorf("GET %s: %d elements share id=result", path, n)
+		}
+		// The dead #toolbar div was never used: editor.js inits Quill without
+		// a container option, so Quill creates its own toolbar.
+		if strings.Contains(body, `id="toolbar"`) {
+			t.Errorf("GET %s: dead #toolbar div is back", path)
+		}
+		// The label pointed at #content, which does not exist.
+		if strings.Contains(body, `for="content"`) {
+			t.Errorf("GET %s: label still points at the non-existent #content", path)
+		}
+	}
+}
+
+// The admin layout replaces the public navbar/footer, which contain no link
+// back to /admin.
+func TestAdminLayoutDropsPublicChrome(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+
+	for _, path := range []string{"/admin", "/admin/post/add", "/add-custompage"} {
+		_, body := do(t, app, "GET", path, auth)
+		if !strings.Contains(body, `class="container-fluid admin-shell"`) &&
+			!strings.Contains(body, "admin-shell") {
+			t.Errorf("GET %s: not rendered with the admin layout", path)
+		}
+		if !strings.Contains(body, "View site") {
+			t.Errorf("GET %s: no way back to the public site", path)
+		}
+		// The public navbar partial is the thing being removed.
+		if strings.Contains(body, "get-primary-menu") {
+			t.Errorf("GET %s: still loads the public navbar", path)
+		}
+		if strings.Contains(body, "<footer") {
+			t.Errorf("GET %s: still renders the public footer", path)
+		}
+	}
+}
+
+// The site template set swaps the public markup. "simple" must be
+// framework-free, which is the whole point of adding it.
+func TestSiteTemplateSwitch(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	_, defaultBody := do(t, app, "GET", "/")
+	if !strings.Contains(defaultBody, "navbar-expand-lg") {
+		t.Error("default set should render the Bootstrap navbar")
+	}
+
+	form := url.Values{"name": {"GoX CMS"}, "site_template": {"simple"}, "container_class": {"container"}}
+	if resp, _ := postForm(t, app, "/update-settings", form, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("switch to simple: got status %d", resp.StatusCode)
+	}
+
+	_, simple := do(t, app, "GET", "/")
+	if !strings.Contains(simple, "site-simple.css") {
+		t.Error("simple set did not load its own stylesheet")
+	}
+	if strings.Contains(simple, "bootstrap.min.css") {
+		t.Error("simple set loaded a Bootstrap stylesheet; it is meant to be framework-free")
+	}
+	if strings.Contains(simple, "navbar-expand-lg") {
+		t.Error("simple set still renders the Bootstrap navbar")
+	}
+	if !strings.Contains(simple, "<main id=\"main-content\"") {
+		t.Error("simple layout is missing the main landmark")
+	}
+
+	// Blog, search and 404 must all follow the switch, not just the home page.
+	for _, path := range []string{"/blog", "/search?q=welcome"} {
+		_, body := do(t, app, "GET", path)
+		if !strings.Contains(body, "site-simple.css") {
+			t.Errorf("GET %s: simple set not applied", path)
+		}
+	}
+	resp, notFound := do(t, app, "GET", "/definitely-not-a-page")
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("404 handler: got status %d", resp.StatusCode)
+	}
+	if !strings.Contains(notFound, "site-simple.css") {
+		t.Error("404 did not follow the template set")
+	}
+
+	// An unknown value must fall back rather than 500 on a missing template.
+	db.Model(&model.BasicWebsiteInfo{}).Where("1 = 1").Update("site_template", "does-not-exist")
+	handlers.ReloadSiteSettings(db)
+	if resp, _ := do(t, app, "GET", "/"); resp.StatusCode != fiber.StatusOK {
+		t.Errorf("unknown template set: got status %d, want a default-set fallback", resp.StatusCode)
+	}
+}
+
+// A custom page resolves inside the active set.
+func TestCustomPageFollowsTemplateSet(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	form := url.Values{
+		"title": {"Contact"}, "content": {"<p>Reach us</p>"}, "slug": {"contact"},
+		"template": {"page"}, "csrf_token": {token.Value},
+	}
+	if resp, _ := postForm(t, app, "/add-custompage", form, token, auth); resp.StatusCode >= 400 {
+		t.Fatalf("add custom page: got status %d", resp.StatusCode)
+	}
+
+	_, def := do(t, app, "GET", "/contact")
+	if strings.Contains(def, "site-simple.css") {
+		t.Fatal("custom page rendered the simple set before the switch")
+	}
+
+	settingsForm := url.Values{"name": {"GoX CMS"}, "site_template": {"simple"}, "container_class": {"container"}}
+	if resp, _ := postForm(t, app, "/update-settings", settingsForm, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("switch: got status %d", resp.StatusCode)
+	}
+
+	resp, simple := do(t, app, "GET", "/contact")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("GET /contact: got status %d", resp.StatusCode)
+	}
+	if !strings.Contains(simple, "site-simple.css") {
+		t.Error("custom page did not follow the template set")
+	}
+	if !strings.Contains(simple, "Reach us") {
+		t.Error("custom page content missing")
+	}
+}
+
 func TestMenuCreatorRendersNestedItems(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)

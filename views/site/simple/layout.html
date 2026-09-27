@@ -1,0 +1,93 @@
+{{/*
+    "simple" site template layout.
+
+    Framework-free by design: no Bootstrap stylesheet, no Bootstrap Icons and
+    no Bootswatch theme — just plain HTML and /static/css/site-simple.css.
+    htmx is still loaded because the navbar's logout button posts through it.
+*/}}<!DOCTYPE html>
+<html data-bs-theme="{{ if .Settings.InitialTheme }}{{ .Settings.InitialTheme }}{{ else }}light{{ end }}"
+    lang="{{ .Settings.Language }}">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ if .Title }}{{ .Title }} - {{ end }}{{ .Settings.Name }}</title>
+    <meta name="description" content="{{ .Settings.SEODescription }}">
+    <meta name="color-scheme" content="light dark">
+    {{ if .Settings.FaviconURL }}
+    <link rel="icon" href="{{ .Settings.FaviconURL }}">
+    {{ end }}
+    <link rel="stylesheet" href="/static/css/site-simple.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"
+        integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xSi8nO7UC"
+        crossorigin="anonymous" defer></script>
+    <script src="/static/js/site.js" defer></script>
+</head>
+
+<body>
+    <a class="visually-hidden" href="#main-content">Skip to content</a>
+
+    <header class="site-head">
+        <div class="bar wrap-wide">
+            <a class="brand" href="/">{{ .Settings.Name }}</a>
+
+            <nav class="site-nav" aria-label="Main">
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/blog">Blog</a></li>
+                    <li><a href="/search">Search</a></li>
+                </ul>
+            </nav>
+
+            <div class="tools">
+                <form class="search-form" action="/search" method="get" role="search">
+                    <label for="site-search" class="visually-hidden">Search</label>
+                    <input type="search" id="site-search" name="q" placeholder="Search…">
+                    <button class="btn" type="submit">Go</button>
+                </form>
+
+                <button class="btn" type="button" data-theme-toggle aria-label="Toggle dark mode"
+                    aria-pressed="false">Dark</button>
+
+                {{ if .IsLoggedIn }}
+                <a class="btn" href="/account">Account</a>
+                <button class="btn" type="button" hx-post="/logout" hx-swap="none" hx-target="body"
+                    hx-headers='{"X-No-Cache": "true"}' hx-confirm="Log out?">Log out</button>
+                {{ else }}
+                <a class="btn" href="/login">Log in</a>
+                {{ end }}
+            </div>
+        </div>
+    </header>
+
+    <div class="wrap">
+        <main id="main-content">
+            {{embed}}
+        </main>
+    </div>
+
+    <footer class="site-foot">
+        <div class="wrap-wide">
+            <p>{{ .Settings.FooterText }}</p>
+            <p class="small">
+                <a href="/">Home</a> &middot;
+                <a href="/blog">Blog</a> &middot;
+                <a href="/search">Search</a>
+                {{ if .IsLoggedIn }}&middot; <a href="/admin">Admin</a>{{ else }}&middot;
+                <a href="/login">Log in</a>{{ end }}
+            </p>
+        </div>
+    </footer>
+
+    <div class="toast-stack" aria-live="assertive" aria-atomic="true">
+        <div class="toast" id="toast" role="alert">
+            <div id="toast-body"></div>
+        </div>
+        <div class="toast is-error" id="toast-error" role="alert">
+            <div id="toast-body-error"></div>
+        </div>
+    </div>
+
+</body>
+
+</html>
