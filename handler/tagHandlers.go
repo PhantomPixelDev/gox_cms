@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"goxcms/model"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -12,20 +11,13 @@ import (
 
 func BlogTagPage(c *fiber.Ctx, db *gorm.DB) error {
 	slug := c.Params("slug")
-	page := c.Params("page")
 
 	if slug == "" {
 		return c.Redirect("/blog")
 	}
 
-	if page == "" {
-		page = "1"
-	}
-
-	pageNumber, err := strconv.Atoi(page)
-	if err != nil || pageNumber < 1 {
-		pageNumber = 1
-	}
+	// Clamped: see clampPage.
+	pageNumber := clampPage(c.Params("page"))
 
 	postsPerPage := 5
 
@@ -170,7 +162,11 @@ func AddTag(c *fiber.Ctx, db *gorm.DB) error {
 
 func DeleteTag(c *fiber.Ctx, db *gorm.DB) error {
 
-	id := c.Query("id")
+	id, ok := parseIDParam(c.Query("id"))
+	if !ok {
+		ShowToastError(c, "Invalid tag ID")
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid tag ID")
+	}
 
 	var tag model.Tag
 
@@ -190,5 +186,5 @@ func DeleteTag(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Error deleting tag")
 	}
 
-	return ShowToast(c, "Tag with ID "+id+" deleted successfully")
+	return ShowToast(c, "Tag deleted successfully")
 }

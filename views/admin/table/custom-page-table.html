@@ -1,36 +1,51 @@
-
 <div class="table-responsive mt-3">
     <table class="table table-hover table-bordered table-striped align-middle admin-table">
-  
+
         <thead>
             <tr>
                 <th scope="col">ID</th>
-                <th>Page Name</th>
-                <th>Slug</th>
-                <th>Preview</th>
-                <th>Edit</th>
-                <th>Delete</th>
-
+                <th scope="col">Page Name</th>
+                <th scope="col">Slug</th>
+                <th scope="col">Status</th>
+                <th scope="col">View</th>
+                <th scope="col">Edit</th>
+                <th scope="col">Delete</th>
             </tr>
         </thead>
         <tbody>
             {{range .CustomPages}}
             <tr id="custompage-row-{{.ID}}">
                 <td>{{.ID}}</td>
-                <td>{{.Title }}</td>
-                <td>{{.Slug}}</td>
+                <td>{{.Title}}</td>
+                <td><code>{{.Slug}}</code></td>
                 <td>
-                    <a href="/{{.Slug}}" class="btn btn-sm btn-primary" target="_blank" rel="noopener" aria-label="View page"><i class="bi bi-eye"></i></a>
-                    
+                    {{if .Published}}
+                    <span class="badge text-bg-success">Published</span>
+                    {{else}}
+                    <span class="badge text-bg-warning">Draft</span>
+                    {{end}}
                 </td>
                 <td>
-                    <a href="/edit-custompage/{{.ID}}" class="btn btn-sm btn-warning" aria-label="Edit page"><i class="bi bi-pencil"></i></a>
+                    <a href="/{{.Slug}}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener"
+                        aria-label="View page {{.Title}} on the site" title="View on the site"><i
+                            class="bi bi-eye" aria-hidden="true"></i></a>
                 </td>
                 <td>
-                    <button class="btn btn-sm btn-danger" hx-delete="/delete-custompage/{{.ID}}" 
-                    hx-confirm="Are you sure you want to delete this custom page?" hx-target="#custompage-row-{{.ID}}"
-                    hx-swap="outerHTML">Delete</button>
+                    <a href="/edit-custompage/{{.ID}}" class="btn btn-sm btn-outline-secondary"
+                        aria-label="Edit page {{.Title}}" title="Edit"><i class="bi bi-pencil"
+                            aria-hidden="true"></i></a>
                 </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger" hx-delete="/delete-custompage/{{.ID}}"
+                        hx-confirm="Are you sure you want to delete this custom page?" hx-target="#custompage-row-{{.ID}}"
+                        hx-swap="outerHTML" aria-label="Delete page {{.Title}}">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="7" class="text-center text-muted py-4">No pages match this search.</td>
             </tr>
             {{end}}
 
@@ -40,13 +55,4 @@
 
 </div>
 
-
-
-
 {{template "partials/pagination" dict "Base" "/search-custompages" "Target" "#custompage-table-container" "TotalPages" .TotalPages "CurrentPage" .CurrentPage "SearchQuery" .SearchQuery}}
-
-
-
-
-
-

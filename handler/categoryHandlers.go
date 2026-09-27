@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"goxcms/model"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -11,20 +10,13 @@ import (
 
 func BlogCategoryPage(c *fiber.Ctx, db *gorm.DB) error {
 	slug := c.Params("slug")
-	page := c.Params("page")
 
 	if slug == "" {
 		return c.Redirect("/blog")
 	}
 
-	if page == "" {
-		page = "1"
-	}
-
-	pageNumber, err := strconv.Atoi(page)
-	if err != nil || pageNumber < 1 {
-		pageNumber = 1
-	}
+	// Clamped: see clampPage.
+	pageNumber := clampPage(c.Params("page"))
 
 	postsPerPage := 5
 
@@ -112,7 +104,11 @@ func AddCategory(c *fiber.Ctx, db *gorm.DB) error {
 }
 
 func DeleteCategory(c *fiber.Ctx, db *gorm.DB) error {
-	id := c.Query("id")
+	id, ok := parseIDParam(c.Query("id"))
+	if !ok {
+		ShowToastError(c, "Invalid category ID")
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid category ID")
+	}
 	var category model.Category
 
 	// Find the category

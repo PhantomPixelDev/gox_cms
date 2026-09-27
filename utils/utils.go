@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"log"
 	"math/big"
+	"net"
 	"os"
 	"regexp"
 	"strings"
@@ -41,12 +42,12 @@ func InitConfig() {
 	viper.SetDefault("server.host", "localhost")
 	viper.SetDefault("server.port", "3000")
 	viper.SetDefault("server.prefork", false)
-	viper.SetDefault("build.mode", "development")
+	viper.SetDefault("build.mode", "production")
 	viper.SetDefault("database.driver", "sqlite")
-	viper.SetDefault("database.sqlite.dsn", "./goxcms.db")
+	viper.SetDefault("database.sqlite.dsn", "./data/database.sqlite")
 	viper.SetDefault("upload.max_size_mb", 50)
-	viper.SetDefault("ratelimiter.enabled", false)
-	viper.SetDefault("ratelimiter.max_requests", 10)
+	viper.SetDefault("ratelimiter.enabled", true)
+	viper.SetDefault("ratelimiter.max_requests", 100)
 	viper.SetDefault("redis.enabled", false)
 	viper.SetDefault("redis.host", "localhost")
 	viper.SetDefault("redis.port", 6379)
@@ -237,14 +238,30 @@ func SetupStore(app *fiber.App) *session.Store {
 	return store
 }
 
+// rateLimitWindow is the fixed-window length for the global limiter.
+const rateLimitWindow = 30 * time.Second
+
 func SetupRateLimiter(app *fiber.App, store *session.Store) {
 	if viper.GetBool("ratelimiter.enabled") {
 		log.Println("Rate limiter enabled")
 		app.Use(limiter.New(limiter.Config{
 			Max:        viper.GetInt("ratelimiter.max_requests"),
-			Expiration: 30 * time.Second,
+			Expiration: rateLimitWindow,
+			// Keyed on the socket peer, not c.IP(): the latter is taken from
+			// X-Forwarded-For for anything inside server.trusted_proxies, so
+			// rotating the header would reset the budget. Static assets are
+			// skipped so a page pulling its CSS/JS cannot exhaust the window.
 			KeyGenerator: func(c *fiber.Ctx) string {
-				return c.IP()
+				addr := c.Context().RemoteAddr().String()
+				if host, _, err := net.SplitHostPort(addr); err == nil {
+					return host
+				}
+				return addr
+			},
+			// Never limit the health check: an orchestrator probing at a fixed
+			// interval must not be able to lock itself out.
+			Next: func(c *fiber.Ctx) bool {
+				return c.Path() == "/healthz" || strings.HasPrefix(c.Path(), "/static/")
 			},
 			LimitReached: func(c *fiber.Ctx) error {
 				return c.Status(fiber.StatusTooManyRequests).SendString("Rate limit exceeded")

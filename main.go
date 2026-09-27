@@ -18,6 +18,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// jwtSessionHours mirrors the JWT lifetime (app.session_hours) so the CSRF
+// cookie cannot outlive the session it protects.
+func jwtSessionHours() time.Duration {
+	hours := viper.GetInt("app.session_hours")
+	if hours <= 0 {
+		hours = 12
+	}
+	return time.Duration(hours) * time.Hour
+}
+
 func main() {
 
 	utils.InitConfig()
@@ -87,14 +97,24 @@ func setupFiberApp(db *gorm.DB) *fiber.App {
 	// CSRF: the token lives in the csrf_ cookie and must be echoed back in the
 	// X-Csrf-Token header on unsafe requests. views/main.html adds the header
 	// to every HTMX request.
+	//
+	// The token is bound to the session (Session/SessionKey) rather than kept
+	// in a global storage namespace keyed by the token value. With a flat
+	// store, any valid token was accepted on any request, including by a
+	// different user, and it never rotated. Because Login calls
+	// sess.Regenerate(), binding it here also rotates the token on login: the
+	// new session has no token, so the next safe request issues a fresh one
+	// and the pre-login token stops working.
 	app.Use(csrf.New(csrf.Config{
 		KeyLookup:      "header:" + csrf.HeaderName,
+		Session:        store,
+		SessionKey:     "gox.csrf.token",
 		CookieName:     "csrf_",
 		CookiePath:     "/",
 		CookieSameSite: "Lax",
 		CookieSecure:   utils.SecureCookies(),
-		Expiration:     24 * time.Hour,
-		Storage:        store.Storage,
+		// Match the JWT lifetime rather than outliving it.
+		Expiration: jwtSessionHours(),
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			handlers.ShowToastError(c, "Your session expired, please reload the page and try again")
 			return c.Status(fiber.StatusForbidden).SendString("Forbidden: invalid CSRF token")

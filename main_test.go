@@ -271,7 +271,10 @@ func TestUnpublishedPostIs404ForAnonymous(t *testing.T) {
 
 // csrfCookie fetches a page to obtain the CSRF cookie that unsafe requests
 // must echo back in the X-Csrf-Token header.
-func csrfCookie(t *testing.T, app *fiber.App, cookies ...*http.Cookie) *http.Cookie {
+// csrfCookies returns the cookies a safe GET hands back for CSRF: the token
+// cookie plus the session cookie the token is bound to. Both must be sent on
+// the unsafe request, which is why this returns a slice.
+func csrfCookies(t *testing.T, app *fiber.App, cookies ...*http.Cookie) []*http.Cookie {
 	t.Helper()
 	req := httptest.NewRequest("GET", "/login", nil)
 	for _, c := range cookies {
@@ -281,23 +284,37 @@ func csrfCookie(t *testing.T, app *fiber.App, cookies ...*http.Cookie) *http.Coo
 	if err != nil {
 		t.Fatal(err)
 	}
+	var token, session *http.Cookie
 	for _, c := range resp.Cookies() {
-		if c.Name == "csrf_" {
-			return c
+		switch c.Name {
+		case "csrf_":
+			token = c
+		case "session_id":
+			session = c
 		}
 	}
-	t.Fatal("no csrf_ cookie set on GET /login")
-	return nil
+	if token == nil {
+		t.Fatal("no csrf_ cookie set on GET /login")
+	}
+	if session == nil {
+		t.Fatal("no session_id cookie set on GET /login")
+	}
+	return []*http.Cookie{token, session}
 }
 
-func postForm(t *testing.T, app *fiber.App, path string, form url.Values, csrf *http.Cookie, cookies ...*http.Cookie) (*http.Response, string) {
+func postForm(t *testing.T, app *fiber.App, path string, form url.Values, csrfCookies []*http.Cookie, cookies ...*http.Cookie) (*http.Response, string) {
 	t.Helper()
 	req := httptest.NewRequest("POST", path, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("HX-Request", "true")
-	if csrf != nil {
-		req.AddCookie(csrf)
-		req.Header.Set("X-Csrf-Token", csrf.Value)
+	for _, c := range csrfCookies {
+		if c == nil {
+			continue
+		}
+		if c.Name == "csrf_" {
+			req.Header.Set("X-Csrf-Token", c.Value)
+		}
+		req.AddCookie(c)
 	}
 	for _, c := range cookies {
 		req.AddCookie(c)
@@ -325,7 +342,7 @@ func TestCSRFTokenRequiredForUnsafeRequests(t *testing.T) {
 		t.Fatalf("POST without CSRF token: got status %d, want 403", resp.StatusCode)
 	}
 
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 	if resp, _ := postForm(t, app, "/toggle-post-status", form, token, auth); resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("POST with CSRF token: got status %d, want 200", resp.StatusCode)
 	}
@@ -339,7 +356,7 @@ func TestCSRFTokenRequiredForUnsafeRequests(t *testing.T) {
 func TestLoginSetsSessionCookie(t *testing.T) {
 	app, db := newTestApp(t)
 	createUser(t, db, "alice", model.RoleUser)
-	token := csrfCookie(t, app)
+	token := csrfCookies(t, app)
 
 	resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token)
 	if resp.StatusCode != fiber.StatusOK || resp.Header.Get("HX-Redirect") != "/" {
@@ -356,10 +373,53 @@ func TestLoginSetsSessionCookie(t *testing.T) {
 		t.Fatalf("login did not set an HttpOnly jwt cookie: %+v", jwtCookie)
 	}
 
-	resp, _ = postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"wrong"}}, token)
+	// A fresh anonymous token: the one used for the successful login is dead
+	// now that the session was rotated.
+	resp, _ = postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"wrong"}}, csrfCookies(t, app))
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("login with wrong password: got status %d, want 401", resp.StatusCode)
 	}
+
+	// The pre-login token must no longer be accepted anywhere: the token is
+	// bound to the session and rotates on login.
+	if resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token); resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("pre-login CSRF token after login: got status %d, want 403", resp.StatusCode)
+	}
+}
+
+// login performs a login the way a browser does and returns the cookies
+// needed for subsequent unsafe requests.
+//
+// The CSRF token must be re-fetched after logging in: Login regenerates the
+// session, and the token is bound to that session. That is deliberate — it is
+// the token rotation on privilege change — so a pre-login token is expected to
+// stop working, and this helper reproduces the redirect-then-refetch a browser
+// performs.
+func login(t *testing.T, app *fiber.App, username, password string, extra ...*http.Cookie) (*http.Cookie, []*http.Cookie) {
+	t.Helper()
+	pre := csrfCookies(t, app, extra...)
+	resp, _ := postForm(t, app, "/login", url.Values{"username": {username}, "password": {password}}, pre, extra...)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("login: got status %d", resp.StatusCode)
+	}
+	var jwtCookie, newSession *http.Cookie
+	for _, c := range resp.Cookies() {
+		switch c.Name {
+		case "jwt":
+			jwtCookie = c
+		case "session_id":
+			newSession = c
+		}
+	}
+	if jwtCookie == nil {
+		t.Fatal("login did not set a jwt cookie")
+	}
+	if newSession == nil {
+		t.Fatal("login did not rotate the session cookie")
+	}
+	carried := append([]*http.Cookie{}, extra...)
+	carried = append(carried, jwtCookie, newSession)
+	return jwtCookie, csrfCookies(t, app, carried...)
 }
 
 func enableRegistration(t *testing.T, db *gorm.DB) {
@@ -376,7 +436,7 @@ func TestRegisterDisabledByDefault(t *testing.T) {
 	if resp, _ := do(t, app, "GET", "/register"); resp.StatusCode != fiber.StatusFound {
 		t.Errorf("GET /register while disabled: got status %d, want 302 to /login", resp.StatusCode)
 	}
-	token := csrfCookie(t, app)
+	token := csrfCookies(t, app)
 	form := url.Values{"username": {"newuser"}, "password": {"secret123"}, "first_name": {"New"}, "last_name": {"User"}}
 	if resp, _ := postForm(t, app, "/register", form, token); resp.StatusCode != fiber.StatusForbidden {
 		t.Errorf("POST /register while disabled: got status %d, want 403", resp.StatusCode)
@@ -386,7 +446,7 @@ func TestRegisterDisabledByDefault(t *testing.T) {
 func TestRegisterWorksWithCaptchaDisabled(t *testing.T) {
 	app, db := newTestApp(t)
 	enableRegistration(t, db)
-	token := csrfCookie(t, app)
+	token := csrfCookies(t, app)
 
 	form := url.Values{
 		"username":   {"newuser"},
@@ -412,7 +472,7 @@ func TestPostSlugMustBeUnique(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	first := model.Post{Title: "First", Content: "one", Slug: "first"}
 	second := model.Post{Title: "Second", Content: "two", Slug: "second"}
@@ -455,9 +515,10 @@ func TestCustomPagesAreServedWithoutRestart(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
-	form := url.Values{"title": {"Contact"}, "content": {"<p>Contact us</p>"}, "slug": {"contact"}, "template": {"page"}}
+	form := url.Values{"title": {"Contact"}, "content": {"<p>Contact us</p>"}, "slug": {"contact"},
+		"template": {"page"}, "published": {"on"}}
 	postForm(t, app, "/add-custompage", form, token, auth)
 
 	resp, body := do(t, app, "GET", "/contact")
@@ -516,7 +577,7 @@ func TestUpdateSettings(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	form := url.Values{"name": {"New Name"}, "theme": {"darkly"}, "container_class": {"container"}}
 	if resp, _ := postForm(t, app, "/update-settings", form, token, auth); resp.StatusCode != fiber.StatusOK {
@@ -548,7 +609,7 @@ func TestTagCategoryCRUD(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	tagForm := url.Values{"tag_name": {"Go"}, "tag_slug": {"go"}}
 	if resp, _ := postForm(t, app, "/add-tag", tagForm, token, auth); resp.StatusCode != fiber.StatusOK {
@@ -577,9 +638,13 @@ func TestTagCategoryCRUD(t *testing.T) {
 		t.Helper()
 		req := httptest.NewRequest("DELETE", path+"?id="+strconv.Itoa(int(tag.ID)), nil)
 		req.Header.Set("HX-Request", "true")
-		req.AddCookie(token)
 		req.AddCookie(auth)
-		req.Header.Set("X-Csrf-Token", token.Value)
+		for _, c := range token {
+			req.AddCookie(c)
+			if c.Name == "csrf_" {
+				req.Header.Set("X-Csrf-Token", c.Value)
+			}
+		}
 		resp, err := app.Test(req, -1)
 		if err != nil {
 			t.Fatal(err)
@@ -595,7 +660,7 @@ func TestCommentModeration(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 	post := model.Post{Title: "P", Content: "x", Slug: "p", Published: true, UserID: admin.ID}
 	db.Create(&post)
 	comment := model.Comment{Content: "hello", UserID: admin.ID, PostID: post.ID, Status: "pending"}
@@ -619,7 +684,7 @@ func TestUploadRoundTrip(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 	viper.Set("upload.max_size_mb", 1)
 
 	// Minimal bytes that sniff as image/png.
@@ -632,9 +697,13 @@ func TestUploadRoundTrip(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/upload-file", strings.NewReader(buf.String()))
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	req.Header.Set("X-Csrf-Token", token.Value)
-	req.AddCookie(token)
 	req.AddCookie(auth)
+	for _, c := range token {
+		req.AddCookie(c)
+		if c.Name == "csrf_" {
+			req.Header.Set("X-Csrf-Token", c.Value)
+		}
+	}
 	resp, err := app.Test(req, -1)
 	if err != nil {
 		t.Fatal(err)
@@ -653,7 +722,7 @@ func TestPluginToggle(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	if resp, _ := postForm(t, app, "/admin/plugins/enable/LatestPostsPlugin", url.Values{}, token, auth); resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("toggle plugin: got status %d", resp.StatusCode)
@@ -672,7 +741,7 @@ func TestClearCache(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	if resp, _ := postForm(t, app, "/clear-cache", url.Values{}, token, auth); resp.StatusCode != fiber.StatusOK {
 		t.Errorf("clear cache: got status %d, want 200", resp.StatusCode)
@@ -731,7 +800,7 @@ func TestPreviewEndpoints(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	// Anonymous users cannot render previews.
 	if resp, _ := postForm(t, app, "/preview-post", url.Values{"title": {"Hi"}}, token); !isDenied(resp.StatusCode) {
@@ -758,7 +827,7 @@ func TestAddTaxonomyInline(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	form := url.Values{"kind": {"tag"}, "name": {"Fresh Tag"}}
 	resp, body := postForm(t, app, "/add-taxonomy", form, token, auth)
@@ -783,7 +852,7 @@ func TestBulkActions(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	p1 := model.Post{Title: "B1", Content: "x", Slug: "bulk-1", UserID: admin.ID}
 	p2 := model.Post{Title: "B2", Content: "x", Slug: "bulk-2", UserID: admin.ID}
@@ -903,7 +972,7 @@ func TestAccountProfileUpdate(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	// The page must show the signed-in user, not just a password form.
 	_, page := do(t, app, "GET", "/account", auth)
@@ -1058,7 +1127,7 @@ func TestSiteTemplateSwitch(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	_, defaultBody := do(t, app, "GET", "/")
 	if !strings.Contains(defaultBody, "navbar-expand-lg") {
@@ -1112,11 +1181,11 @@ func TestCustomPageFollowsTemplateSet(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	form := url.Values{
 		"title": {"Contact"}, "content": {"<p>Reach us</p>"}, "slug": {"contact"},
-		"template": {"page"}, "csrf_token": {token.Value},
+		"template": {"page"}, "published": {"on"},
 	}
 	if resp, _ := postForm(t, app, "/add-custompage", form, token, auth); resp.StatusCode >= 400 {
 		t.Fatalf("add custom page: got status %d", resp.StatusCode)
@@ -1141,6 +1210,265 @@ func TestCustomPageFollowsTemplateSet(t *testing.T) {
 	}
 	if !strings.Contains(simple, "Reach us") {
 		t.Error("custom page content missing")
+	}
+}
+
+// GORM treats a non-numeric string passed to First() as a raw SQL fragment,
+// and an *empty* one as no condition at all. Both were reachable from three
+// admin endpoints, so this asserts injection and no-id are rejected and that
+// nothing is mutated.
+func TestIDParamsAreNotRawSQL(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookies(t, app, auth)
+
+	older := model.Post{Title: "Older", Content: "x", Slug: "older", UserID: admin.ID, Published: true}
+	newer := model.Post{Title: "Newer", Content: "x", Slug: "newer", UserID: admin.ID, Published: false}
+	db.Create(&older)
+	db.Create(&newer)
+	tag := model.Tag{Name: "Keep", Slug: "keep"}
+	db.Create(&tag)
+	cat := model.Category{Name: "KeepCat", Slug: "keepcat"}
+	db.Create(&cat)
+
+	// Injection attempts and an absent id, all of which used to be executed
+	// verbatim (and the empty one hit row #1).
+	for _, id := range []string{"1 OR 1=1", "1; DROP TABLE posts", "", "0", "-1", "abc", "1 UNION SELECT 1"} {
+		esc := url.QueryEscape(id)
+		if resp, _ := postForm(t, app, "/toggle-post-status",
+			url.Values{"id": {id}}, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+			t.Errorf("toggle-post-status id=%q: got status %d, want 400", id, resp.StatusCode)
+		}
+		if resp, _ := deleteReq(t, app, "/delete-tag?id="+esc, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+			t.Errorf("delete-tag id=%q: got status %d, want 400", id, resp.StatusCode)
+		}
+		if resp, _ := deleteReq(t, app, "/delete-category?id="+esc, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+			t.Errorf("delete-category id=%q: got status %d, want 400", id, resp.StatusCode)
+		}
+	}
+
+	// Nothing was touched: no row flipped, nothing deleted. Counted by slug
+	// because newTestApp seeds demo tags and categories.
+	var published, draft int64
+	db.Model(&model.Post{}).Where("slug = ? AND published = ?", "older", true).Count(&published)
+	db.Model(&model.Post{}).Where("slug = ? AND published = ?", "newer", false).Count(&draft)
+	if published != 1 || draft != 1 {
+		t.Errorf("posts were mutated: older published=%d newer draft=%d", published, draft)
+	}
+	var keepTag, keepCat int64
+	db.Model(&model.Tag{}).Where("slug = ?", "keep").Count(&keepTag)
+	db.Model(&model.Category{}).Where("slug = ?", "keepcat").Count(&keepCat)
+	if keepTag != 1 || keepCat != 1 {
+		t.Errorf("rows were deleted: tag=%d category=%d", keepTag, keepCat)
+	}
+
+	// A real id still works, so the fix did not break the happy path.
+	if resp, _ := postForm(t, app, "/toggle-post-status",
+		url.Values{"id": {strconv.Itoa(int(newer.ID))}}, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Errorf("valid toggle: got status %d, want 200", resp.StatusCode)
+	}
+}
+
+// A custom page is a draft until published. The catch-all used to filter on
+// slug only, so every page an admin saved went live immediately.
+func TestUnpublishedCustomPageIsNotServed(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookies(t, app, auth)
+
+	draft := url.Values{"title": {"Draft"}, "content": {"<p>secret</p>"}, "slug": {"draft"},
+		"template": {"page"}}
+	if resp, _ := postForm(t, app, "/add-custompage", draft, token, auth); resp.StatusCode >= 400 {
+		t.Fatalf("add draft: got status %d", resp.StatusCode)
+	}
+	resp, body := do(t, app, "GET", "/draft")
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("draft page: got status %d, want 404", resp.StatusCode)
+	}
+	if strings.Contains(body, "secret") {
+		t.Error("draft page content leaked into the 404 response")
+	}
+
+	// Publishing it makes it public.
+	page := model.CustomPage{}
+	db.Where("slug = ?", "draft").First(&page)
+	page.Published = true
+	db.Save(&page)
+	if resp, body := do(t, app, "GET", "/draft"); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "secret") {
+		t.Errorf("published page: got status %d", resp.StatusCode)
+	}
+}
+
+// The CSRF token is bound to the session, so a token minted for one visitor
+// must not authenticate a request carrying a different session.
+func TestCSRFTokenIsSessionBound(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	victimSession := csrfCookies(t, app)
+	attackerSession := csrfCookies(t, app)
+
+	var victimToken string
+	for _, c := range victimSession {
+		if c.Name == "csrf_" {
+			victimToken = c.Value
+		}
+	}
+	if victimToken == "" {
+		t.Fatal("no victim csrf token")
+	}
+
+	req := httptest.NewRequest("POST", "/login", strings.NewReader("username=admin&password=admin1234"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// The attacker's session cookie, but the victim's token value.
+	for _, c := range attackerSession {
+		req.AddCookie(c)
+	}
+	req.Header.Set("X-Csrf-Token", victimToken)
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("cross-session token: got status %d, want 403", resp.StatusCode)
+	}
+}
+
+// Public list routes took c.Params("page") and only rejected < 1, so a huge
+// page number became an offset that forces a full table scan.
+func TestPublicPaginationIsClamped(t *testing.T) {
+	app, db := newTestApp(t)
+	for i := 0; i < 25; i++ {
+		db.Create(&model.Post{
+			Title:     "P" + strconv.Itoa(i),
+			Content:   "x",
+			Slug:      "p" + strconv.Itoa(i),
+			Published: true,
+		})
+	}
+	cat := model.Category{Name: "News", Slug: "news"}
+	db.Create(&cat)
+	db.Exec("INSERT INTO post_categories (post_id, category_id) SELECT id, ? FROM posts", cat.ID)
+
+	for _, path := range []string{"/blog/99999999", "/blog/0", "/blog/-5", "/blog/abc",
+		"/blog/category/news/99999999", "/blog/tag/nope/99999999"} {
+		resp, body := do(t, app, "GET", path)
+		if resp.StatusCode >= 500 {
+			t.Errorf("GET %s: got status %d", path, resp.StatusCode)
+		}
+		if resp.StatusCode == fiber.StatusOK && len(body) > 400_000 {
+			t.Errorf("GET %s: response was %d bytes; the page cap did not apply", path, len(body))
+		}
+	}
+	// A real page still renders posts. Newest first, so page 1 is the highest
+	// indices, not "P0".
+	resp, body := do(t, app, "GET", "/blog/1")
+	if resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "/blog/post/p") {
+		t.Errorf("blog page 1: got status %d, no post links", resp.StatusCode)
+	}
+}
+
+// A one-character query would be a full scan of every content blob.
+func TestSearchRequiresTwoCharacters(t *testing.T) {
+	app, db := newTestApp(t)
+	db.Create(&model.Post{Title: "Findable", Content: "needle here", Slug: "findable", Published: true})
+
+	resp, body := do(t, app, "GET", "/search?q=a")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("short search: got status %d", resp.StatusCode)
+	}
+	if strings.Contains(body, "Findable") {
+		t.Error("a one-character query ran the search instead of being rejected")
+	}
+	if !strings.Contains(body, "at least 2 characters") {
+		t.Error("short query gave no guidance")
+	}
+	if _, body := do(t, app, "GET", "/search?q=needle"); !strings.Contains(body, "Findable") {
+		t.Error("a real query no longer finds anything")
+	}
+}
+
+func TestAdminResponsesAreNotStored(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+
+	req := httptest.NewRequest("GET", "/admin", nil)
+	req.AddCookie(auth)
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resp.Header.Get("Cache-Control"); !strings.Contains(got, "no-store") {
+		t.Errorf("GET /admin Cache-Control = %q, want no-store", got)
+	}
+	if got := resp.Header.Get("Vary"); !strings.Contains(got, "Cookie") {
+		t.Errorf("GET /admin Vary = %q, want Cookie", got)
+	}
+	// The extra hardening headers.
+	if resp.Header.Get("Cross-Origin-Opener-Policy") != "same-origin" {
+		t.Error("missing Cross-Origin-Opener-Policy")
+	}
+	if !strings.Contains(resp.Header.Get("Content-Security-Policy"), "script-src-attr 'none'") {
+		t.Error("CSP is missing script-src-attr 'none'")
+	}
+}
+
+// database.InitDB appends the pragmas to the DSN and refuses to start if
+// foreign keys are not actually on. GORM's DisableForeignKeyConstraintWhen-
+// Migrating=false only creates the constraints; SQLite ignores them unless the
+// PRAGMA says otherwise, so without the DSN flags the safety net the delete
+// handlers rely on is absent.
+func TestSQLiteForeignKeysAreEnforced(t *testing.T) {
+	_, db := newTestApp(t)
+
+	var fk int
+	if err := db.Raw("PRAGMA foreign_keys").Scan(&fk).Error; err != nil {
+		t.Fatalf("could not read the pragma: %v", err)
+	}
+	if fk != 1 {
+		t.Fatalf("PRAGMA foreign_keys = %d, want 1", fk)
+	}
+
+	// A comment whose post is deleted directly must be refused by the
+	// database, not silently orphaned.
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	post := model.Post{Title: "FK", Content: "x", Slug: "fk", UserID: admin.ID, Published: true}
+	db.Create(&post)
+	db.Create(&model.Comment{Content: "hi", UserID: admin.ID, PostID: post.ID, Status: "approved"})
+
+	if err := db.Delete(&model.Post{}, post.ID).Error; err == nil {
+		t.Error("deleting a post with comments was allowed; foreign keys are inert")
+	}
+	var comments int64
+	db.Model(&model.Comment{}).Where("post_id = ?", post.ID).Count(&comments)
+	if comments != 1 {
+		t.Errorf("comment was orphaned anyway: count = %d", comments)
+	}
+}
+
+// sqliteDSN must produce a URI carrying every pragma, and must not clobber an
+// override the operator already set.
+func TestSQLiteDSNPragmas(t *testing.T) {
+	got := database.SQLiteDSN("./data/database.sqlite")
+	for _, want := range []string{"_foreign_keys=on", "_journal_mode=WAL", "_busy_timeout=5000", "_synchronous=NORMAL"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("plain DSN missing %q: %s", want, got)
+		}
+	}
+	if !strings.HasPrefix(got, "file:") {
+		t.Errorf("plain path was not converted to a URI: %s", got)
+	}
+
+	// Already-a-URI, with a pragma already present, must not be duplicated.
+	preset := "file:/tmp/x.db?_foreign_keys=on&cache=shared"
+	got = database.SQLiteDSN(preset)
+	if strings.Count(got, "_foreign_keys=on") != 1 {
+		t.Errorf("existing pragma was duplicated: %s", got)
+	}
+	if !strings.Contains(got, "cache=shared") || !strings.Contains(got, "_journal_mode=WAL") {
+		t.Errorf("existing params lost or new ones missing: %s", got)
 	}
 }
 
@@ -1208,7 +1536,7 @@ func TestMenuCannotBeItsOwnParent(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	m := model.Menu{Title: "Loop", Position: 1}
 	db.Create(&m)
@@ -1239,7 +1567,7 @@ func TestMenuBuilderFlow(t *testing.T) {
 	db.Exec("DELETE FROM menus")
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	// New menus land at the end without a position number.
 	if resp, _ := postForm(t, app, "/add-menu", url.Values{"menu_title": {"Main"}}, token, auth); resp.StatusCode != fiber.StatusOK {
@@ -1353,17 +1681,7 @@ func TestLogoutRevokesJWT(t *testing.T) {
 	app, db := newTestApp(t)
 	createUser(t, db, "alice", model.RoleUser)
 
-	token := csrfCookie(t, app)
-	resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token)
-	var jwtCookie *http.Cookie
-	for _, c := range resp.Cookies() {
-		if c.Name == "jwt" {
-			jwtCookie = c
-		}
-	}
-	if jwtCookie == nil {
-		t.Fatal("login did not set a jwt cookie")
-	}
+	jwtCookie, token := login(t, app, "alice", "password123")
 
 	if resp, _ := postForm(t, app, "/logout", url.Values{}, token, jwtCookie); resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("logout: got status %d, want 200", resp.StatusCode)
@@ -1384,7 +1702,7 @@ func TestLoginThrottleBlocksBruteForce(t *testing.T) {
 		viper.Set("auth.login_max_attempts", 10)
 		handlers.ResetLoginAttemptsForIP("192.0.2.1")
 	})
-	token := csrfCookie(t, app)
+	token := csrfCookies(t, app)
 	bad := url.Values{"username": {"nobody"}, "password": {"wrong"}}
 
 	for i := 0; i < 3; i++ {
@@ -1402,13 +1720,18 @@ func TestLoginThrottleBlocksBruteForce(t *testing.T) {
 	}
 }
 
-func deleteReq(t *testing.T, app *fiber.App, path string, csrf *http.Cookie, cookies ...*http.Cookie) (*http.Response, string) {
+func deleteReq(t *testing.T, app *fiber.App, path string, csrfCookies []*http.Cookie, cookies ...*http.Cookie) (*http.Response, string) {
 	t.Helper()
 	req := httptest.NewRequest("DELETE", path, nil)
 	req.Header.Set("HX-Request", "true")
-	if csrf != nil {
-		req.AddCookie(csrf)
-		req.Header.Set("X-Csrf-Token", csrf.Value)
+	for _, c := range csrfCookies {
+		if c == nil {
+			continue
+		}
+		if c.Name == "csrf_" {
+			req.Header.Set("X-Csrf-Token", c.Value)
+		}
+		req.AddCookie(c)
 	}
 	for _, c := range cookies {
 		req.AddCookie(c)
@@ -1428,7 +1751,7 @@ func TestDeleteUserGuards(t *testing.T) {
 	other := createUser(t, db, "second", model.RoleAdmin)
 	regular := createUser(t, db, "pleb", model.RoleUser)
 	auth := authCookie(t, boss.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	// Cannot delete yourself (also the last-admin guard's first line).
 	if resp, _ := deleteReq(t, app, "/delete-user/"+strconv.Itoa(int(boss.ID)), token, auth); resp.StatusCode != fiber.StatusBadRequest {
@@ -1460,20 +1783,10 @@ func TestChangePassword(t *testing.T) {
 	app, db := newTestApp(t)
 	createUser(t, db, "alice", model.RoleUser)
 
-	token := csrfCookie(t, app)
-	resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token)
-	var before *http.Cookie
-	for _, c := range resp.Cookies() {
-		if c.Name == "jwt" {
-			before = c
-		}
-	}
-	if before == nil {
-		t.Fatal("login did not set a jwt cookie")
-	}
+	before, token := login(t, app, "alice", "password123")
 
 	change := url.Values{"current_password": {"password123"}, "new_password": {"newsecret1"}, "confirm_password": {"newsecret1"}}
-	resp, _ = postForm(t, app, "/change-password", change, token, before)
+	resp, _ := postForm(t, app, "/change-password", change, token, before)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("change password: got status %d", resp.StatusCode)
 	}
@@ -1498,12 +1811,14 @@ func TestChangePassword(t *testing.T) {
 		t.Errorf("old token after password change: got status %d, want it rejected", resp.StatusCode)
 	}
 
-	// The new password works, the old one does not.
-	token2 := csrfCookie(t, app, fresh)
+	// The new password works, the old one does not. A fresh token is needed
+	// for the second attempt: the successful login above rotated the session,
+	// which is the intended CSRF rotation.
+	token2 := csrfCookies(t, app, fresh)
 	if resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"newsecret1"}}, token2); resp.StatusCode != fiber.StatusOK {
 		t.Errorf("login with new password: got status %d, want 200", resp.StatusCode)
 	}
-	if resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, token2); resp.StatusCode != fiber.StatusUnauthorized {
+	if resp, _ := postForm(t, app, "/login", url.Values{"username": {"alice"}, "password": {"password123"}}, csrfCookies(t, app)); resp.StatusCode != fiber.StatusUnauthorized {
 		t.Errorf("login with old password: got status %d, want 401", resp.StatusCode)
 	}
 }
@@ -1534,7 +1849,7 @@ func TestPostContentIsSanitized(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 
 	form := url.Values{
 		"title":     {"XSS"},
@@ -1564,7 +1879,7 @@ func TestUploadRejectsNonImageContent(t *testing.T) {
 	app, db := newTestApp(t)
 	admin := createUser(t, db, "boss", model.RoleAdmin)
 	auth := authCookie(t, admin.ID)
-	token := csrfCookie(t, app, auth)
+	token := csrfCookies(t, app, auth)
 	viper.Set("upload.max_size_mb", 1)
 
 	var buf strings.Builder
@@ -1575,9 +1890,13 @@ func TestUploadRejectsNonImageContent(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/upload-file", strings.NewReader(buf.String()))
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	req.Header.Set("X-Csrf-Token", token.Value)
-	req.AddCookie(token)
 	req.AddCookie(auth)
+	for _, c := range token {
+		req.AddCookie(c)
+		if c.Name == "csrf_" {
+			req.Header.Set("X-Csrf-Token", c.Value)
+		}
+	}
 	resp, err := app.Test(req, -1)
 	if err != nil {
 		t.Fatal(err)

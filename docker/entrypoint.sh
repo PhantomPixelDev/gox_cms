@@ -20,13 +20,19 @@ if [ ! -f "$CONFIG_FILE" ]; then
 # Generated on first start by docker/entrypoint.sh — edit freely, it is kept.
 database:
   driver: sqlite
-  sqlite.dsn: "/app/data/database.sqlite"
+  sqlite.dsn: "/app/data/database.sqlite?_foreign_keys=on&_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL"
 server:
   host: "0.0.0.0"
   port: 3000
   prefork: false
   body_limit: 50
-  trusted_proxies: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+  # Empty on purpose. Anything listed here makes the app take the client IP
+  # from X-Forwarded-For, so an attacker whose address falls in the list can
+  # rotate that header and reset their login-throttle and rate-limit budget.
+  # Set this ONLY to the exact address of a proxy that really is in front,
+  # e.g. ["172.18.0.2"] for a specific Docker network peer. The login throttle
+  # also keys on the un-spoofable socket peer, so it stays correct either way.
+  trusted_proxies: []
 build:
   mode: production
 app:

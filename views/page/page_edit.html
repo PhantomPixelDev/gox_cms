@@ -30,6 +30,15 @@
 
         <div class="col-12 col-lg-4">
             <div class="mb-3">
+                <div class="form-check form-switch">
+                    <input type="checkbox" class="form-check-input" id="published" name="published"
+                        {{ if .Published }}checked{{ end }}>
+                    <label for="published" class="form-check-label">Published</label>
+                </div>
+                <div class="form-text">Unpublished pages return 404 to visitors.</div>
+            </div>
+
+            <div class="mb-3">
                 <label for="slug" class="form-label">Slug</label>
                 <input type="text" class="form-control" id="slug" name="slug" value="{{ .Slug }}" required
                     pattern="[a-z0-9-]+" aria-describedby="slug-hint">

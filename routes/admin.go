@@ -211,12 +211,13 @@ func setupAdminRoutes(app *fiber.App, db *gorm.DB, engine *html.Engine) {
 		}
 
 		return c.Render("page/page_edit", fiber.Map{
-			"Title":    customPage.Title,
-			"Content":  customPage.Content,
-			"ID":       customPage.ID,
-			"Slug":     customPage.Slug,
-			"Template": customPage.Template,
-			"Settings": c.Locals("Settings"),
+			"Title":     "Edit Custom Page",
+			"Content":   customPage.Content,
+			"ID":        customPage.ID,
+			"Slug":      customPage.Slug,
+			"Template":  customPage.Template,
+			"Published": customPage.Published,
+			"Settings":  c.Locals("Settings"),
 		}, handlers.AdminLayout)
 	})
 

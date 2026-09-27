@@ -51,10 +51,13 @@ func AddCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	customPage := model.CustomPage{
-		Title:    title,
-		Content:  content,
-		Slug:     slug,
-		Template: template,
+		Title:   title,
+		Content: content,
+		Slug:    slug,
+		// Pages are drafts until published. The public catch-all filters on
+		// this column, so omitting it meant every page went live on save.
+		Template:  template,
+		Published: c.FormValue("published") == "on",
 	}
 
 	result = db.Create(&customPage)
@@ -129,10 +132,11 @@ func EditCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	customPage := model.CustomPage{
-		Title:    title,
-		Content:  content,
-		Slug:     slug,
-		Template: template,
+		Title:     title,
+		Content:   content,
+		Slug:      slug,
+		Template:  template,
+		Published: c.FormValue("published") == "on",
 	}
 
 	result := db.Model(&model.CustomPage{}).Where("id = ?", id).Updates(customPage)

@@ -16,7 +16,7 @@ func AddComment(c *fiber.Ctx, db *gorm.DB) error {
 	if !captchaPassed(c) {
 		return nil
 	}
-	if authBlocked(c.IP()) {
+	if authBlocked(c, c.IP()) {
 		ShowToastError(c, "Too many attempts, try again later")
 		return c.Status(fiber.StatusTooManyRequests).SendString("Too many attempts")
 	}

@@ -14,7 +14,18 @@ const maxPageNumber = 1000
 
 // queryPage returns the 1-based "page" query or form value, defaulting to 1.
 func queryPage(c *fiber.Ctx) int {
-	page, err := strconv.Atoi(c.Query("page", c.FormValue("page", "1")))
+	return clampPage(c.Query("page", c.FormValue("page", "1")))
+}
+
+// clampPage parses and bounds a page number.
+//
+// The public list routes used to read c.Params("page") themselves and only
+// checked for < 1, so /blog/99999999 produced an offset of 999999980: an
+// unauthenticated request that forces SQLite to scan the whole posts table,
+// plus a second unindexed COUNT(*). Every paginated route now goes through
+// here.
+func clampPage(raw string) int {
+	page, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil || page < 1 {
 		return 1
 	}
@@ -42,6 +53,21 @@ func escapeLike(s string) string {
 // explicit ESCAPE clause: Where("col LIKE ? ESCAPE '\\'", likePattern(q)).
 func likePattern(s string) string {
 	return "%" + escapeLike(s) + "%"
+}
+
+// parseIDParam reads a numeric id from a form or query value.
+//
+// It exists because GORM treats a *string* argument to First/Find as raw SQL
+// when it is not a bare integer: db.First(&x, c.Query("id")) with
+// id="1 OR 1=1" becomes the WHERE clause verbatim. Worse, an *empty* id makes
+// GORM emit no condition at all, so the query silently matches the first row
+// and the handler mutates or deletes it. Both are now rejected.
+func parseIDParam(raw string) (uint, bool) {
+	n, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 64)
+	if err != nil || n == 0 {
+		return 0, false
+	}
+	return uint(n), true
 }
 
 // isDupKeyError reports whether err is a unique-constraint violation on any

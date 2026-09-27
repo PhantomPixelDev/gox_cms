@@ -41,7 +41,11 @@ func SetupCustomPageRoutes(app *fiber.App, db *gorm.DB) {
 		}
 
 		var customPage model.CustomPage
-		if err := db.Where("slug = ?", slug).First(&customPage).Error; err != nil {
+		// published = true is required: AddCustomPage/EditCustomPage default the
+		// column to false, so without this filter every page an admin saved was
+		// served to the public while correctly staying out of search and the
+		// sitemap. Admins still see drafts at /edit-custompage/:id.
+		if err := db.Where("slug = ? AND published = ?", slug, true).First(&customPage).Error; err != nil {
 			return c.Next()
 		}
 
@@ -49,9 +53,11 @@ func SetupCustomPageRoutes(app *fiber.App, db *gorm.DB) {
 		// public page. The per-page Template only chooses between the three
 		// page layouts inside that set.
 		return RenderSite(c, "page/"+handlers.CustomPageTemplate(customPage.Template), fiber.Map{
-			"Title":    customPage.Title,
-			"Content":  template.HTML(customPage.Content),
-			"Settings": c.Locals("Settings"),
+			"Title":      customPage.Title,
+			"Content":    template.HTML(customPage.Content),
+			"Settings":   c.Locals("Settings"),
+			"IsLoggedIn": c.Locals("isLoggedin"),
+			"IsAdmin":    c.Locals("isAdmin"),
 		})
 	})
 }

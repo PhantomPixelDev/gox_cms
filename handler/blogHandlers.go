@@ -345,23 +345,18 @@ func AdminDeletePost(c *fiber.Ctx, db *gorm.DB) error {
 
 func BlogPage(c *fiber.Ctx, db *gorm.DB) error {
 
-	page := c.Params("page")
-	if page == "" {
-		page = "1"
-	}
-
-	pageNumber, err := strconv.Atoi(page)
-
-	if err != nil || pageNumber < 1 {
-		pageNumber = 1
-	}
+	// Clamped: an unbounded /blog/99999999 turns into a full-table scan.
+	pageNumber := clampPage(c.Params("page"))
 
 	postsPerPage := 10
 
 	offset := (pageNumber - 1) * postsPerPage
 
 	var posts []model.Post
-	result := db.Preload("Categories").Preload("Tags").Where("published = ?", true).Offset(offset).Limit(postsPerPage).Find(&posts)
+	// Ordered explicitly: with LIMIT/OFFSET and no ORDER BY SQLite returns an
+	// arbitrary order, so posts could repeat or vanish as the visitor paged.
+	result := db.Preload("Categories").Preload("Tags").Where("published = ?", true).
+		Order("created_at DESC").Offset(offset).Limit(postsPerPage).Find(&posts)
 	if result.Error != nil {
 		log.Printf("blog list: %v", result.Error)
 		return c.Status(500).SendString("Could not load posts")
@@ -442,7 +437,11 @@ func BlogPostPage(c *fiber.Ctx, db *gorm.DB) error {
 
 func TogglePostStatus(c *fiber.Ctx, db *gorm.DB) error {
 
-	id := c.FormValue("id")
+	id, ok := parseIDParam(c.FormValue("id"))
+	if !ok {
+		ShowToastError(c, "Invalid post ID")
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid post ID")
+	}
 
 	var post model.Post
 

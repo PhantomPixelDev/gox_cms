@@ -192,7 +192,7 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 			return c.SendStatus(fiber.StatusBadRequest)
 		}
 
-		if loginBlocked(c.IP(), req.Username) {
+		if loginBlocked(c, c.IP(), req.Username) {
 			log.Printf("auth blocked ip=%s user=%s", c.IP(), req.Username)
 			ShowToastError(c, "Too many login attempts, try again later")
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many login attempts"})
@@ -203,20 +203,20 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 			// Same cost as a real password check, so unknown usernames do
 			// not fail visibly faster than wrong passwords.
 			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(req.Password))
-			recordLoginFailure(c.IP(), req.Username)
+			recordLoginFailure(c, c.IP(), req.Username)
 			log.Printf("auth fail ip=%s user=%s", c.IP(), req.Username)
 			ShowToastError(c, "Invalid login credentials")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid login credentials"})
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			recordLoginFailure(c.IP(), req.Username)
+			recordLoginFailure(c, c.IP(), req.Username)
 			log.Printf("auth fail ip=%s user=%s", c.IP(), req.Username)
 			ShowToastError(c, "Invalid login credentials")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid login credentials"})
 		}
 
-		resetLoginAttempts(c.IP(), req.Username)
+		resetLoginAttempts(c, c.IP(), req.Username)
 
 		sess, err := store.Get(c)
 		if err != nil {
@@ -251,7 +251,9 @@ func Login(db *gorm.DB, store *session.Store) fiber.Handler {
 		c.Locals("isAdmin", user.RoleID == model.RoleAdmin)
 
 		c.Set("HX-Redirect", "/")
-		c.Status(fiber.StatusOK).SendString("Logged in successfully" + user.Username)
+		// No username in the body: it is user input reflected back, and the
+		// HX-Redirect header is what the client actually uses.
+		c.Status(fiber.StatusOK).SendString("Logged in successfully")
 		return nil
 	}
 }
@@ -324,7 +326,7 @@ func Register(db *gorm.DB) fiber.Handler {
 			return c.Status(fiber.StatusForbidden).SendString("Registration is disabled")
 		}
 
-		if authBlocked(c.IP()) {
+		if authBlocked(c, c.IP()) {
 			ShowToastError(c, "Too many attempts, try again later")
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many attempts"})
 		}
@@ -341,7 +343,10 @@ func Register(db *gorm.DB) fiber.Handler {
 		validate := validator.New()
 		if err := validate.Struct(&req); err != nil {
 			ShowToastError(c, "Validation failed: "+FormatValidationError(err))
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Validation failed", "details": err.Error()})
+			// Log the raw error (it names the struct fields); the response gets
+			// only the friendly message, since this is reachable anonymously.
+			log.Printf("register validation failed: %v", err)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Validation failed"})
 		}
 
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -391,8 +396,13 @@ func AuthStatusMiddleware(db *gorm.DB) fiber.Handler {
 			return c.Next()
 		}
 
+		// Only the fields the request actually needs. The password hash was
+		// being pulled in here on every request that carried a jwt cookie,
+		// for every page, and nothing in the request path reads it.
 		var user model.User
-		if err := db.First(&user, userID).Error; err != nil {
+		if err := db.Select("id", "username", "role_id", "first_name", "last_name", "email",
+			"avatar_url", "session_version").
+			First(&user, userID).Error; err != nil {
 			return c.Next()
 		}
 
@@ -440,7 +450,7 @@ func ChangePassword(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusUnauthorized).SendString("Not logged in")
 	}
 
-	if authBlocked(c.IP()) {
+	if authBlocked(c, c.IP()) {
 		ShowToastError(c, "Too many attempts, try again later")
 		return c.Status(fiber.StatusTooManyRequests).SendString("Too many attempts")
 	}
@@ -467,7 +477,7 @@ func ChangePassword(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusBadRequest).SendString(msg)
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(current)); err != nil {
-		recordLoginFailure(c.IP(), dbUser.Username)
+		recordLoginFailure(c, c.IP(), dbUser.Username)
 		ShowToastError(c, "Current password is incorrect")
 		return c.Status(fiber.StatusUnauthorized).SendString("Current password is incorrect")
 	}

@@ -8,7 +8,9 @@
     <button class="btn btn-primary" type="submit">Search</button>
 </form>
 
-{{ if .Query }}
+{{ if .TooShort }}
+<p class="notice">Enter at least 2 characters to search.</p>
+{{ else if .Query }}
 {{ if or .Posts .Pages }}
 
 {{ if .Posts }}

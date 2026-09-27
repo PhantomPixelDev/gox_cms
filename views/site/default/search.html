@@ -11,8 +11,13 @@
         </div>
     </form>
 
-    {{if .Query}}
-    {{if or .Posts .Pages}}
+{{if .TooShort}}
+<div class="alert alert-info" role="alert">
+    Enter at least 2 characters to search.
+</div>
+{{else if .Query}}
+{{if or .Posts .Pages}}
+
     {{if .Posts}}
     <h2 class="h4 mt-4">Posts</h2>
     <div class="row">
@@ -49,3 +54,4 @@
     {{end}}
     {{end}}
 </div>
+
