@@ -1,38 +1,91 @@
+{{/* Modal shell the edit forms are swapped into (menu + menu item). */}}
 <div id="modals-here" class="modal modal-blur fade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-
         <div class="modal-content">
-
         </div>
     </div>
 </div>
 
-
 <div class="col mt-3 mb-3">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="h4 text-primary mb-0">Menu</h2>
+        <p class="text-muted small mb-0">The primary menu is the one shown in the site header.</p>
+    </div>
+
+    {{/* Menus must exist before items can be added, so creating a menu comes
+         first. Both forms used to share element IDs with the edit modals
+         (menu_title, parent_id, menu_item_link, ...) which broke label
+         targets and the link picker in admin.js. Every control is now
+         namespaced with new-item-* / new-menu-*. */}}
+
     <div class="card shadow-sm mb-3">
         <div class="card-body">
-            <h3 class="h5 card-title">Add menu item</h3>
+            <h3 class="h6 card-title">Create a menu</h3>
             {{if .AllMenus}}
-            <form hx-post="/add-menu-item" hx-trigger="submit" hx-swap="none"
+            <form hx-post="/add-menu" hx-trigger="submit" hx-swap="none"
                 hx-headers='{"X-No-Cache": "true"}' data-after="updateMenuList" data-reset-form
-                id="menu-item-form">
-                <div class="row g-3">
-                    <div class="col-12 col-md-3">
-                        <label for="menu_item_menu" class="form-label">1. Menu</label>
-                        <select class="form-select" id="menu_item_menu" name="menu_item_menu" required>
-                            {{ range .AllMenus }}
-                            <option value="{{ .ID }}" {{if .Primary}}selected{{end}}>{{ .Title }}{{if .Primary}} (primary){{end}}</option>
+                id="new-menu-form">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-5">
+                        <label for="new-menu-title" class="form-label">Menu title</label>
+                        <input type="text" class="form-control" id="new-menu-title" name="menu_title"
+                            placeholder="e.g. Footer" required>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="new-menu-parent" class="form-label">Attach under <span
+                                class="text-muted">(optional submenu)</span></label>
+                        <select class="form-select" id="new-menu-parent" name="parent_id">
+                            <option value="">None — top-level menu</option>
+                            {{ range .PrimaryMenus }}
+                            <option value="{{ .ID }}">{{ .Title }}</option>
                             {{ end }}
                         </select>
                     </div>
                     <div class="col-12 col-md-3">
-                        <label for="menu_item_title" class="form-label">2. Title</label>
-                        <input type="text" class="form-control" id="menu_item_title" name="menu_item_title"
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="new-menu-primary" name="menu_primary">
+                            <label for="new-menu-primary" class="form-check-label">Primary menu</label>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary w-100">Create Menu</button>
+                    </div>
+                </div>
+                <div class="form-text mt-2">Only one menu can be primary. Marking a menu primary moves the badge
+                    here automatically.</div>
+            </form>
+            {{else}}
+            <p class="text-muted mb-0">No menus yet — create your first one using the form above.</p>
+            {{end}}
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <h3 class="h6 card-title">Add a menu item</h3>
+            {{if .AllMenus}}
+            <p class="text-muted small">Pick a page or post and the link fills in automatically, or choose
+                “Custom URL…” to type your own.</p>
+            <form hx-post="/add-menu-item" hx-trigger="submit" hx-swap="none"
+                hx-headers='{"X-No-Cache": "true"}' data-after="updateMenuList" data-reset-form
+                id="new-item-form">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label for="new-item-menu" class="form-label">Menu</label>
+                        <select class="form-select" id="new-item-menu" name="menu_item_menu" required>
+                            {{ range .AllMenus }}
+                            <option value="{{ .ID }}" {{if .Primary}}selected{{end}}>{{ .Title }}{{if .Primary}}
+                                (primary){{end}}</option>
+                            {{ end }}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="new-item-title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="new-item-title" name="menu_item_title"
                             placeholder="e.g. Contact" required>
                     </div>
-                    <div class="col-12 col-md-3">
-                        <label for="link_source" class="form-label">3. Link to</label>
-                        <select class="form-select" id="link_source">
+                    <div class="col-12 col-md-4">
+                        <label for="new-item-source" class="form-label">Link to</label>
+                        <select class="form-select" id="new-item-source">
                             <option value="__custom">Custom URL…</option>
                             {{if .Pages}}
                             <optgroup label="Pages">
@@ -50,170 +103,93 @@
                             {{end}}
                         </select>
                     </div>
-                    <div class="col-12 col-md-3">
-                        <label for="menu_item_link" class="form-label">URL</label>
-                        <input type="text" class="form-control" id="menu_item_link" name="menu_item_link"
+                    <div class="col-12 col-md-8">
+                        <label for="new-item-link" class="form-label">URL</label>
+                        <input type="text" class="form-control" id="new-item-link" name="menu_item_link"
                             placeholder="/about" required>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <button type="submit" class="btn btn-primary w-100">Add Menu Item</button>
                     </div>
                 </div>
                 <details class="mt-2">
-                    <summary class="text-muted small">Advanced: explicit position (otherwise added at the end)</summary>
-                    <div class="col-12 col-md-2 mt-2">
-                        <input type="number" min="1" class="form-control" id="item_position" name="item_position"
-                            placeholder="Auto">
+                    <summary class="text-muted small">Advanced: set an explicit position</summary>
+                    <div class="col-12 col-md-3 mt-2">
+                        <label for="new-item-position" class="form-label visually-hidden">Position</label>
+                        <input type="number" min="1" class="form-control" id="new-item-position" name="item_position"
+                            placeholder="Added at the end">
                     </div>
                 </details>
-                <div class="mt-3">
-                    <button type="submit" class="btn btn-primary">Add Menu Item</button>
-                </div>
             </form>
             {{else}}
-            <p class="text-muted mb-0">Create your first menu below, then add items to it.</p>
+            <p class="text-muted mb-0">Create a menu first, then add items to it.</p>
             {{end}}
         </div>
     </div>
 
-    <div class="card shadow-sm mb-3">
-        <div class="card-body">
-            <h3 class="h5 card-title">New menu</h3>
-            <form hx-post="/add-menu" hx-trigger="submit" hx-swap="none"
-                hx-headers='{"X-No-Cache": "true"}' data-after="updateMenuList" data-reset-form>
-                <div class="row g-3 align-items-end">
-                    <div class="col-12 col-md-5">
-                        <label for="menu_title" class="form-label">Menu title</label>
-                        <input type="text" class="form-control" id="menu_title" name="menu_title"
-                            placeholder="e.g. Footer" required>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label for="parent_id" class="form-label">Attach under (optional submenu)</label>
-                        <select class="form-select" id="parent_id" name="parent_id">
-                            <option value="">None (top-level menu)</option>
-                            {{ range .AllMenus }}
-                            <option value="{{ .ID }}">{{ .Title }}</option>
-                            {{ end }}
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <div class="form-check mb-2">
-                            <input type="checkbox" class="form-check-input" id="menu_primary" name="menu_primary">
-                            <label for="menu_primary" class="form-check-label">Primary menu</label>
-                        </div>
-                        <button type="submit" class="btn btn-outline-primary w-100">Create Menu</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    <hr>
-
-    <!-- Display Menus -->
+    {{/* Menus and their items, submenus nested and indented. */}}
     {{ range .Menus }}
-    <div class="card mb-3 mt-3 {{ if .Primary }}border-primary{{ end }}" id="menu-{{ .ID }}">
-        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span>{{ .Title }} {{ if .Primary }}<span class="badge text-bg-primary">Primary</span>{{ end }}</span>
-            <div>
-                <button class="btn btn-sm btn-outline-secondary" hx-get="/edit-menu/{{ .ID }}" hx-trigger="click" data-bs-toggle="modal" data-bs-target="#modals-here" hx-target="#modals-here" hx-headers='{"X-No-Cache": "true"}'
-                >Edit</button>
-
-
-
-                <button class="btn btn-sm btn-outline-danger" hx-delete="/delete-menu/{{ .ID }}"
-                    hx-confirm="Delete this menu and its items?" hx-target="#menu-{{ .ID }}" hx-swap="outerHTML">Delete</button>
+    {{ $count := index $.ItemCounts .ID }}
+    <div class="card mb-3 {{ if .Primary }}border-primary{{ end }}" id="menu-{{ .ID }}">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="fw-semibold">{{ .Title }}</span>
+                {{ if .Primary }}<span class="badge text-bg-primary">Primary</span>{{ end }}
+                {{ if .ParentID }}<span class="badge text-bg-light border">Submenu</span>{{ end }}
+                <span class="badge text-bg-light border">{{ $count }} item{{ if ne $count 1 }}s{{ end }}</span>
+            </div>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" hx-get="/edit-menu/{{ .ID }}" hx-trigger="click"
+                    data-bs-toggle="modal" data-bs-target="#modals-here" hx-target="#modals-here"
+                    hx-headers='{"X-No-Cache": "true"}'>Edit</button>
+                <button class="btn btn-outline-danger" hx-delete="/delete-menu/{{ .ID }}"
+                    hx-confirm="Delete &quot;{{ .Title }}&quot; and its {{ $count }} item(s)? Submenus are kept and detached."
+                    hx-target="#menu-{{ .ID }}" hx-swap="outerHTML">Delete</button>
             </div>
         </div>
         <div class="card-body">
             {{ if or .MenuItems .SubMenus }}
-            <div class="table-responsive">
-            <table class="table table-hover table-striped align-middle admin-table mb-0">
-                <thead>
-                    <tr>
-                        <th scope="col">Title</th>
-                        <th scope="col">Link</th>
-                        <th scope="col">Order</th>
-                        <th scope="col">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{ range .MenuItems }}
-                    <tr id="menu-item-{{ .ID }}">
-                        <td><strong>{{ .Title }}</strong></td>
-                        <td><a href="{{ .Link }}">{{ .Link }}</a></td>
-                        <td>
-                            <div class="btn-group btn-group-sm" role="group" aria-label="Reorder">
-                                <button class="btn btn-outline-secondary" hx-post="/move-menu-item/{{ .ID }}/up"
-                                    hx-target="#menu-table-container" hx-swap="innerHTML"
-                                    hx-headers='{"X-No-Cache": "true"}' aria-label="Move up">↑</button>
-                                <button class="btn btn-outline-secondary" hx-post="/move-menu-item/{{ .ID }}/down"
-                                    hx-target="#menu-table-container" hx-swap="innerHTML"
-                                    hx-headers='{"X-No-Cache": "true"}' aria-label="Move down">↓</button>
-                            </div>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-secondary me-2 px-2"
-                                hx-get="/edit-menu-item/{{ .ID }}" hx-trigger="click" hx-target="#modals-here"
-                                data-bs-toggle="modal" data-bs-target="#modals-here" hx-headers='{"X-No-Cache": "true"}'>Edit</button>
-                            <button hx-delete="/delete-menu-item/{{ .ID }}" class="btn btn-sm btn-outline-danger me-2 px-2"
-                                hx-confirm="Delete this item?" hx-target="#menu-item-{{ .ID }}" hx-swap="outerHTML">Delete</button>
-                        </td>
-                    </tr>
-                    {{ end }}
+            <ul class="menu-tree list-unstyled mb-0">
+                {{ range .MenuItems }}
+                {{ template "partials/menu-item-row" dict "Item" . "RowID" (printf "menu-item-%d" .ID) "Nested" false }}
+                {{ end }}
 
-                    {{ range .SubMenus }}
-                    <tr>
-                        <td colspan="4"><strong>{{ .Title }}</strong> (Submenu)</td>
-                    </tr>
-                    {{ range .MenuItems }}
-                    <tr id="sbmenu-item-{{ .ID }}">
-                        <td><strong>{{ .Title }}</strong></td>
-                        <td><a href="{{ .Link }}">{{ .Link }}</a></td>
-                        <td>
-                            <div class="btn-group btn-group-sm" role="group" aria-label="Reorder">
-                                <button class="btn btn-outline-secondary" hx-post="/move-menu-item/{{ .ID }}/up"
-                                    hx-target="#menu-table-container" hx-swap="innerHTML"
-                                    hx-headers='{"X-No-Cache": "true"}' aria-label="Move up">↑</button>
-                                <button class="btn btn-outline-secondary" hx-post="/move-menu-item/{{ .ID }}/down"
-                                    hx-target="#menu-table-container" hx-swap="innerHTML"
-                                    hx-headers='{"X-No-Cache": "true"}' aria-label="Move down">↓</button>
-                            </div>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-secondary me-2 px-2"
-                                hx-get="/edit-menu-item/{{ .ID }}" hx-trigger="click" hx-target="#modals-here"
-                                data-bs-toggle="modal" data-bs-target="#modals-here" hx-headers='{"X-No-Cache": "true"}'>Edit</button>
-                            <button hx-delete="/delete-menu-item/{{ .ID }}" class="btn btn-sm btn-outline-danger me-2 px-2"
-                                hx-confirm="Delete this item?" hx-target="#sbmenu-item-{{ .ID }}" hx-swap="outerHTML">Delete</button>
-                        </td>
-                    </tr>
+                {{ range .SubMenus }}
+                <li class="menu-tree-sub">
+                    <div class="menu-tree-row menu-tree-subhead">
+                        <i class="bi bi-folder2" aria-hidden="true"></i>
+                        <span class="menu-tree-title">{{ .Title }}</span>
+                        <span class="badge text-bg-light border">{{ len .MenuItems }} item{{ if ne (len .MenuItems) 1 }}s{{ end }}</span>
+                        <div class="menu-tree-actions">
+                            <button class="btn btn-sm btn-outline-danger"
+                                hx-delete="/remove-submenu/{{ .ID }}"
+                                hx-confirm="Detach &quot;{{ .Title }}&quot; from this menu? It becomes a top-level menu."
+                                hx-target="#menu-table-container" hx-swap="innerHTML"
+                                hx-headers='{"X-No-Cache": "true"}' aria-label="Detach {{ .Title }}"
+                                title="Detach submenu"><i class="bi bi-dash-circle"></i></button>
+                        </div>
+                    </div>
+                    {{ if .MenuItems }}
+                    <ul class="list-unstyled menu-tree-nested-list">
+                        {{ range .MenuItems }}
+                        {{ template "partials/menu-item-row" dict "Item" . "RowID" (printf "sbmenu-item-%d" .ID) "Nested" true }}
+                        {{ end }}
+                    </ul>
+                    {{ else }}
+                    <p class="text-muted small ms-4 mb-0">No items in this submenu yet.</p>
                     {{ end }}
-                    <tr>
-                        <td colspan="4">
-                            <button hx-delete="/remove-submenu/{{ .ID }}" class="btn btn-sm btn-outline-danger px-2 mt-2"
-                                hx-confirm="Detach this submenu?" hx-target="#menu-{{ .ID }}" hx-swap="outerHTML">Remove Submenu</button>
-                        </td>
-                    </tr>
-                    {{ end }}
-                </tbody>
-            </table>
-            </div>
+                </li>
+                {{ end }}
+            </ul>
             {{ else }}
             <p class="text-muted mb-0">No items yet — add the first one above.</p>
             {{ end }}
         </div>
     </div>
     {{ else }}
-    <div class="alert alert-info" role="alert">No menus yet. Create one above to get started.</div>
+    <div class="alert alert-info" role="alert">No menus match. Create one above to get started.</div>
     {{ end }}
 
 </div>
 
-
-
-
-<!-- Add Pagination -->
-
 {{template "partials/pagination" dict "Base" "/search-menu" "Target" "#menu-table-container" "TotalPages" .TotalPages "CurrentPage" .CurrentPage "SearchQuery" .SearchQuery}}
-
-
-<!-- Shared helpers live in /static/js/admin.js (loaded once from the layout). -->
-
-

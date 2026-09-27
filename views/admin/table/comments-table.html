@@ -1,4 +1,4 @@
-<div class="d-flex gap-2 align-items-center mb-2">
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
     <label for="bulk-comments-action" class="visually-hidden">Bulk action</label>
     <select class="form-select form-select-sm w-auto" id="bulk-comments-action" data-bulk-action>
         <option value="">Bulk actions…</option>
@@ -8,39 +8,75 @@
     <button type="button" class="btn btn-sm btn-outline-primary" data-bulk-endpoint="/bulk-comments"
         data-bulk-refresh="/search-comments" data-bulk-target="#comment-table-container"
         data-bulk-scope="#comment-table-container">Apply</button>
+    <span class="text-muted small ms-auto">Click a row's text to see the full comment.</span>
 </div>
 <div class="table-responsive">
-<table class="table table-hover table-bordered table-striped align-middle admin-table">
-    <thead>
-        <tr>
-            <th scope="col"><input type="checkbox" class="form-check-input" data-select-all aria-label="Select all comments"></th>
-            <th>ID</th>
-            <th>Post ID</th>
-            <th>Content</th>
-            <th>Created</th>
-            <th>Change Status</th>
-            <th>Delete</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{range .Comments}}
+    <table class="table table-hover table-bordered table-striped align-middle admin-table">
+        <thead>
+            <tr>
+                <th scope="col"><input type="checkbox" class="form-check-input" data-select-all
+                        aria-label="Select all comments"></th>
+                <th scope="col">ID</th>
+                <th scope="col">Author</th>
+                <th scope="col">Comment</th>
+                <th scope="col">Post</th>
+                <th scope="col">Created</th>
+                <th scope="col">Status</th>
+                <th scope="col">Change Status</th>
+                <th scope="col">Delete</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Comments}}
             <tr id="comment-row-{{.ID}}">
-                <td><input type="checkbox" class="form-check-input bulk-check" value="{{.ID}}" aria-label="Select comment {{.ID}}"></td>
+                <td><input type="checkbox" class="form-check-input bulk-check" value="{{.ID}}"
+                        aria-label="Select comment {{.ID}}"></td>
                 <td>{{.ID}}</td>
-            <td>{{.PostID}}</td>
-            <td>{{ unescape (truncate .Content 200) }} </td>
-            <td>{{.CreatedAt.Format "02 Jan 2006"}}</td>
-            <td>
-                {{template "partials/comment-status-button" .}}
-            </td>
-            <td>
-                <button class="btn btn-sm btn-danger" hx-delete="/delete-comment/{{.ID}}" hx-confirm="Are you sure you want to delete this comment?" hx-target="#comment-row-{{.ID}}" hx-swap="outerHTML">Delete</button>
-            </td>
-        </tr>
-        {{end}}
-    </tbody>
-</table>
+                <td class="text-nowrap">
+                    {{if .User.Username}}{{.User.Username}}{{else}}<span class="text-muted">unknown</span>{{end}}
+                </td>
+                {{/*
+                    Comments are stored HTML-escaped by SanitizeText. This table
+                    used `unescape`, which put the stored entities back into the
+                    page: admins saw &lt;img... instead of <img..., and any
+                    comment row that reached the DB unescaped would have become
+                    live markup. `escape` decodes the entities to plain text and
+                    lets the template escape them exactly once, matching the
+                    blog excerpt cards.
+                */}}
+                <td class="comment-cell">
+                    <span class="comment-text" title="{{.Content}}">{{ truncate (escape .Content) 160 }}</span>
+                </td>
+                <td>
+                    {{if .Post.Slug}}
+                    <a href="/blog/post/{{.Post.Slug}}" class="text-decoration-none">{{ truncate .Post.Title 40 }}</a>
+                    {{else}}
+                    <span class="text-muted">post #{{.PostID}}</span>
+                    {{end}}
+                </td>
+                <td class="text-nowrap">{{.CreatedAt.Format "02 Jan 2006"}}</td>
+                <td>
+                    {{if eq .Status "approved"}}
+                    <span class="badge text-bg-success">Approved</span>
+                    {{else}}
+                    <span class="badge text-bg-warning">Pending</span>
+                    {{end}}
+                </td>
+                <td>
+                    {{template "partials/comment-status-button" .}}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-danger" hx-delete="/delete-comment/{{.ID}}"
+                        hx-confirm="Are you sure you want to delete this comment?" hx-target="#comment-row-{{.ID}}"
+                        hx-swap="outerHTML">Delete</button>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="9" class="text-center text-muted py-4">No comments found.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
 </div>
 {{template "partials/pagination" dict "Base" "/search-comments" "Target" "#comment-table-container" "TotalPages" .TotalPages "CurrentPage" .CurrentPage "SearchQuery" .SearchQuery}}
-
-

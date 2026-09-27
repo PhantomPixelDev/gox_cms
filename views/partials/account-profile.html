@@ -1,0 +1,60 @@
+{{/* Profile card only. Returned by POST /account/profile and /account/avatar
+     so HTMX can swap just this card instead of nesting a whole page. */}}
+<div class="card shadow-sm h-100" id="account-profile-panel">
+    <div class="card-body">
+        <h2 class="h5 card-title">Profile</h2>
+
+        <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-3 mb-4">
+            {{if .User.AvatarURL}}
+            <img src="{{.User.AvatarURL}}" alt="" class="account-avatar" width="96" height="96">
+            {{else}}
+            <div class="account-avatar account-avatar-initials" role="img" aria-label="No avatar uploaded">
+                {{if .User.FirstName}}{{slice .User.FirstName 0 1}}{{end}}
+            </div>
+            {{end}}
+
+            <div class="flex-grow-1">
+                <form hx-post="/account/avatar" enctype="multipart/form-data"
+                    hx-target="#account-profile-panel" hx-swap="outerHTML"
+                    hx-headers='{"X-No-Cache": "true"}' hx-disabled-elt="find button[type=submit]">
+                    <label for="account-avatar" class="form-label">Profile image</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <input type="file" class="form-control" id="account-avatar" name="avatar"
+                            accept=".jpg,.jpeg,.png,.gif" required>
+                        <button type="submit" class="btn btn-outline-primary">Upload</button>
+                    </div>
+                    <div class="form-text">JPG, PNG or GIF, up to 2 MB.</div>
+                </form>
+            </div>
+        </div>
+
+        <form hx-post="/account/profile" hx-target="#account-profile-panel" hx-swap="outerHTML"
+            hx-headers='{"X-No-Cache": "true"}' hx-disabled-elt="find button[type=submit]">
+            <div class="row g-3">
+                <div class="col-12 col-sm-6">
+                    <label for="account-first-name" class="form-label">First name</label>
+                    <input type="text" class="form-control" id="account-first-name" name="first_name"
+                        value="{{.User.FirstName}}" minlength="2" maxlength="30" required>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label for="account-last-name" class="form-label">Last name</label>
+                    <input type="text" class="form-control" id="account-last-name" name="last_name"
+                        value="{{.User.LastName}}" minlength="2" maxlength="30" required>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label for="account-username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="account-username" name="username"
+                        value="{{.User.Username}}" minlength="2" maxlength="30" pattern="[A-Za-z0-9]+" required
+                        aria-describedby="account-username-hint">
+                    <div id="account-username-hint" class="form-text">Letters and numbers only.</div>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label for="account-email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="account-email" name="email"
+                        value="{{if .User.Email}}{{.User.Email}}{{end}}" autocomplete="email">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Save profile</button>
+        </form>
+    </div>
+</div>

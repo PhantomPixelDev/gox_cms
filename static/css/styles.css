@@ -20,19 +20,22 @@
 }
 
 
+/* Gap-based spacing: the old trailing margin on every page-link (including
+   the last one) pushed the whole strip off true center. */
 .pagination {
     display: flex;
     list-style: none;
     padding: 0;
     margin: 20px 0;
+    gap: 0.5rem;
     justify-content: center;
 }
 
 .pagination .page-link {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     padding: 8px 16px;
-    margin-right: 8px;
-    font-size: 16px;
+    font-size: 1rem;
     border-radius: 5px;
     color: var(--bs-link-color);
     text-decoration: none;
@@ -51,6 +54,11 @@
     background-color: var(--bs-tertiary-bg);
     color: var(--bs-link-hover-color);
     text-decoration: none;
+}
+
+.pagination .page-item.disabled .page-link {
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 
@@ -177,6 +185,10 @@
 }
 
 
+/* The selectize tag/category pickers were hardcoded to black-on-white,
+   which clashed with the light theme and vanished in the dark one. They now
+   follow the Bootstrap theme variables in both modes. */
+
 .selectize-control.plugin-dropdown-header .dropdown-header,
 .selectize-dropdown-content {
     padding: .375rem .75rem;
@@ -185,7 +197,7 @@
 
 .selectize-control {
     border: none;
-    border-radius: .25rem;
+    border-radius: .375rem;
     box-shadow: none;
 }
 
@@ -194,34 +206,167 @@
 }
 
 .selectize-dropdown {
-    border-radius: .25rem;
-    border: none;
+    border-radius: .375rem;
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    box-shadow: var(--bs-box-shadow);
 }
 
 .selectize-input {
-    background-color: #000;
-    color: #fff;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border: 1px solid var(--bs-border-color);
+    padding: .375rem .5rem;
+    border-radius: .375rem;
 }
 
 .selectize-input.focus {
-    border-color: #fff;
+    border-color: var(--bs-primary);
     outline: 0;
-    box-shadow: 0 0 0 .2rem rgba(255, 255, 255, .25);
-}
-
-.selectize-input > .item,
-.selectize-dropdown .option {
-    padding: .25rem .75rem;
-    background-color: #111;
-    color: #fff;
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .25);
 }
 
 .selectize-input > .item {
+    padding: .15rem .5rem;
     margin: .2rem;
+    border-radius: var(--bs-border-radius-pill);
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+}
+
+.selectize-input > .item a {
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+}
+
+.selectize-input > .item a:hover {
+    color: var(--bs-danger);
+}
+
+.selectize-dropdown .option {
+    padding: .35rem .75rem;
+    color: var(--bs-body-color);
+}
+
+.selectize-dropdown .option:hover {
+    background-color: var(--bs-tertiary-bg);
+}
+
+.selectize-dropdown .active {
+    background-color: var(--bs-primary);
+    color: #fff;
 }
 
 .selectize-input::placeholder {
-    color: #999;
+    color: var(--bs-secondary-color);
+}
+
+/* ---- Account page ---- */
+
+.account-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--bs-border-color);
+    background-color: var(--bs-tertiary-bg);
+    flex-shrink: 0;
+}
+
+.account-avatar-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.25rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    text-transform: uppercase;
+}
+
+.account-summary dt,
+.account-summary dd {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.account-summary dt {
+    color: var(--bs-secondary-color);
+    font-weight: 500;
+}
+
+.account-summary dt:last-of-type,
+.account-summary dd:last-of-type {
+    border-bottom: none;
+}
+
+/* ---- Menu builder tree ---- */
+
+.menu-tree,
+.menu-tree-nested-list {
+    margin: 0;
+    padding: 0;
+}
+
+.menu-tree-item,
+.menu-tree-sub {
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.menu-tree-item:last-child,
+.menu-tree-sub:last-child {
+    border-bottom: none;
+}
+
+.menu-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0.25rem;
+}
+
+.menu-tree-nested-list {
+    margin-left: 1.75rem;
+    border-left: 2px solid var(--bs-border-color);
+    padding-left: 0.5rem;
+}
+
+.menu-tree-subhead {
+    background-color: var(--bs-tertiary-bg);
+    border-radius: var(--bs-border-radius);
+    font-weight: 600;
+}
+
+.menu-tree-title {
+    font-weight: 500;
+    min-width: 8rem;
+    max-width: 16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.menu-tree-link {
+    color: var(--bs-secondary-color);
+    font-size: 0.875rem;
+    font-family: var(--bs-font-monospace);
+    min-width: 6rem;
+    flex: 1 1 8rem;
+}
+
+.menu-tree-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-left: auto;
+}
+
+@media (max-width: 575.98px) {
+    .menu-tree-actions {
+        margin-left: 0;
+        width: 100%;
+    }
 }
 
 /* ---- Admin panel ---- */
@@ -229,6 +374,116 @@
 .admin-sidebar {
     position: sticky;
     top: 1rem;
+}
+
+/* The admin shell already supplies a gutter (container-fluid.p-3 plus the
+   3/9 column split). The extra .container inside every tab pane re-capped the
+   width and re-padded both sides, which pushed the content off center. */
+#admin-tabs-content .container {
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* ---- Stat cards ---- */
+
+.stat-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.stat-card .card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 6.5rem;
+    padding: 1rem 1.25rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+/* Whole card is the click target. */
+a.stat-card,
+a.stat-card:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+a.stat-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--bs-primary);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.stat-card .stat-hint {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.8rem;
+}
+
+/* ---- Admin tables: readable titles and taxonomy chips ---- */
+
+.admin-table .post-title-cell {
+    max-width: 22rem;
+    min-width: 12rem;
+}
+
+.admin-table .post-title-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    font-weight: 500;
+}
+
+.admin-table .taxonomy-cell {
+    max-width: 14rem;
+}
+
+.admin-table .taxonomy-chip {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    margin: 0 0.15rem 0.15rem 0;
+}
+
+.admin-table .taxonomy-more {
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+    border: 1px solid var(--bs-border-color);
+}
+
+.admin-table .comment-cell {
+    max-width: 26rem;
+    min-width: 14rem;
+}
+
+.admin-table .comment-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.4;
 }
 
 @media (max-width: 767.98px) {
@@ -245,26 +500,6 @@
         font-size: 0.9rem;
         padding: 0.5rem 0.75rem;
     }
-}
-
-.stat-card {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-.stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1.2;
-}
-
-.stat-label {
-    color: var(--bs-secondary-color, #6c757d);
-    font-size: 0.9rem;
 }
 
 #admin-tabs-content input[type="text"],

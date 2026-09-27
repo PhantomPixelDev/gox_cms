@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -797,6 +798,213 @@ func TestBulkActions(t *testing.T) {
 
 	if resp, _ := postForm(t, app, "/bulk-posts", url.Values{"action": {"wipe"}, "ids": {ids}}, token, auth); resp.StatusCode != fiber.StatusBadRequest {
 		t.Errorf("bad bulk action: got status %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestHeaderUsesSiteContainer(t *testing.T) {
+	app, db := newTestApp(t)
+
+	// The navbar inner wrapper must use the site's container class, not
+	// container-fluid, or the header spans the viewport while the body
+	// content stays centred.
+	db.Model(&model.BasicWebsiteInfo{}).Where("1 = 1").Update("container_class", "container")
+	_, body := do(t, app, "GET", "/")
+	nav := strings.Index(body, "<nav")
+	if nav < 0 {
+		t.Fatal("no <nav> in the page")
+	}
+	head := body[nav:]
+	if i := strings.Index(head, "</nav>"); i > 0 {
+		head = head[:i]
+	}
+	if !strings.Contains(head, `<div class="container">`) {
+		t.Errorf("navbar does not use the site container class:\n%s", head)
+	}
+	if strings.Contains(head, "container-fluid") {
+		t.Errorf("navbar still uses container-fluid:\n%s", head)
+	}
+}
+
+func TestCommentTableEscapesUserHTML(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+
+	// A visitor's comment is stored HTML-escaped by SanitizeText. The admin
+	// table must render it as text, never unescaped (that was a stored XSS).
+	post := model.Post{Title: "Hostile", Content: "x", Slug: "hostile", UserID: admin.ID}
+	db.Create(&post)
+	// SanitizeText strips complete tags and escapes the rest, so a payload
+	// that survives storage is one with a bare "<" and no closing ">".
+	hostile := `<img src=x onerror=alert(1)`
+	if got := SanitizeTextForTest(hostile); got == hostile {
+		t.Fatalf("test payload was not escaped on the way in: %q", got)
+	}
+	if err := db.Create(&model.Comment{
+		Content: SanitizeTextForTest(hostile),
+		UserID:  admin.ID,
+		PostID:  post.ID,
+		Status:  "pending",
+	}).Error; err != nil {
+		t.Fatalf("could not seed comment: %v", err)
+	}
+
+	resp, body := do(t, app, "GET", "/search-comments", auth)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("comments table: got status %d", resp.StatusCode)
+	}
+	// The row must never render the payload as live markup.
+	if strings.Contains(body, "<img src=x onerror") {
+		t.Error("admin comments table rendered comment content as live markup")
+	}
+	// It must also be readable: the table used `unescape` on already-escaped
+	// text, so admins saw &lt;img... instead of <img...
+	if !strings.Contains(body, "&lt;img src=x onerror=alert(1)") {
+		t.Errorf("comment text was not shown decoded once:\n%s", body)
+	}
+}
+
+// SanitizeTextForTest mirrors handlers.SanitizeText, which is unexported to
+// other packages.
+func SanitizeTextForTest(s string) string {
+	return handlers.SanitizeText(s)
+}
+
+func TestAccountProfileUpdate(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	// The page must show the signed-in user, not just a password form.
+	_, page := do(t, app, "GET", "/account", auth)
+	for _, want := range []string{"boss", "At a glance", "Change password", "account-avatar"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("/account missing %q", want)
+		}
+	}
+
+	form := url.Values{
+		"first_name": {"Ada"},
+		"last_name":  {"Lovelace"},
+		"username":   {"adalove"},
+		"email":      {"ada@example.com"},
+	}
+	resp, _ := postForm(t, app, "/account/profile", form, token, auth)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("update profile: got status %d", resp.StatusCode)
+	}
+	var fresh model.User
+	db.First(&fresh, admin.ID)
+	if fresh.Username != "adalove" || fresh.FirstName != "Ada" || fresh.LastName != "Lovelace" {
+		t.Errorf("profile not saved: %+v", fresh)
+	}
+	if fresh.Email == nil || *fresh.Email != "ada@example.com" {
+		t.Errorf("email not saved: %+v", fresh.Email)
+	}
+
+	// A username already taken by somebody else must be rejected.
+	other := createUser(t, db, "taken", model.RoleUser)
+	bad := url.Values{
+		"first_name": {"Ada"}, "last_name": {"L"}, "username": {other.Username}, "email": {""},
+	}
+	if resp, body := postForm(t, app, "/account/profile", bad, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("duplicate username: got status %d want 400, body=%q", resp.StatusCode, body)
+	}
+	// Non-alphanumeric usernames are rejected.
+	bad2 := url.Values{
+		"first_name": {"Ada"}, "last_name": {"L"}, "username": {"has space!"}, "email": {""},
+	}
+	if resp, _ := postForm(t, app, "/account/profile", bad2, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("invalid username: got status %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestMenuCreatorRendersNestedItems(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+
+	parent := model.Menu{Title: "Header", Primary: true, Position: 1}
+	db.Create(&parent)
+	child := model.Menu{Title: "More", Position: 1, ParentID: &parent.ID}
+	db.Create(&child)
+	childID := child.ID
+	db.Create(&model.MenuItem{Title: "TopLevel", Link: "/a", MenuID: &parent.ID, Position: 1})
+	db.Create(&model.MenuItem{Title: "NestedDeep", Link: "/b", MenuID: &childID, Position: 1})
+
+	_, body := do(t, app, "GET", "/search-menu", auth)
+	// Submenu items were never preloaded before, so they rendered as an
+	// empty heading. Both levels must now appear.
+	for _, want := range []string{"TopLevel", "NestedDeep", "More", "menu-tree-nested"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("menu tree missing %q", want)
+		}
+	}
+	// The add-form and edit-modal controls must no longer share IDs.
+	if strings.Count(body, `id="new-item-link"`) != 1 {
+		t.Errorf("expected exactly one #new-item-link, got %d", strings.Count(body, `id="new-item-link"`))
+	}
+	if strings.Contains(body, `id="menu_item_link"`) {
+		t.Error("stale duplicated #menu_item_link id still present")
+	}
+}
+
+func TestMenuItemSearchMatchesItems(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+
+	m := model.Menu{Title: "Alpha", Position: 1}
+	other := model.Menu{Title: "Beta", Position: 2}
+	db.Create(&m)
+	db.Create(&other)
+	id := m.ID
+	db.Create(&model.MenuItem{Title: "Needle Item", Link: "/needle", MenuID: &id, Position: 1})
+
+	// The field is labelled "search menus and items": an item match must keep
+	// its parent menu visible.
+	req := httptest.NewRequest("GET", "/search-menu?query=Needle", nil)
+	req.AddCookie(auth)
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if !strings.Contains(string(body), "Needle Item") {
+		t.Error("searching by item title did not return the item")
+	}
+	if !strings.Contains(string(body), "Alpha") {
+		t.Error("searching by item title did not keep the parent menu visible")
+	}
+}
+
+func TestMenuCannotBeItsOwnParent(t *testing.T) {
+	app, db := newTestApp(t)
+	admin := createUser(t, db, "boss", model.RoleAdmin)
+	auth := authCookie(t, admin.ID)
+	token := csrfCookie(t, app, auth)
+
+	m := model.Menu{Title: "Loop", Position: 1}
+	db.Create(&m)
+	sub := model.Menu{Title: "Sub", Position: 2, ParentID: &m.ID}
+	db.Create(&sub)
+
+	selfForm := url.Values{"menu_title": {"Loop"}, "parent_id": {strconv.Itoa(int(m.ID))}}
+	if resp, _ := postForm(t, app, fmt.Sprintf("/edit-menu/%d", m.ID), selfForm, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("self parent: got status %d, want 400", resp.StatusCode)
+	}
+	// A menu must not be moved under its own descendant either.
+	cycleForm := url.Values{"menu_title": {"Loop"}, "parent_id": {strconv.Itoa(int(sub.ID))}}
+	if resp, _ := postForm(t, app, fmt.Sprintf("/edit-menu/%d", m.ID), cycleForm, token, auth); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("cycle parent: got status %d, want 400", resp.StatusCode)
+	}
+
+	var fresh model.Menu
+	db.First(&fresh, m.ID)
+	if fresh.ParentID != nil {
+		t.Errorf("menu ended up parented to %v", *fresh.ParentID)
 	}
 }
 

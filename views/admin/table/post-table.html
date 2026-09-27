@@ -32,27 +32,38 @@
 
                 <td><input type="checkbox" class="form-check-input bulk-check" value="{{.ID}}" aria-label="Select post {{.Title}}"></td>
                 <td>{{.ID}}</td>
-                <td>{{ truncate .Title 20 }}</td>
+                <td class="post-title-cell">
+                    <span class="post-title-text" title="{{.Title}}">{{.Title}}</span>
+                </td>
 
-                <td>
+                <td class="taxonomy-cell">
+                    {{if .Categories}}
                     {{range $index, $category := .Categories}}
                     {{if lt $index 3}}
-                    {{.Name}}
+                    <span class="badge text-bg-secondary taxonomy-chip">{{.Name}}</span>
                     {{else if eq $index 3}}
-                    ...
+                    <span class="badge text-bg-light taxonomy-chip taxonomy-more">+{{sub (len $.Categories) 3}}</span>
                     {{end}}
+                    {{end}}
+                    {{else}}
+                    <span class="text-muted">—</span>
                     {{end}}
                 </td>
-                <td>
+                <td class="taxonomy-cell">
+                    {{if .Tags}}
                     {{range $index, $tag := .Tags}}
                     {{if lt $index 3}}
-                    {{.Name}}
+                    <span class="badge text-bg-info taxonomy-chip">{{.Name}}</span>
                     {{else if eq $index 3}}
-                    ...
+                    <span class="badge text-bg-light taxonomy-chip taxonomy-more">+{{sub (len $.Tags) 3}}</span>
                     {{end}}
+                    {{end}}
+                    {{else}}
+                    <span class="text-muted">—</span>
                     {{end}}
                 </td>
-                <td>{{.CreatedAt.Format "02 Jan 2006"}}</td>
+                <td class="text-nowrap">{{.CreatedAt.Format "02 Jan 2006"}}</td>
+
 
                 <td>
                     <button class="btn btn-sm btn-danger" hx-delete="/delete-post/{{.ID}}"
@@ -77,8 +88,13 @@
                 </td>
 
             </tr>
+            {{else}}
+            <tr>
+                <td colspan="10" class="text-center text-muted py-4">No posts match this search.</td>
+            </tr>
             {{end}}
         </tbody>
+
 
     </table>
 

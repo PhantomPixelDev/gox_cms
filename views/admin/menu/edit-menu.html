@@ -2,47 +2,55 @@
     <div class="modal-content">
         <div class="modal-header">
             <h5 class="modal-title">Edit Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
             <form hx-post="/edit-menu/{{ .Menu.ID }}" hx-target="#menu-table-container" hx-swap="none"
-            hx-headers="{'X-No-Cache': 'true'}"
-            data-after="updateMenuList">
+                hx-headers='{"X-No-Cache": "true"}' data-after="updateMenuList">
                 <input type="hidden" name="menu_id" value="{{ .Menu.ID }}">
                 <div class="mb-3">
-                    <label for="menu_title" class="form-label">Menu Title:</label>
-                    <input type="text" class="form-control" id="menu_title" name="menu_title" value="{{ .Menu.Title }}"
-                        required>
+                    <label for="edit-menu-title" class="form-label">Menu Title</label>
+                    <input type="text" class="form-control" id="edit-menu-title" name="menu_title"
+                        value="{{ .Menu.Title }}" required>
                 </div>
                 <div class="mb-3">
-                    <label for="menu_primary" class="form-label">Primary Menu:</label>
-                    <input type="checkbox" class="form-check-input" id="menu_primary" name="menu_primary" {{ if
-                        .Menu.Primary }} checked {{ end }}>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="edit-menu-primary" name="menu_primary"
+                            {{ if .Menu.Primary }}checked {{ end }}>
+                        <label for="edit-menu-primary" class="form-check-label">Primary menu</label>
+                    </div>
+                    <div class="form-text">Shown in the site header. Only one menu can be primary.</div>
                 </div>
                 <div class="mb-3">
-                    <label for="menu_position" class="form-label">Menu Position:</label>
-                    <input type="number" class="form-control" id="menu_position" name="menu_position"
+                    <label for="edit-menu-position" class="form-label">Menu Position</label>
+                    <input type="number" class="form-control" id="edit-menu-position" name="menu_position"
                         value="{{ .Menu.Position }}" required>
                 </div>
-                <!-- Parent Menu Selection -->
                 <div class="mb-3">
-                    <label for="parent_id" class="form-label">Parent Menu (optional):</label>
-                    <select class="form-select" id="parent_id" name="parent_id">
-                        <option value="0" selected>None (top-level menu)</option>
-                        {{ range .Menus }}
-                     
-                        <!-- Optionally filter out non-primary menus if they cannot have submenus -->
-                        <option value="{{ .ID }}">{{ .Title }}</option>
+                    <label for="edit-menu-parent" class="form-label">Parent Menu (optional)</label>
+                    <select class="form-select" id="edit-menu-parent" name="parent_id">
+                        <option value="0">None — top-level menu</option>
+                        {{/* Only primary menus are offered, and never this menu
+                             itself: EditMenu rejects both a self-parent and a
+                             move under its own submenu. */}}
+                        {{ $parent := uintval .Menu.ParentID }}
+                        {{ range .PrimaryMenus }}
+                        {{ if ne .ID $.Menu.ID }}
+                        <option value="{{ .ID }}" {{ if eq .ID $parent }}selected{{ end }}>{{ .Title }}</option>
+                        {{ end }}
                         {{ end }}
                     </select>
+                    {{ if and .Menu.ParentID (not .Menu.Primary) }}
+                    {{/* Not listed above, so keep the existing parent visible. */}}
+                    <div class="form-text">Currently attached as a submenu. It is not in the list because the
+                        parent option is restricted to primary menus.</div>
+                    {{ end }}
                 </div>
-                <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">Edit Menu</button>
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Menu</button>
+                </div>
             </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
     </div>
 </div>
-<!-- Shared helpers live in /static/js/admin.js (loaded once from the layout). -->
-
-

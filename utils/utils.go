@@ -160,6 +160,14 @@ func SetupEngine() *html.Engine {
 		"unescape": func(s string) template.HTML {
 			return template.HTML(s)
 		},
+		// uintval dereferences a *uint column (MenuID, ParentID) so templates
+		// can compare it against a plain ID; nil becomes 0.
+		"uintval": func(p *uint) uint {
+			if p == nil {
+				return 0
+			}
+			return *p
+		},
 
 		"max": max,
 		"min": min,

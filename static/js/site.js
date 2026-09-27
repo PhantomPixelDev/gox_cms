@@ -35,19 +35,6 @@
 
         // Bootstrap reads data-bs-theme from <html>, so toggle it there.
         var root = document.documentElement;
-        var btnSwitch = document.getElementById("btnSwitch");
-        if (btnSwitch) {
-            btnSwitch.addEventListener("click", function () {
-                var theme = root.getAttribute("data-bs-theme");
-                if (theme === "dark") {
-                    root.setAttribute("data-bs-theme", "light");
-                    localStorage.setItem("data-bs-theme", "light");
-                } else {
-                    root.setAttribute("data-bs-theme", "dark");
-                    localStorage.setItem("data-bs-theme", "dark");
-                }
-            });
-        }
 
         var theme = localStorage.getItem("data-bs-theme");
         if (theme === "dark") {
@@ -55,5 +42,34 @@
         } else {
             root.setAttribute("data-bs-theme", "light");
         }
+
+        // Any element with this id flips the theme (the account page has one
+        // alongside the navbar switch).
+        document.addEventListener("click", function (e) {
+            if (!e.target || !e.target.closest) {
+                return;
+            }
+            var btn = e.target.closest("[data-theme-toggle]");
+            if (!btn) {
+                return;
+            }
+            var next = root.getAttribute("data-bs-theme") === "dark" ? "light" : "dark";
+            root.setAttribute("data-bs-theme", next);
+            localStorage.setItem("data-bs-theme", next);
+            syncSwitchIcon();
+        });
+
+        // Keep the navbar and account-page icons showing the right state.
+        function syncSwitchIcon() {
+            var dark = root.getAttribute("data-bs-theme") === "dark";
+            document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
+                var icon = btn.querySelector("i.bi");
+                if (icon) {
+                    icon.className = "bi " + (dark ? "bi-sun" : "bi-moon-stars");
+                }
+                btn.setAttribute("aria-pressed", dark ? "true" : "false");
+            });
+        }
+        syncSwitchIcon();
     });
 })();

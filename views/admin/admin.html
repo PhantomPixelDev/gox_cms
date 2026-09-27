@@ -100,13 +100,16 @@
         <div class="tab-content" id="admin-tabs-content">
             <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
                 <div class="container">
-                    <div class="row justify-content-between align-items-center mb-3">
+                    <div class="row justify-content-between align-items-center mb-3 g-2">
                         <div class="col">
                             <h2 class="text-primary mb-0">Overview</h2>
                         </div>
-                        <div class="col-auto d-flex gap-2">
+                        <div class="col-auto d-flex flex-wrap gap-2">
                             <a href="/admin/post/add" class="btn btn-primary btn-sm">
                                 <i class="bi bi-plus-lg"></i> New Post
+                            </a>
+                            <a href="/add-custompage" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-file-earmark-plus"></i> New Page
                             </a>
                             <button type="button" class="btn btn-outline-secondary btn-sm"
                                 hx-post="/clear-cache" hx-swap="none" hx-headers='{"X-No-Cache": "true"}'>
@@ -116,54 +119,78 @@
                     </div>
                     <div class="row row-cols-2 row-cols-lg-3 g-3">
                         <div class="col">
-                            <div class="card stat-card shadow-sm">
+                            <a href="#post" class="card stat-card shadow-sm h-100 d-block text-decoration-none"
+                                role="tab" data-bs-toggle="tab" aria-controls="post"
+                                hx-get="/search-posts" hx-trigger="click" hx-target="#post-table-container"
+                                hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}'>
                                 <div class="card-body">
                                     <div class="stat-value">{{.PostCount}}</div>
                                     <div class="stat-label"><i class="bi bi-journal-text"></i> Posts</div>
+                                    <div class="stat-hint mt-1">Manage all posts</div>
                                 </div>
-                            </div>
+                            </a>
                         </div>
                         <div class="col">
-                            <div class="card stat-card shadow-sm">
+                            <a href="#table" class="card stat-card shadow-sm h-100 d-block text-decoration-none"
+                                id="user-card-tab" role="tab" data-bs-toggle="tab" aria-controls="table">
                                 <div class="card-body">
                                     <div class="stat-value">{{.UserCount}}</div>
                                     <div class="stat-label"><i class="bi bi-people"></i> Users</div>
+                                    <div class="stat-hint mt-1">Manage accounts</div>
                                 </div>
-                            </div>
+                            </a>
                         </div>
                         <div class="col">
-                            <div class="card stat-card shadow-sm">
+                            <a href="#comments" class="card stat-card shadow-sm h-100 d-block text-decoration-none"
+                                id="comments-card-tab" role="tab" data-bs-toggle="tab" aria-controls="comments"
+                                hx-get="/search-comments" hx-trigger="click" hx-target="#comment-table-container"
+                                hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}'>
                                 <div class="card-body">
                                     <div class="stat-value">{{.PendingComments}}</div>
                                     <div class="stat-label"><i class="bi bi-chat-dots"></i> Pending Comments</div>
+                                    <div class="stat-hint mt-1">Moderate the queue</div>
                                 </div>
-                            </div>
+                            </a>
                         </div>
                         <div class="col">
-                            <div class="card stat-card shadow-sm">
+                            <a href="#custompages" class="card stat-card shadow-sm h-100 d-block text-decoration-none"
+                                id="custompages-card-tab" role="tab" data-bs-toggle="tab" aria-controls="custompages"
+                                hx-get="/search-custompages" hx-trigger="click"
+                                hx-target="#custompage-table-container" hx-swap="innerHTML"
+                                hx-headers='{"X-No-Cache": "true"}'>
                                 <div class="card-body">
                                     <div class="stat-value">{{.PageCount}}</div>
                                     <div class="stat-label"><i class="bi bi-file-earmark"></i> Custom Pages</div>
+                                    <div class="stat-hint mt-1">Static pages</div>
                                 </div>
-                            </div>
+                            </a>
                         </div>
                         <div class="col">
-                            <div class="card stat-card shadow-sm">
+                            <a href="#filemanager" class="card stat-card shadow-sm h-100 d-block text-decoration-none"
+                                id="filemanager-card-tab" role="tab" data-bs-toggle="tab" aria-controls="filemanager"
+                                hx-get="/search-files" hx-trigger="click" hx-target="#file-list-container"
+                                hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}'>
                                 <div class="card-body">
                                     <div class="stat-value">{{.FileCount}}</div>
                                     <div class="stat-label"><i class="bi bi-folder"></i> Files</div>
+                                    <div class="stat-hint mt-1">Open the media library</div>
                                 </div>
-                            </div>
+                            </a>
                         </div>
                         <div class="col">
-                            <div class="card stat-card shadow-sm">
+                            <a href="#menu" class="card stat-card shadow-sm h-100 d-block text-decoration-none"
+                                id="menu-card-tab" role="tab" data-bs-toggle="tab" aria-controls="menu"
+                                hx-get="/search-menu" hx-trigger="click" hx-target="#menu-table-container"
+                                hx-swap="innerHTML" hx-headers='{"X-No-Cache": "true"}'>
                                 <div class="card-body">
+                                    <div class="stat-label mb-1"><i class="bi bi-puzzle"></i> Plugins Enabled</div>
                                     <div class="stat-value">{{.EnabledPlugins}}</div>
-                                    <div class="stat-label"><i class="bi bi-puzzle"></i> Plugins Enabled</div>
+                                    <div class="stat-hint mt-1">Build navigation</div>
                                 </div>
-                            </div>
+                            </a>
                         </div>
                     </div>
+
                 </div>
             </div>
             <div class="tab-pane fade" id="table" role="tabpanel" aria-labelledby="table-tab">
@@ -197,7 +224,7 @@
                             <h2 class="text-primary">Posts</h2>
                         </div>
                         <div class="col-auto">
-                            <a href="/admin/post/add" class="btn btn-primary" target="_blank">
+                            <a href="/admin/post/add" class="btn btn-primary btn-sm">
                                 Add New Post
                             </a>
 
@@ -392,7 +419,7 @@
                             <h2 class="text-primary">Custom Pages</h2>
                         </div>
                         <div class="col-auto">
-                            <a href="/add-custompage" class="btn btn-primary" target="_blank">
+                            <a href="/add-custompage" class="btn btn-primary btn-sm">
                                 Add New Custom Page
                             </a>
                         </div>
@@ -424,11 +451,13 @@
                     </div>
                     <div class="row">
                         <div class="col-md-12">
-                            <input type="text" id="search-input-menu" placeholder="Search menu items..."
-                                class="form-control" hx-get="/search-menu" hx-trigger="keyup delay:500ms changed"
+                            <input type="text" id="search-input-menu" placeholder="Search menus and their items..."
+                                class="form-control" aria-label="Search menus and their items"
+                                hx-get="/search-menu" hx-trigger="keyup delay:500ms changed"
                                 hx-target="#menu-table-container"
                                 hx-vars="query:document.getElementById('search-input-menu').value"
                                 hx-headers='{"X-No-Cache": "true"}' hx-swap="innerHTML">
+
                             <div id="menu-table-container"></div>
                         </div>
                     </div>
@@ -530,3 +559,4 @@
 </div>
 
 <!-- Admin helpers live in /static/js/admin.js (loaded once from the layout). -->
+

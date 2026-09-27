@@ -62,24 +62,23 @@
 
 
 
-    <div class="position-fixed top-0 end-0 p-3 toast-stack">
+    <!-- One stack for both toasts: separate fixed wrappers sat in the same
+         corner and the error toast covered the success one. -->
+    <div class="position-fixed top-0 end-0 p-3 toast-stack d-flex flex-column gap-2">
         <div id="toast" class="toast align-items-center border-0 rounded-3 shadow-lg" role="alert" aria-live="assertive"
             aria-atomic="true">
             <div class="d-flex p-2 rounded-3">
                 <div id="toast-body" class="toast-body"></div>
-                <button type="button" class="btn-close  me-2 m-auto" data-bs-dismiss="toast"
+                <button type="button" class="btn-close ms-2 my-auto" data-bs-dismiss="toast"
                     aria-label="Close"></button>
             </div>
         </div>
-    </div>
 
-
-    <div class="position-fixed top-0 end-0 p-3 toast-stack">
         <div id="toast-error" class="toast align-items-center border-0 rounded-3 shadow-lg bg-danger text-white" role="alert"
             aria-live="assertive" aria-atomic="true">
-            <div class="d-flex  p-2 rounded-3">
+            <div class="d-flex p-2 rounded-3">
                 <div id="toast-body-error" class="toast-body"></div>
-                <button type="button" class="btn-close  me-2 m-auto" data-bs-dismiss="toast"
+                <button type="button" class="btn-close ms-2 my-auto" data-bs-dismiss="toast"
                     aria-label="Close"></button>
             </div>
         </div>

@@ -1,0 +1,35 @@
+{{/*
+    One row in the menu tree. Shared by top-level items and items nested
+    inside a submenu so the controls can never drift apart.
+
+    Expects: "Item" (model.MenuItem), "RowID" (unique DOM id prefix),
+             "Nested" (bool -> indent the row).
+*/}}
+<li class="menu-tree-item{{if .Nested}} menu-tree-nested{{end}}" id="{{.RowID}}">
+    <div class="menu-tree-row">
+        <span class="menu-tree-title" title="{{.Item.Title}}">{{.Item.Title}}</span>
+        <a href="{{.Item.Link}}" class="menu-tree-link text-truncate" title="{{.Item.Link}}">{{.Item.Link}}</a>
+        <div class="menu-tree-actions">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Reorder {{.Item.Title}}">
+                <button class="btn btn-outline-secondary" hx-post="/move-menu-item/{{.Item.ID}}/up"
+                    hx-target="#menu-table-container" hx-swap="innerHTML"
+                    hx-headers='{"X-No-Cache": "true"}' aria-label="Move {{.Item.Title}} up"
+                    title="Move up">&uarr;</button>
+                <button class="btn btn-outline-secondary" hx-post="/move-menu-item/{{.Item.ID}}/down"
+                    hx-target="#menu-table-container" hx-swap="innerHTML"
+                    hx-headers='{"X-No-Cache": "true"}' aria-label="Move {{.Item.Title}} down"
+                    title="Move down">&darr;</button>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" hx-get="/edit-menu-item/{{.Item.ID}}"
+                hx-trigger="click" hx-target="#modals-here" data-bs-toggle="modal" data-bs-target="#modals-here"
+                hx-headers='{"X-No-Cache": "true"}' aria-label="Edit {{.Item.Title}}" title="Edit">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button hx-delete="/delete-menu-item/{{.Item.ID}}" class="btn btn-sm btn-outline-danger"
+                hx-confirm="Delete &quot;{{.Item.Title}}&quot;?" hx-target="#{{.RowID}}" hx-swap="outerHTML"
+                aria-label="Delete {{.Item.Title}}" title="Delete">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+</li>

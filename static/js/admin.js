@@ -42,27 +42,33 @@
 
     // Declarative post-request hooks without inline hx-on attributes (kept
     // CSP-clean): <form data-after="updateMenuList" data-reset-form>.
-    function runFormHook(form, attr) {
-        if (!form || !form.hasAttribute(attr)) {
+    // The trigger may be the element itself or an ancestor (buttons carrying
+    // data-after used to be ignored, so the file list never refreshed).
+    function runHook(el, attr) {
+        if (!el) {
             return;
         }
-        var fn = window[form.getAttribute(attr)];
+        var owner = el.matches && el.matches("[" + attr + "]")
+            ? el
+            : el.closest("[" + attr + "]");
+        if (!owner) {
+            return;
+        }
+        var fn = window[owner.getAttribute(attr)];
         if (typeof fn === "function") {
             fn();
         }
-        if (form.hasAttribute("data-reset-form")) {
-            form.reset();
+        if (owner.hasAttribute("data-reset-form") && typeof owner.reset === "function") {
+            owner.reset();
         }
     }
 
     document.body.addEventListener("htmx:afterRequest", function (e) {
-        var form = e.target && e.target.closest ? e.target.closest("form[data-after]") : null;
-        runFormHook(form, "data-after");
+        runHook(e.target, "data-after");
     });
 
     document.body.addEventListener("htmx:afterSwap", function (e) {
-        var form = e.target && e.target.closest ? e.target.closest("form[data-after-swap]") : null;
-        runFormHook(form, "data-after-swap");
+        runHook(e.target, "data-after-swap");
     });
 
     function showCopiedToast() {
@@ -89,12 +95,14 @@
         showCopiedToast();
     };
 
-    // Menu builder link picker (content arrives via HTMX, hence delegation).
+    // Menu builder link picker: the "Link to" select fills the URL field and
+    // suggests a title (content arrives via HTMX, hence delegation). IDs are
+    // namespaced to the add form so the edit modal's inputs are never touched.
     document.addEventListener("change", function (e) {
-        if (e.target && e.target.id === "link_source") {
+        if (e.target && e.target.id === "new-item-source") {
             var source = e.target;
-            var url = document.getElementById("menu_item_link");
-            var title = document.getElementById("menu_item_title");
+            var url = document.getElementById("new-item-link");
+            var title = document.getElementById("new-item-title");
             if (!url) {
                 return;
             }

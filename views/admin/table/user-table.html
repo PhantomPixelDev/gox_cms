@@ -1,32 +1,31 @@
-
-<div class="table-responsive mt-3" id="user-table-container">
+<div class="table-responsive mt-3">
     <table class="table table-hover table-bordered table-striped align-middle admin-table">
     <thead>
         <tr>
-            <th>Name</th>
-            <th>First Name</th>
-            <th>Last Name</th>
-            <th>Email</th>
-            <th>CreatedAt</th>
-            <th>Role</th>
-            <th>Delete</th>
+            <th scope="col">Username</th>
+            <th scope="col">First Name</th>
+            <th scope="col">Last Name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Joined</th>
+            <th scope="col">Role</th>
+            <th scope="col">Delete</th>
         </tr>
     </thead>
     <tbody>
         {{range .Users}}
         <tr id="user-row-{{.ID}}">
-            <td>{{.Username }}</td>
-            <td>{{.FirstName }}</td>
-            <td>{{.LastName }}</td>
+            <td class="fw-semibold">{{.Username}}</td>
+            <td>{{.FirstName}}</td>
+            <td>{{.LastName}}</td>
             <td>{{ .Email }}</td>
-            <td>{{.CreatedAt.Format "02 Jan 2006"}}</td>
+            <td class="text-nowrap">{{.CreatedAt.Format "02 Jan 2006"}}</td>
             <td>
                 {{if eq .RoleID 1}}
-                    User
+                <span class="badge text-bg-secondary">User</span>
                 {{else if eq .RoleID 2}}
-                    Admin
+                <span class="badge text-bg-primary">Admin</span>
                 {{else}}
-                    Unknown
+                <span class="badge text-bg-secondary">Unknown</span>
                 {{end}}
             </td>
             <td>
@@ -36,11 +35,16 @@
             </td>
 
         </tr>
+        {{else}}
+        <tr>
+            <td colspan="7" class="text-center text-muted py-4">No users match this search.</td>
+        </tr>
         {{end}}
     </tbody>
 </table>
 
 </div>
+
 
 <!-- Add Pagination -->
 

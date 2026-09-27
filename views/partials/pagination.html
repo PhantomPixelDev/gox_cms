@@ -3,9 +3,9 @@
 {{ $totalPages := .TotalPages }}
 {{ $currentPage := .CurrentPage }}
 {{ $searchQuery := .SearchQuery }}
-<div class="col-12 d-flex justify-content-center">
-    <nav class="container d-flex justify-content-center" aria-label="Page navigation">
-        <ul class="pagination justify-content-center flex-wrap mb-0 col-12">
+<div class="d-flex justify-content-center w-100 mt-2">
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center flex-wrap mb-0">
             <li class="page-item {{if eq $currentPage 1}}disabled{{end}}">
                 {{if gt $currentPage 1}}
                 <a class="page-link" href="{{$base}}?page={{sub $currentPage 1}}&query={{$searchQuery}}"

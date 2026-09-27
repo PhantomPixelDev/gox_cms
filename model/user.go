@@ -20,13 +20,16 @@ type User struct {
 	RoleID   uint   `json:"role_id" validate:"required"`
 	// SessionVersion is bumped on logout and invalidates all previously
 	// issued JWTs (their "sv" claim no longer matches).
-	SessionVersion uint       `json:"-" gorm:"default:0"`
-	FirstName      string     `form:"first_name" json:"first_name" validate:"required,min=2,max=30"`
-	LastName       string     `form:"last_name" json:"last_name" validate:"required,min=2,max=30"`
-	Email          *string    `form:"email" json:"email" validate:"omitempty,email"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-	DeletedAt      *time.Time `gorm:"index"`
+	SessionVersion uint    `json:"-" gorm:"default:0"`
+	FirstName      string  `form:"first_name" json:"first_name" validate:"required,min=2,max=30"`
+	LastName       string  `form:"last_name" json:"last_name" validate:"required,min=2,max=30"`
+	Email          *string `form:"email" json:"email" validate:"omitempty,email"`
+	// AvatarURL points at an uploaded image in /static/uploads. Nil means the
+	// account falls back to initials.
+	AvatarURL *string    `form:"avatar_url" json:"avatar_url"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `gorm:"index"`
 }
 
 // Role struct

@@ -35,11 +35,14 @@ type Tag struct {
 }
 
 type Comment struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	Content   string    `json:"content"`
-	UserID    uint      `json:"user_id" gorm:"index"`
-	User      User      `json:"user" gorm:"foreignKey:UserID"`
-	PostID    uint      `json:"post_id" gorm:"index:idx_comments_post_status"`
+	ID      uint   `json:"id" gorm:"primaryKey"`
+	Content string `json:"content"`
+	UserID  uint   `json:"user_id" gorm:"index"`
+	User    User   `json:"user" gorm:"foreignKey:UserID"`
+	PostID  uint   `json:"post_id" gorm:"index:idx_comments_post_status"`
+	// Post is preloaded by the admin comments table to show which post a
+	// comment belongs to. Never set on create; GORM ignores the zero value.
+	Post      Post      `json:"-" gorm:"foreignKey:PostID"`
 	Status    string    `json:"status" gorm:"default:pending;index:idx_comments_post_status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

@@ -49,10 +49,15 @@ func setupAuthRoutes(app *fiber.App, db *gorm.DB, store *session.Store) {
 	})
 
 	app.Get("/account", handlers.IsLoggedIn, func(c *fiber.Ctx) error {
-		return c.Render("account", fiber.Map{
-			"Title":    "Account",
-			"Settings": c.Locals("Settings"),
-		}, "main")
+		return handlers.AccountPage(c, db)
+	})
+
+	app.Post("/account/profile", handlers.IsLoggedIn, func(c *fiber.Ctx) error {
+		return handlers.UpdateAccountProfile(c, db)
+	})
+
+	app.Post("/account/avatar", handlers.IsLoggedIn, func(c *fiber.Ctx) error {
+		return handlers.UpdateAccountAvatar(c, db)
 	})
 
 	app.Post("/change-password", handlers.IsLoggedIn, func(c *fiber.Ctx) error {

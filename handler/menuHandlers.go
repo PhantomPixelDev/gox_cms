@@ -248,14 +248,27 @@ func EditMenu(c *fiber.Ctx, db *gorm.DB) error {
 	menu.Primary = c.FormValue("menu_primary") == "on"
 	menu.Position = optionalPosition(c.FormValue("menu_position"), db, nil)
 
-	optionel_parent_menu_id, err := strconv.Atoi(c.FormValue("parent_id"))
-	if err != nil {
-		/// set parent id to nil or 0
+	// Parent selection. A menu may not be its own parent, nor be moved under
+	// one of its own submenus: both produce a cycle, and a self-parented
+	// primary menu renders as its own submenu in the navbar.
+	if raw := c.FormValue("parent_id"); raw != "" && raw != "0" {
+		parentID, err := strconv.Atoi(raw)
+		if err != nil || parentID <= 0 {
+			ShowToastError(c, "Invalid parent menu")
+			return c.Status(fiber.StatusBadRequest).SendString("Invalid parent menu")
+		}
+		if uint(parentID) == menu.ID {
+			ShowToastError(c, "A menu cannot be its own parent")
+			return c.Status(fiber.StatusBadRequest).SendString("A menu cannot be its own parent")
+		}
+		if menuDescendantIDs(db, menu.ID)[uint(parentID)] {
+			ShowToastError(c, "A menu cannot be moved under its own submenu")
+			return c.Status(fiber.StatusBadRequest).SendString("A menu cannot be moved under its own submenu")
+		}
+		parent := uint(parentID)
+		menu.ParentID = &parent
+	} else {
 		menu.ParentID = nil
-	}
-	if optionel_parent_menu_id != 0 {
-		parentID := uint(optionel_parent_menu_id)
-		menu.ParentID = &parentID
 	}
 
 	/// change other primary menus to non-primary, atomically with the save.
@@ -322,17 +335,17 @@ func EditMenuView(c *fiber.Ctx, db *gorm.DB) error {
 		return menuNotFound(c, "Menu")
 	}
 
-	// Get all menus
-	var menus []model.Menu
-	if err := db.Find(&menus).Error; err != nil {
+	// Only primary menus can act as a parent (the navbar renders one level of
+	// submenus). The menu being edited is filtered out in the template.
+	var primaryMenus []model.Menu
+	if err := db.Where("is_primary = ?", true).Order("position ASC").Find(&primaryMenus).Error; err != nil {
 		return menuServerError(c, "Could not load menus")
 	}
-	menuID := uint(menu.ID)
 
 	return c.Render("admin/menu/edit-menu", fiber.Map{
-		"Menu":   menu,
-		"MenuID": menuID,
-		"Menus":  menus,
+		"Menu":         menu,
+		"MenuID":       menu.ID,
+		"PrimaryMenus": primaryMenus,
 	})
 }
 
@@ -347,39 +360,48 @@ func EditMenuItemView(c *fiber.Ctx, db *gorm.DB) error {
 		return menuNotFound(c, "Menu item")
 	}
 
-	// get all menus for the select dropdown
-	var menus []model.Menu
-	if err := db.Find(&menus).Error; err != nil {
+	// Every menu is a valid target, including submenus, so an item can be
+	// re-homed from the modal.
+	var allMenus []model.Menu
+	if err := db.Order("position ASC").Find(&allMenus).Error; err != nil {
 		return menuServerError(c, "Could not load menus")
 	}
 
-	// Convert ID to the same type as MenuID
-	menuItemID := uint(menuItem.ID)
-
 	return c.Render("admin/menu/edit-menu-item", fiber.Map{
 		"MenuItem":   menuItem,
-		"Menus":      menus,
-		"MenuItemID": menuItemID,
+		"AllMenus":   allMenus,
+		"MenuItemID": menuItem.ID,
 	})
 }
 
 func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
-	var menus []model.Menu
+	// Search matches the menu title OR any of its items (the field is
+	// labelled "search menus and items"), so a matching item keeps its
+	// parent menu visible.
 	searchQuery := c.Query("query")
 	pageSize := 10 // Default page size
 
+	var menus []model.Menu
 	// Convert page string to int for pagination calculation
 	pageInt := queryPage(c)
 
-	// Search for menus with pagination and order them by position
-	// Ensure to order both menus and their items by their position
+	// Order menus and their items by position
 	db.Where("title LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
+		Or("id IN (?)", db.Model(&model.MenuItem{}).
+			Select("menu_id").
+			Where("title LIKE ? ESCAPE '\\' OR link LIKE ? ESCAPE '\\'",
+						likePattern(searchQuery), likePattern(searchQuery))).
 		Order("position ASC"). // Order menus by position
 		Preload("MenuItems", func(db *gorm.DB) *gorm.DB {
 			return db.Order("position ASC") // Order menu items by position within each menu
 		}).
 		Preload("SubMenus", func(db *gorm.DB) *gorm.DB {
 			return db.Order("position ASC") // Order sub-menus by position
+		}).
+		// Nested preload: without it sub-menu items were never loaded, so the
+		// admin tree rendered each submenu as an empty heading.
+		Preload("SubMenus.MenuItems", func(db *gorm.DB) *gorm.DB {
+			return db.Order("position ASC")
 		}).
 		Limit(pageSize).
 		Offset((pageInt - 1) * pageSize).
@@ -389,6 +411,10 @@ func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
 	var totalMatchingCount int64
 	db.Model(&model.Menu{}).
 		Where("title LIKE ? ESCAPE '\\'", likePattern(searchQuery)).
+		Or("id IN (?)", db.Model(&model.MenuItem{}).
+			Select("menu_id").
+			Where("title LIKE ? ESCAPE '\\' OR link LIKE ? ESCAPE '\\'",
+				likePattern(searchQuery), likePattern(searchQuery))).
 		Count(&totalMatchingCount)
 	totalPages := pageCount(totalMatchingCount, pageSize)
 
@@ -401,15 +427,55 @@ func SearchMenuAdminTable(c *fiber.Ctx, db *gorm.DB) error {
 	var posts []model.Post
 	db.Where("published = ?", true).Order("title ASC").Limit(200).Find(&posts)
 
+	// Item counts (own + nested) drive the "N items" summary in the header
+	// of each menu card and the delete confirmation.
+	counts := map[uint]int{}
+	for _, m := range menus {
+		total := len(m.MenuItems)
+		for _, sub := range m.SubMenus {
+			total += len(sub.MenuItems)
+		}
+		counts[m.ID] = total
+	}
+
+	// Only these menus can be a submenu's parent: the tree is rendered one
+	// level deep, and attaching a submenu under a submenu would hide items.
+	var primaryMenus []model.Menu
+	db.Where("is_primary = ?", true).Order("position ASC").Find(&primaryMenus)
+
 	return c.Render("admin/table/menu-table", fiber.Map{
-		"Menus":       menus, // No need to separate and recombine by primary status for ordering
-		"TotalPages":  totalPages,
-		"CurrentPage": pageInt,
-		"SearchQuery": searchQuery,
-		"AllMenus":    allMenus,
-		"Pages":       pages,
-		"Posts":       posts,
+		"Menus":        menus, // No need to separate and recombine by primary status for ordering
+		"TotalPages":   totalPages,
+		"CurrentPage":  pageInt,
+		"SearchQuery":  searchQuery,
+		"AllMenus":     allMenus,
+		"PrimaryMenus": primaryMenus,
+		"ItemCounts":   counts,
+		"Pages":        pages,
+		"Posts":        posts,
 	})
+}
+
+// menuDescendantIDs walks a menu's submenu chain and returns every ID below
+// it, so a menu can never be re-parented under its own descendant.
+func menuDescendantIDs(db *gorm.DB, rootID uint) map[uint]bool {
+	seen := map[uint]bool{}
+	var walk func(uint)
+	walk = func(id uint) {
+		var children []model.Menu
+		if err := db.Where("parent_id = ?", id).Find(&children).Error; err != nil {
+			return
+		}
+		for _, child := range children {
+			if seen[child.ID] {
+				continue
+			}
+			seen[child.ID] = true
+			walk(child.ID)
+		}
+	}
+	walk(rootID)
+	return seen
 }
 
 // maxMenuPosition returns one past the highest used position within scope, so
@@ -516,10 +582,13 @@ func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool, currentPath
 
 	return htmlMenuString
 }
+
+// adminControls renders the admin-only navbar links. "Clear Cache" used to
+// live here too; it is a maintenance action and now only appears on the
+// dashboard, which keeps the header narrow.
 func adminControls() string {
 	return `<div class="d-flex gap-2 my-2 my-lg-0 me-lg-2" role="group" aria-label="Admin group">
 		<a href="/admin" class="btn btn-sm btn-outline-primary">Admin Dashboard</a>
-		<button class="btn btn-sm btn-outline-primary" hx-post="/clear-cache" hx-trigger="click" hx-confirm="Are you sure you want to clear the cache?" hx-swap="none" hx-headers='{"X-No-Cache": "true"}'>Clear Cache</button>
 		</div>`
 }
 
