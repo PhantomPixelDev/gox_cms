@@ -22,9 +22,12 @@
                     {{range .Categories}}
                     <a href="/blog/category/{{.Slug}}" class="badge rounded-pill text-bg-secondary text-decoration-none">{{.Name}}</a>
                     {{end}}
-                </div>
-                {{end}}
-            </div>
+    </div>
+    {{end}}
+{{/* The former .row closing tag is gone: #post-list wraps the list AND the
+     paginator, so that the /frag/blog fragment can swap both in one unit. It
+     is closed at the end of this file. */}}
+
         </div>
     </div>
     {{else}}

@@ -1,0 +1,30 @@
+<h1>Welcome to {{ .Settings.Name }}</h1>
+<p class="lead">{{ .Settings.Tagline }}</p>
+
+{{ if .Settings.About }}
+<h2>About this site</h2>
+<p>{{ .Settings.About }}</p>
+{{ end }}
+
+<h2>Recent posts</h2>
+{{ if .Posts }}
+<ul class="post-list">
+    {{ range .Posts }}
+    <li>
+        <h3><a href="/blog/post/{{ .Slug }}">{{ .Title }}</a></h3>
+        <p class="post-meta">{{ .CreatedAt.Format "02 Jan 2006" }}</p>
+    </li>
+    {{ end }}
+</ul>
+{{ else }}
+<p class="muted">No posts published yet.</p>
+{{ end }}
+
+<h2>Elsewhere</h2>
+<ul>
+    <li><a href="/blog">All posts</a></li>
+    <li><a href="/search">Search this site</a></li>
+    {{ if .Settings.ContactEmail }}
+    <li><a href="mailto:{{ .Settings.ContactEmail }}">{{ .Settings.ContactEmail }}</a></li>
+    {{ end }}
+</ul>

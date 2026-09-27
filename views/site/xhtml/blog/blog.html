@@ -1,0 +1,67 @@
+{{/* Framework-free blog listing. No Bootstrap classes: this template set is
+     deliberately plain HTML + /static/themes/simple/style.css. The wrapper is
+     the pager's hx-target, and it holds the list and the paginator together
+     because the /frag/blog fragment re-renders this whole template. */}}
+<div id="post-list">
+<h1>{{ .Title }}</h1>
+
+{{ if .Posts }}
+<ul class="post-list">
+    {{ range .Posts }}
+    <li>
+        {{ if .ImageURL }}<img class="thumb" src="{{ .ImageURL }}" alt="" loading="lazy" />{{ end }}
+        <h3><a href="/blog/post/{{ .Slug }}">{{ .Title }}</a></h3>
+        {{ $date := .CreatedAt.Format "02 Jan 2006" }}
+        <p class="post-meta"><time datetime="{{ .CreatedAt.Format "2006-01-02" }}">{{ $date }}</time></p>
+        <p class="excerpt">{{ truncate (escape .Content) 180 }}</p>
+    </li>
+    {{ end }}
+</ul>
+
+{{ if gt .TotalPagesInt 1 }}
+{{/* The page number is a PATH segment, not a query parameter:
+     /blog/:page?. These links used to read ?page=N, which the route
+     ignored, so every page number returned page 1. */}}
+<nav aria-label="Pagination" id="post-list-pager">
+    <ul class="pager">
+        {{ if .HasPrev }}
+        <li><a href="/blog/{{ .PrevPage }}" rel="prev"
+            hx-get="/frag/blog?page={{ .PrevPage }}" hx-target="#post-list"
+            hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'>Prev</a></li>
+        {{ else }}
+        <li><span class="disabled">Prev</span></li>
+        {{ end }}
+
+        {{ if .ShowFirstGap }}
+        <li><span class="gap">&#8230;</span></li>
+        <li><a href="/blog/1">1</a></li>
+        {{ end }}
+
+        {{ range .PageWindow }}
+        <li>
+            {{ if eq . $.CurrentPage }}<span class="current" aria-current="page">{{ . }}</span>
+            {{ else }}<a href="/blog/{{ . }}"
+                hx-get="/frag/blog?page={{ . }}" hx-target="#post-list"
+                hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'>{{ . }}</a>{{ end }}
+        </li>
+        {{ end }}
+
+        {{ if .ShowLastGap }}
+        <li><a href="/blog/{{ .TotalPagesInt }}">{{ .TotalPagesInt }}</a></li>
+        <li><span class="gap">&#8230;</span></li>
+        {{ end }}
+
+        {{ if .HasNext }}
+        <li><a href="/blog/{{ .NextPage }}" rel="next"
+            hx-get="/frag/blog?page={{ .NextPage }}" hx-target="#post-list"
+            hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'>Next</a></li>
+        {{ else }}
+        <li><span class="disabled">Next</span></li>
+        {{ end }}
+    </ul>
+</nav>
+{{ end }}
+{{ else }}
+<p class="notice">No posts here yet.</p>
+{{ end }}
+</div>

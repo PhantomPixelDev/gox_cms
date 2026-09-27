@@ -1,0 +1,7 @@
+{
+  "name": "XHTML",
+  "version": "1.0.0",
+  "author": "GoX CMS",
+  "description": "Framework-free theme served as XHTML 1.0 Strict. A browser parses the DOCTYPE and then rejects any tag that is not closed, which turns sloppy markup into a visible error instead of an invisible layout bug.",
+  "framework": "none"
+}

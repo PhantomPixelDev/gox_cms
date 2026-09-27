@@ -1,0 +1,7 @@
+{
+  "name": "Default",
+  "version": "1.0.0",
+  "author": "GoX CMS",
+  "description": "Bootstrap 5, the original public templates. The only theme that loads Bootstrap, and the only one that needs it.",
+  "framework": "Bootstrap 5"
+}

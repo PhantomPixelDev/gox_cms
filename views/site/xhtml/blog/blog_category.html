@@ -33,7 +33,7 @@
         {{ end }}
 
         {{ if .ShowFirstGap }}
-        <li><span class="gap">&hellip;</span></li>
+        <li><span class="gap">&#8230;</span></li>
         <li><a href="/blog/category/{{ .Slug }}/1">1</a></li>
         {{ end }}
 
@@ -48,7 +48,7 @@
 
         {{ if .ShowLastGap }}
         <li><a href="/blog/category/{{ .Slug }}/{{ .TotalPagesInt }}">{{ .TotalPagesInt }}</a></li>
-        <li><span class="gap">&hellip;</span></li>
+        <li><span class="gap">&#8230;</span></li>
         {{ end }}
 
         {{ if .HasNext }}
@@ -65,4 +65,3 @@
 <p class="notice">No posts in this category yet.</p>
 {{ end }}
 </div>
-
