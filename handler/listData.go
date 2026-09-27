@@ -24,28 +24,58 @@ const postsPerPage = 10
 // PrevPage      previous page number, clamped at 1
 // NextPage      next page number, clamped at TotalPagesInt
 // HasPrev/HasNext whether those are real links
-func pageWindow(pageNumber, totalPages int) fiber.Map {
+// PageWindow    a short run of page numbers around the current one
+// ShowFirstGap/ShowLastGap whether to render an ellipsis before/after
+//
+// PageWindow exists because the paginators used to range over every page. A
+// blog with 500 pages of archive produced 500 <li> elements on every list page,
+// which is a lot of markup to download and read for a control that shows five
+// numbers at a time.
+func pageWindow(currentPage, totalPages int) fiber.Map {
 	// pageCount returns 0 for an empty result set. A paginator that says
 	// "page 1 of 0" is worse than one that says "page 1 of 1", and a
 	// NextPage of 0 would link to page 0.
 	if totalPages < 1 {
 		totalPages = 1
 	}
-	if pageNumber < 1 {
-		pageNumber = 1
+	if currentPage < 1 {
+		currentPage = 1
 	}
-	if pageNumber > totalPages {
-		pageNumber = totalPages
+	if currentPage > totalPages {
+		currentPage = totalPages
 	}
+
+	window, firstGap, lastGap := pageRun(currentPage, totalPages)
+
 	return fiber.Map{
-		"CurrentPage":   pageNumber,
+		"CurrentPage":   currentPage,
 		"TotalPagesInt": totalPages,
 		"TotalPages":    pageRange(1, totalPages),
-		"PrevPage":      maxInt(pageNumber-1, 1),
-		"NextPage":      minInt(pageNumber+1, totalPages),
-		"HasPrev":       pageNumber > 1,
-		"HasNext":       pageNumber < totalPages,
+		"PrevPage":      maxInt(currentPage-1, 1),
+		"NextPage":      minInt(currentPage+1, totalPages),
+		"HasPrev":       currentPage > 1,
+		"HasNext":       currentPage < totalPages,
+		"PageWindow":    window,
+		"ShowFirstGap":  firstGap,
+		"ShowLastGap":   lastGap,
 	}
+}
+
+// pageWindowSize is how many numbered links a paginator shows around the
+// current page.
+const pageWindowSize = 2
+
+// pageRun returns the page numbers to show and whether an ellipsis is needed on
+// each side.
+func pageRun(currentPage, totalPages int) (window []int, firstGap, lastGap bool) {
+	start := maxInt(currentPage-pageWindowSize, 1)
+	end := minInt(currentPage+pageWindowSize, totalPages)
+	window = pageRange(start, end)
+	// A gap is only worth an ellipsis if it hides at least one page, and the
+	// first and last pages are always shown so the ends stay reachable.
+	firstGap = start > 2
+	lastGap = end < totalPages-1
+	return window, firstGap, lastGap
 }
 
 // pageRange builds [from, to] inclusive.

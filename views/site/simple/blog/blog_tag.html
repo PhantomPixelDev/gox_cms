@@ -1,5 +1,9 @@
-{{/* Tag listing. */}}
+{{/* Tag listing. The wrapper is the pager's hx-target and holds the list and
+     the paginator together, because the /frag/blog/tag fragment re-renders this
+     whole template and swaps it in as one unit. */}}
+<div id="post-list">
 <h1>Tag: {{ .Title }}</h1>
+
 {{ if .Posts }}
 <ul class="post-list">
     {{ range .Posts }}
@@ -13,21 +17,42 @@
 </ul>
 
 {{ if gt .TotalPagesInt 1 }}
-<nav aria-label="Pagination">
+{{/* The page number is a PATH segment, not a query parameter:
+     /blog/tag/:slug/:page?. These links used to read ?page=N, which the
+     route ignored, so the simple theme's tag pagination never worked. */}}
+<nav aria-label="Pagination" id="post-list-pager">
     <ul class="pager">
-        {{ if gt .CurrentPage 1 }}
-        <li><a href="/blog/tag/{{ .Slug }}?page={{ sub .CurrentPage 1 }}" rel="prev">Prev</a></li>
+        {{ if .HasPrev }}
+        <li><a href="/blog/tag/{{ .Slug }}/{{ .PrevPage }}" rel="prev"
+            hx-get="/frag/blog/tag/{{ .Slug }}?page={{ .PrevPage }}" hx-target="#post-list"
+            hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'>Prev</a></li>
         {{ else }}
         <li><span class="disabled">Prev</span></li>
         {{ end }}
-        {{ range .TotalPages }}
+
+        {{ if .ShowFirstGap }}
+        <li><span class="gap">&hellip;</span></li>
+        <li><a href="/blog/tag/{{ .Slug }}/1">1</a></li>
+        {{ end }}
+
+        {{ range .PageWindow }}
         <li>
             {{ if eq . $.CurrentPage }}<span class="current" aria-current="page">{{ . }}</span>
-            {{ else }}<a href="/blog/tag/{{ $.Slug }}?page={{ . }}">{{ . }}</a>{{ end }}
+            {{ else }}<a href="/blog/tag/{{ $.Slug }}/{{ . }}"
+                hx-get="/frag/blog/tag/{{ $.Slug }}?page={{ . }}" hx-target="#post-list"
+                hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'>{{ . }}</a>{{ end }}
         </li>
         {{ end }}
-        {{ if lt .CurrentPage .TotalPagesInt }}
-        <li><a href="/blog/tag/{{ .Slug }}?page={{ .NextPage }}" rel="next">Next</a></li>
+
+        {{ if .ShowLastGap }}
+        <li><a href="/blog/tag/{{ .Slug }}/{{ .TotalPagesInt }}">{{ .TotalPagesInt }}</a></li>
+        <li><span class="gap">&hellip;</span></li>
+        {{ end }}
+
+        {{ if .HasNext }}
+        <li><a href="/blog/tag/{{ .Slug }}/{{ .NextPage }}" rel="next"
+            hx-get="/frag/blog/tag/{{ .Slug }}?page={{ .NextPage }}" hx-target="#post-list"
+            hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'>Next</a></li>
         {{ else }}
         <li><span class="disabled">Next</span></li>
         {{ end }}
@@ -36,4 +61,4 @@
 {{ end }}
 {{ else }}
 <p class="notice">No posts with this tag yet.</p>
-{{ end }}
+{{ end }}</div>

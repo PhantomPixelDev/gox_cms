@@ -1,5 +1,10 @@
-<div class="col-12">
+{{/* The pager's hx-target. It wraps the list and the paginator together,
+     because the /frag/blog/category fragment re-renders this whole template
+     and swaps it in as one unit. */}}
+<div id="post-list">
+    <div class="col-12">
     <h1 class="h2 mb-1">Category: {{.Title}}</h1>
+
     <p class="text-muted">{{len .Posts}} post(s)</p>
     <hr>
     {{range .Posts}}
@@ -26,21 +31,41 @@
 {{if gt .TotalPagesInt 1}}
 <div class="row mb-2">
     <div class="col-12">
-        <nav aria-label="Category pages">
+        {{/* Windowed, and paging swaps /frag/blog/category/<slug>, not this
+             page: hx-get on a normal page URL injects a second <html>. */}}
+        <nav id="post-list-pager" aria-label="Category pages">
             <ul class="pagination justify-content-center flex-wrap mb-0">
-                <li class="page-item {{if eq .CurrentPage 1}}disabled{{end}}">
-                    <a class="page-link" {{if gt .CurrentPage 1}}href="/blog/category/{{.Slug}}/{{.PrevPage}}"{{end}} aria-label="Previous">Previous</a>
+                <li class="page-item {{if not .HasPrev}}disabled{{end}}">
+                    <a class="page-link" {{if .HasPrev}}href="/blog/category/{{.Slug}}/{{.PrevPage}}"
+                        hx-get="/frag/blog/category/{{.Slug}}?page={{.PrevPage}}" hx-target="#post-list"
+                        hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'{{end}} aria-label="Previous">Previous</a>
                 </li>
-                {{range .TotalPages}}
+
+                {{if .ShowFirstGap}}
+                <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                <li class="page-item"><a class="page-link" href="/blog/category/{{.Slug}}/1">1</a></li>
+                {{end}}
+
+                {{range .PageWindow}}
                 <li class="page-item {{if eq . $.CurrentPage}}active{{end}}" {{if eq . $.CurrentPage}}aria-current="page"{{end}}>
-                    <a class="page-link" href="/blog/category/{{$.Slug}}/{{.}}">{{.}}</a>
+                    <a class="page-link" href="/blog/category/{{$.Slug}}/{{.}}"
+                        hx-get="/frag/blog/category/{{$.Slug}}?page={{.}}" hx-target="#post-list"
+                        hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'>{{.}}</a>
                 </li>
                 {{end}}
-                <li class="page-item {{if eq .CurrentPage .TotalPagesInt}}disabled{{end}}">
-                    <a class="page-link" {{if lt .CurrentPage .TotalPagesInt}}href="/blog/category/{{.Slug}}/{{.NextPage}}"{{end}} aria-label="Next">Next</a>
+
+                {{if .ShowLastGap}}
+                <li class="page-item"><a class="page-link" href="/blog/category/{{$.Slug}}/{{$.TotalPagesInt}}">{{$.TotalPagesInt}}</a></li>
+                <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                {{end}}
+
+                <li class="page-item {{if not .HasNext}}disabled{{end}}">
+                    <a class="page-link" {{if .HasNext}}href="/blog/category/{{.Slug}}/{{.NextPage}}"
+                        hx-get="/frag/blog/category/{{.Slug}}?page={{.NextPage}}" hx-target="#post-list"
+                        hx-swap="outerHTML" hx-headers='{"X-No-Cache": "true"}'{{end}} aria-label="Next">Next</a>
                 </li>
             </ul>
         </nav>
     </div>
 </div>
-{{end}}
+{{end}}</div>

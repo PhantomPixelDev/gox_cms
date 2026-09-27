@@ -1,4 +1,4 @@
-<div class="row">
+<div id="post-list">
     {{range .Posts}}
     <div class="col-12 col-md-6 mb-4">
         <div class="card h-100 shadow-sm d-flex flex-column flex-md-row overflow-hidden">
@@ -37,21 +37,44 @@
 {{if gt .TotalPagesInt 1}}
 <div class="row mb-2">
     <div class="col-12">
-        <nav aria-label="Blog pages">
+        {{/* A windowed paginator. It used to range over every page, so a long
+             archive produced one <li> per page on every list page. The hx-get
+             targets /frag/blog: pointing hx-get at a normal page URL would
+             inject a second <html> document into this page. */}}
+        <nav aria-label="Blog pages" id="post-list-pager">
             <ul class="pagination justify-content-center flex-wrap mb-0">
-                <li class="page-item {{if eq .CurrentPage 1}}disabled{{end}}">
-                    <a class="page-link" {{if gt .CurrentPage 1}}href="/blog/{{.PrevPage}}"{{end}} aria-label="Previous">Previous</a>
+                <li class="page-item {{if not .HasPrev}}disabled{{end}}">
+                    <a class="page-link" {{if .HasPrev}}href="/blog/{{.PrevPage}}"
+                        hx-get="/frag/blog?page={{.PrevPage}}" hx-target="#post-list" hx-swap="outerHTML"
+                        hx-headers='{"X-No-Cache": "true"}'{{end}} aria-label="Previous">Previous</a>
                 </li>
-                {{range .TotalPages}}
+
+                {{if .ShowFirstGap}}
+                <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                <li class="page-item"><a class="page-link" href="/blog/1">1</a></li>
+                {{end}}
+
+                {{range .PageWindow}}
                 <li class="page-item {{if eq . $.CurrentPage}}active{{end}}" {{if eq . $.CurrentPage}}aria-current="page"{{end}}>
-                    <a class="page-link" href="/blog/{{.}}">{{.}}</a>
+                    <a class="page-link" href="/blog/{{.}}"
+                        hx-get="/frag/blog?page={{.}}" hx-target="#post-list" hx-swap="outerHTML"
+                        hx-headers='{"X-No-Cache": "true"}'>{{.}}</a>
                 </li>
                 {{end}}
-                <li class="page-item {{if eq .CurrentPage .TotalPagesInt}}disabled{{end}}">
-                    <a class="page-link" {{if lt .CurrentPage .TotalPagesInt}}href="/blog/{{.NextPage}}"{{end}} aria-label="Next">Next</a>
+
+                {{if .ShowLastGap}}
+                <li class="page-item"><a class="page-link" href="/blog/{{.TotalPagesInt}}">{{.TotalPagesInt}}</a></li>
+                <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                {{end}}
+
+                <li class="page-item {{if not .HasNext}}disabled{{end}}">
+                    <a class="page-link" {{if .HasNext}}href="/blog/{{.NextPage}}"
+                        hx-get="/frag/blog?page={{.NextPage}}" hx-target="#post-list" hx-swap="outerHTML"
+                        hx-headers='{"X-No-Cache": "true"}'{{end}} aria-label="Next">Next</a>
                 </li>
             </ul>
         </nav>
     </div>
 </div>
 {{end}}
+</div>

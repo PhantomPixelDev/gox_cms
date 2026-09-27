@@ -407,6 +407,13 @@ label {
     opacity: 0.45;
 }
 
+/* The gap markers the windowed paginator renders between the page run and
+   the first/last page links. */
+.pager .gap {
+    border: 0;
+    opacity: 0.6;
+}
+
 /* ---- forms (login / register / account) ---- */
 
 .auth {
@@ -416,17 +423,44 @@ label {
 
 /* ---- comments ---- */
 
+/* views/partials/comments.html is shared by every theme, so these class names
+   are the contract a theme styles. They are theme-neutral on purpose. */
+.comment-list {
+    margin: 1.5rem 0;
+}
+
 .comment {
     border-top: 1px solid var(--border);
     padding: 1rem 0;
 }
 
-.comment .who {
+.comment-head {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+}
+
+.comment-author {
     font-weight: 700;
 }
 
-.comment p {
-    margin: 0.3rem 0 0;
+.comment-date {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.comment-body > :first-child {
+    margin-top: 0;
+}
+
+.comment-body > :last-child {
+    margin-bottom: 0;
+}
+
+.comment-empty {
+    color: var(--muted);
 }
 
 /* ---- footer ---- */

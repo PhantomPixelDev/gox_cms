@@ -741,3 +741,47 @@ textarea:focus-visible,
         flex-basis: 100%;
     }
 }
+
+/* ---- Comment list ----
+   views/partials/comments.html is shared by every theme, so these class names
+   are the contract each theme styles. The markup is theme-neutral on purpose:
+   Go templates cannot compute a template name, so a per-theme copy could not be
+   included from the theme's own post template, and a template that fails to
+   parse takes down every theme rather than just its own. */
+.comment-list {
+    margin-top: 1rem;
+}
+
+.comment {
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.comment-head {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+.comment-author {
+    font-weight: 600;
+}
+
+.comment-date {
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.875rem;
+}
+
+.comment-body > :first-child {
+    margin-top: 0;
+}
+
+.comment-body > :last-child {
+    margin-bottom: 0;
+}
+
+.comment-empty {
+    color: var(--bs-secondary-color, #6c757d);
+    margin-bottom: 0;
+}
