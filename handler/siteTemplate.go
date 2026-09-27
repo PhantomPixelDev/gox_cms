@@ -61,11 +61,14 @@ const (
 	ThemeManifest = "theme.json"
 )
 
-// requiredThemeTemplates are the templates a theme must ship. A theme that is
+// RequiredThemeTemplates are the templates a theme must ship. A theme that is
 // missing any of them cannot be activated, which is what makes "must be
 // complete" a safe rule rather than a trap: the admin UI reports exactly which
 // files are absent rather than the site 500-ing on a missing template.
-var requiredThemeTemplates = []string{
+//
+// Exported so docs/THEMES.md can be tested against this list instead of
+// restating it, since a guide that drifts from the code is worse than none.
+var RequiredThemeTemplates = []string{
 	ThemeLayout,
 	"index.html",
 	"search.html",
@@ -226,7 +229,7 @@ func inspectTheme(root, name string) ThemeInfo {
 		}
 	}
 
-	for _, rel := range requiredThemeTemplates {
+	for _, rel := range RequiredThemeTemplates {
 		if rel == ThemeLayout && name == SiteTemplateDefault {
 			// The default theme uses the shared public layout.
 			if hasThemeLayout(name) {
@@ -297,13 +300,13 @@ func parseTheme(root, name, dir string) error {
 		return nil
 	})
 
-	for _, rel := range requiredThemeTemplates {
+	for _, rel := range RequiredThemeTemplates {
 		tname := name + "/" + rel
 		known[tname] = true
 	}
 	known[name] = true
 
-	for _, rel := range requiredThemeTemplates {
+	for _, rel := range RequiredThemeTemplates {
 		raw, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
 		if err != nil {
 			// The default theme's layout lives at the views root.
@@ -495,6 +498,23 @@ func RenderFragment(c *fiber.Ctx, name string, data fiber.Map) error {
 func RenderNotFound(c *fiber.Ctx) error {
 	c.Status(fiber.StatusNotFound)
 	return RenderSite(c, "404", fiber.Map{
+		"Title":      "404 - Page Not Found",
+		"IsLoggedIn": c.Locals("isLoggedin"),
+		"IsAdmin":    c.Locals("isAdmin"),
+	})
+}
+
+// RenderFragmentNotFound is the 404 for a fragment request.
+//
+// It renders the theme's 404 view with no layout, because RenderNotFound
+// returns a whole document. A fragment whose slug does not exist used to answer
+// with a full <html> page, which is exactly the thing fragments exist to avoid:
+// htmx would splice an entire document into whatever panel the request came
+// from. The status is still 404, so the calling code and any monitoring can see
+// it.
+func RenderFragmentNotFound(c *fiber.Ctx) error {
+	c.Status(fiber.StatusNotFound)
+	return RenderFragment(c, "404", fiber.Map{
 		"Title":      "404 - Page Not Found",
 		"IsLoggedIn": c.Locals("isLoggedin"),
 		"IsAdmin":    c.Locals("isAdmin"),

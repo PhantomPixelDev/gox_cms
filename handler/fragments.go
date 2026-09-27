@@ -41,7 +41,7 @@ func FragmentCategoryList(c *fiber.Ctx, db *gorm.DB) error {
 	slug := c.Params("slug")
 	var category model.Category
 	if err := db.Where("slug = ?", slug).First(&category).Error; err != nil || category.ID == 0 {
-		return RenderNotFound(c)
+		return RenderFragmentNotFound(c)
 	}
 	scope := &postScope{
 		join:   "JOIN post_categories ON post_categories.post_id = posts.id",
@@ -59,7 +59,7 @@ func FragmentTagList(c *fiber.Ctx, db *gorm.DB) error {
 	slug := c.Params("slug")
 	var tag model.Tag
 	if err := db.Where("slug = ?", slug).First(&tag).Error; err != nil || tag.ID == 0 {
-		return RenderNotFound(c)
+		return RenderFragmentNotFound(c)
 	}
 	scope := &postScope{
 		join:   "JOIN post_tags ON post_tags.post_id = posts.id",
@@ -120,7 +120,7 @@ func FragmentCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 	// published = true, and parameterised: a draft page must not be reachable
 	// through the fragment endpoint either.
 	if err := db.Where("slug = ? AND published = ?", slug, true).First(&page).Error; err != nil || page.ID == 0 {
-		return RenderNotFound(c)
+		return RenderFragmentNotFound(c)
 	}
 
 	// The page templates read .Title and .Content directly rather than a
@@ -144,7 +144,7 @@ func FragmentCustomPage(c *fiber.Ctx, db *gorm.DB) error {
 // broken links look like server faults in the logs.
 func notFoundOrServer(c *fiber.Ctx, err error) error {
 	if errors.Is(err, errNotFound) {
-		return RenderNotFound(c)
+		return RenderFragmentNotFound(c)
 	}
 	return c.Status(500).SendString("Could not load post")
 }
