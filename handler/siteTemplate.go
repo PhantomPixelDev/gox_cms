@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"goxcms/utils"
 
@@ -111,40 +110,41 @@ type ThemeInfo struct {
 	Active bool
 }
 
-// themeCache holds the last discovery result. Discovery touches the filesystem
-// and parses templates, so it must not run per request.
-var themeCache struct {
-	sync.RWMutex
-	themes []ThemeInfo
-	loaded time.Time
-}
-
-// themeCacheTTL is short because themes are created by editing files, and an
-// admin should not need a restart to see one. Explicit invalidation is also
-// available via ReloadThemes.
-const themeCacheTTL = 15 * time.Second
-
 // viewsRoot is the directory the template engine was configured with. Set once
 // at startup; theme discovery is relative to it.
-var viewsRoot = "views"
+//
+// Guarded by viewsMu because the test suite builds more than one app in one
+// process, each with its own template root.
+var (
+	viewsMu   sync.RWMutex
+	viewsRoot = utils.ViewsDir
+)
 
 // SetViewsRoot records where templates live so themes can be discovered.
 func SetViewsRoot(dir string) {
-	themeCache.Lock()
+	viewsMu.Lock()
 	viewsRoot = dir
-	themeCache.themes = nil
-	themeCache.loaded = time.Time{}
-	themeCache.Unlock()
+	viewsMu.Unlock()
 }
 
-// ReloadThemes drops the discovery cache so the next read re-scans the disk.
-// Called after settings change so a newly created theme appears immediately.
-func ReloadThemes() {
-	themeCache.Lock()
-	themeCache.themes = nil
-	themeCache.loaded = time.Time{}
-	themeCache.Unlock()
+// siteDir returns the current template root.
+func siteDir() string {
+	viewsMu.RLock()
+	defer viewsMu.RUnlock()
+	return viewsRoot
 }
+
+// ReloadThemes is called after a theme is activated, so a theme activated in
+// this request is immediately reported as active.
+//
+// There is no longer a discovery cache. There used to be a 15 second one, on
+// the grounds that discovery reads the filesystem and parses templates. But
+// discovery is only called from the admin settings page and from theme
+// activation, never on a public render, so it was never on a hot path: the
+// cache saved nothing and cost correctness. A theme created by editing files
+// did not appear for up to 15 seconds, which is exactly the surprise the
+// filesystem approach is supposed to remove.
+func ReloadThemes() {}
 
 // InitThemeSystem points discovery at the template root. Call once at startup,
 // before the first render.
@@ -153,22 +153,12 @@ func InitThemeSystem() {
 }
 
 // DiscoverThemes scans ThemeDir and returns every theme found, with the active
-// one flagged. Results are cached briefly; use ReloadThemes to force a rescan.
+// one flagged. Themes that are incomplete or do not parse are included and
+// flagged, not hidden: an author needs to be told why their theme is not
+// offered, and a silently absent theme is indistinguishable from one that was
+// never seen.
 func DiscoverThemes(active string) []ThemeInfo {
-	themeCache.RLock()
-	fresh := themeCache.themes != nil && time.Since(themeCache.loaded) < themeCacheTTL
-	cached := themeCache.themes
-	themeCache.RUnlock()
-	if fresh {
-		return markActive(cached, active)
-	}
-
-	themes := scanThemes()
-	themeCache.Lock()
-	themeCache.themes = themes
-	themeCache.loaded = time.Now()
-	themeCache.Unlock()
-	return markActive(themes, active)
+	return markActive(scanThemes(), active)
 }
 
 func markActive(themes []ThemeInfo, active string) []ThemeInfo {
@@ -182,7 +172,7 @@ func markActive(themes []ThemeInfo, active string) []ThemeInfo {
 
 // scanThemes walks views/site/* and validates each candidate.
 func scanThemes() []ThemeInfo {
-	root := filepath.Join(viewsRoot, ThemeDir)
+	root := filepath.Join(siteDir(), ThemeDir)
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil
@@ -207,11 +197,11 @@ func scanThemes() []ThemeInfo {
 // views/main.html, which the login, register and account screens also use. That
 // stays as it is, so the default theme is accepted without a layout of its own.
 func hasThemeLayout(name string) bool {
-	if _, err := os.Stat(filepath.Join(viewsRoot, ThemeDir, name, ThemeLayout)); err == nil {
+	if _, err := os.Stat(filepath.Join(siteDir(), ThemeDir, name, ThemeLayout)); err == nil {
 		return true
 	}
 	if name == SiteTemplateDefault {
-		_, err := os.Stat(filepath.Join(viewsRoot, PublicLayoutFile))
+		_, err := os.Stat(filepath.Join(siteDir(), PublicLayoutFile))
 		return err == nil
 	}
 	return false
@@ -286,7 +276,7 @@ func parseTheme(root, name, dir string) error {
 	set := template.New("__validate__").Funcs(validationFuncs())
 
 	// Shared partials first, so a theme can include them by name.
-	partialsRoot := filepath.Join(viewsRoot, "partials")
+	partialsRoot := filepath.Join(siteDir(), "partials")
 	known := map[string]bool{}
 	_ = filepath.WalkDir(partialsRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".html") {
@@ -318,7 +308,7 @@ func parseTheme(root, name, dir string) error {
 		if err != nil {
 			// The default theme's layout lives at the views root.
 			if rel == ThemeLayout && name == SiteTemplateDefault {
-				raw, err = os.ReadFile(filepath.Join(viewsRoot, PublicLayoutFile))
+				raw, err = os.ReadFile(filepath.Join(siteDir(), PublicLayoutFile))
 			}
 			if err != nil {
 				return fmt.Errorf("%s: %v", rel, err)
@@ -379,7 +369,7 @@ func SiteTemplateSet(name string) string {
 	if name == "" {
 		return SiteTemplateDefault
 	}
-	dir := filepath.Join(viewsRoot, ThemeDir, name, ThemeLayout)
+	dir := filepath.Join(siteDir(), ThemeDir, name, ThemeLayout)
 	if _, err := os.Stat(dir); err != nil {
 		return SiteTemplateDefault
 	}

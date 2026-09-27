@@ -4,6 +4,8 @@ import (
 	"log"
 	"sync"
 
+	"goxcms/utils"
+
 	"github.com/gofiber/template/html/v2"
 )
 
@@ -30,7 +32,13 @@ func SetTemplateEngine(e *html.Engine) {
 // circuits on it, so /clear-cache could never pick up an edited template
 // before. Reload is also toggled off, because leaving ShouldReload on would
 // re-parse the whole template tree on every single request.
+//
+// The parse guard's verdicts are dropped too. They are memoised per path, so
+// without this a template that was broken and has since been fixed would stay
+// hidden from the engine forever.
 func ReloadTemplates() {
+	utils.ResetParseGuard()
+
 	engineRef.RLock()
 	e := engineRef.engine
 	engineRef.RUnlock()

@@ -11,6 +11,7 @@ import (
 	"log"
 	"math/big"
 	"net"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -118,10 +119,29 @@ func randomString(length int) string {
 const ViewsDir = "./views"
 
 // SetupEngine builds the HTML engine.
+//
+// The engine is pointed at a filesystem wrapper that hides templates which do
+// not parse. Without it, a single malformed template anywhere under views/ — for
+// instance a theme mid-edit — fails the whole load and takes every page on the
+// site down, including the admin page that is supposed to report the problem.
+// See parseGuard.go.
 func SetupEngine() *html.Engine {
-	engine := html.New(ViewsDir, ".html")
-	engine.AddFuncMap(TemplateFuncMap())
+	funcs := TemplateFuncMap()
+	engine := html.NewFileSystem(ParseGuardFS(http.FS(os.DirFS(viewsRoot())), funcs), ".html")
+	engine.AddFuncMap(funcs)
 	return engine
+}
+
+// viewsRoot resolves the template directory for the engine. A directory that
+// does not exist falls back to the default so the error surfaces as a missing
+// template rather than as a confusing "views: no such file or directory" from
+// the filesystem itself.
+func viewsRoot() string {
+	dir := ViewsDir
+	if st, err := os.Stat(dir); err == nil && st.IsDir() {
+		return dir
+	}
+	return "views"
 }
 
 // TemplateFuncMap is every helper available inside a template, exported so the

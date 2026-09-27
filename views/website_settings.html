@@ -74,14 +74,20 @@
                             <code>views/site/</code>. Create a theme by copying an existing one and editing it; a theme
                             is only selectable once all its templates exist and parse. Log in, register and account
                             screens always use the default templates.</div>
-                        {{$broken := false}}
+                        {{/* Every incomplete theme is reported, not just the
+                             first. An author with two half-built themes was
+                             told about one of them and left guessing about
+                             the other. */}}
                         {{range .TemplateSets}}
-                        {{if and (not .Complete) (not $broken)}}
-                        {{$broken = true}}
+                        {{if not .Complete}}
                         <div class="alert alert-warning mt-2 mb-0">
                             <strong>{{.Label}}</strong> cannot be activated yet.
-                            {{if .Missing}}<div class="small">Missing: <code>{{range $i, $m := .Missing}}{{if $i}}, {{end}}{{$m}}{{end}}</code></div>{{end}}
-                            {{if .ParseErr}}<div class="small">Template error: <code>{{.ParseErr}}</code></div>{{end}}
+                            {{if .Missing}}<div class="small">Missing:
+                                <code>{{range $i, $m := .Missing}}{{if $i}}, {{end}}{{$m}}{{end}}</code>
+                            </div>{{end}}
+                            {{if .ParseErr}}<div class="small">Template error:
+                                <code>{{.ParseErr}}</code>
+                            </div>{{end}}
                         </div>
                         {{end}}
                         {{end}}
