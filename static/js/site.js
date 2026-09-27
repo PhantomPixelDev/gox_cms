@@ -36,11 +36,12 @@
         // Bootstrap reads data-bs-theme from <html>, so toggle it there.
         var root = document.documentElement;
 
+        // Apply the visitor's saved theme, if any. Without a saved choice the
+        // server-rendered data-bs-theme stands (a dark Bootswatch theme starts
+        // dark and must not be reset to light here).
         var theme = localStorage.getItem("data-bs-theme");
-        if (theme === "dark") {
-            root.setAttribute("data-bs-theme", "dark");
-        } else {
-            root.setAttribute("data-bs-theme", "light");
+        if (theme === "dark" || theme === "light") {
+            root.setAttribute("data-bs-theme", theme);
         }
 
         // Any element with this id flips the theme (the account page has one

@@ -46,14 +46,55 @@ func TestBuildMenuHTML(t *testing.T) {
 	}
 }
 
+// The navbar must not pin a colour palette: hardcoding navbar-light/bg-light
+// left a white navbar on a dark page with unreadable menu links. A bare
+// .navbar follows data-bs-theme, so no colour classes are emitted.
 func TestNavbarClassForTheme(t *testing.T) {
-	if got := navbarClassForTheme("darkly"); got != "navbar-dark bg-dark" {
-		t.Errorf("darkly = %q", got)
+	for _, theme := range []string{"darkly", "flatly", ""} {
+		if got := navbarClassForTheme(theme); got != "" {
+			t.Errorf("navbarClassForTheme(%q) = %q, want empty", theme, got)
+		}
 	}
-	if got := navbarClassForTheme("flatly"); got != "navbar-light bg-light" {
-		t.Errorf("flatly = %q", got)
+}
+
+// Dark Bootswatch themes start in dark mode; light ones start light.
+func TestInitialTheme(t *testing.T) {
+	for _, theme := range []string{"darkly", "cyborg", "slate", "vapor", "superhero", "solar"} {
+		if got := initialTheme(theme); got != "dark" {
+			t.Errorf("initialTheme(%q) = %q, want dark", theme, got)
+		}
 	}
-	if got := navbarClassForTheme(""); got != "navbar-light bg-light" {
-		t.Errorf("empty theme = %q", got)
+	for _, theme := range []string{"flatly", "litera", ""} {
+		if got := initialTheme(theme); got != "light" {
+			t.Errorf("initialTheme(%q) = %q, want light", theme, got)
+		}
+	}
+}
+
+// The menu and the right-hand controls must not both carry auto margins:
+// me-auto on one sibling and ms-auto on another cancels out and glues the
+// menu to the logo.
+func TestMenuHTMLControlGroupLayout(t *testing.T) {
+	menu := model.Menu{ID: 1, Title: "Main"}
+	menu.MenuItems = []*model.MenuItem{{ID: 1, Title: "Home", Link: "/", Position: 1}}
+
+	html := buildMenuHTML(menu, true, true, "/", false)
+
+	if !strings.Contains(html, `class="navbar-nav me-auto"`) {
+		t.Error("menu list lost its me-auto")
+	}
+	if !strings.Contains(html, `ms-auto ms-lg-3`) {
+		t.Error("right-hand control group is missing")
+	}
+	// Exactly one ms-auto, so the auto margins cannot cancel.
+	if n := strings.Count(html, "ms-auto"); n != 1 {
+		t.Errorf("found %d ms-auto margins, want exactly 1", n)
+	}
+	// Controls are grouped, not loose siblings.
+	if strings.Contains(html, `class="navbar-nav ms-auto"`) {
+		t.Error("controls still emitted as a second navbar-nav list")
+	}
+	if !strings.Contains(html, `href="/account"`) || !strings.Contains(html, `href="/admin"`) {
+		t.Error("account/admin controls missing")
 	}
 }

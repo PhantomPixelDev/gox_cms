@@ -97,25 +97,40 @@ func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 		"TimeZone":            settings.TimeZone,
 		"ContainerClass":      settings.ContainerClass,
 		"NavbarClass":         navbarClassForTheme(settings.Theme),
+		"InitialTheme":        initialTheme(settings.Theme),
 		"RegistrationEnabled": strconv.FormatBool(settings.RegistrationEnabled),
 		"CaptchaEnabled":      strconv.FormatBool(viper.GetBool("captcha.enabled")),
 		"CaptchaSiteKey":      viper.GetString("captcha.public_key"),
 	}
 }
 
-// darkBootswatchThemes need a dark navbar for readable contrast; every other
-// theme gets the light navbar.
+// darkBootswatchThemes are dark by design, so the page starts in dark mode
+// with them.
 var darkBootswatchThemes = map[string]bool{
 	"cyborg": true, "darkly": true, "slate": true,
 	"solar": true, "superhero": true, "vapor": true,
 }
 
-// navbarClassForTheme maps a Bootswatch theme name to navbar color classes.
+// navbarClassForTheme returns extra navbar classes for the Bootswatch theme.
+//
+// It deliberately returns "" for light themes. It used to return
+// "navbar-light bg-light" (or "navbar-dark bg-dark"), which pinned the navbar
+// to a fixed palette: with dark mode on, the page went dark while the navbar
+// stayed white, and the light/dark link colors fought the active theme. A bare
+// .navbar inherits Bootstrap's --bs-navbar-* variables, which follow
+// data-bs-theme automatically.
 func navbarClassForTheme(theme string) string {
+	return ""
+}
+
+// initialTheme is the data-bs-theme rendered into <html>. Dark Bootswatch
+// themes start dark; everything else follows the visitor's saved choice, which
+// static/js/site.js applies after load.
+func initialTheme(theme string) string {
 	if darkBootswatchThemes[theme] {
-		return "navbar-dark bg-dark"
+		return "dark"
 	}
-	return "navbar-light bg-light"
+	return "light"
 }
 
 // settingsTTL bounds how stale cached settings can get in another process

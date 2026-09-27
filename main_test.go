@@ -528,9 +528,19 @@ func TestUpdateSettings(t *testing.T) {
 		t.Fatalf("settings not saved: %+v", info)
 	}
 
-	// Theme drives the navbar class on public pages.
-	if resp, body := do(t, app, "GET", "/"); resp.StatusCode != fiber.StatusOK || !strings.Contains(body, "navbar-dark bg-dark") {
-		t.Errorf("dark theme navbar not applied (status %d)", resp.StatusCode)
+	// A dark Bootswatch theme starts the page in dark mode, and the navbar
+	// must not carry hardcoded colour classes that would fight it.
+	if resp, body := do(t, app, "GET", "/"); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("home after settings update: got status %d", resp.StatusCode)
+	} else {
+		if !strings.Contains(body, `data-bs-theme="dark"`) {
+			t.Error("dark Bootswatch theme did not render data-bs-theme=dark")
+		}
+		for _, bad := range []string{"navbar-light", "bg-light", "navbar-dark", "bg-dark"} {
+			if strings.Contains(body, bad) {
+				t.Errorf("navbar still hardcodes %q", bad)
+			}
+		}
 	}
 }
 
@@ -679,6 +689,25 @@ func TestHeaderHasToggleAndSearch(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("homepage missing %q", want)
 		}
+	}
+}
+
+func TestNavbarFollowsTheme(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	_, body := do(t, app, "GET", "/")
+	// No fixed palette on the navbar, and the theme comes from settings.
+	for _, bad := range []string{"navbar-light", "navbar-dark", "bg-light", "bg-dark"} {
+		if strings.Contains(body, bad) {
+			t.Errorf("navbar hardcodes %q, which fights data-bs-theme", bad)
+		}
+	}
+	if !strings.Contains(body, `data-bs-theme="light"`) {
+		t.Error("expected a light default for a light Bootswatch theme")
+	}
+	// The theme switch must be wired to the delegated handler.
+	if !strings.Contains(body, "data-theme-toggle") {
+		t.Error("theme switch missing data-theme-toggle")
 	}
 }
 

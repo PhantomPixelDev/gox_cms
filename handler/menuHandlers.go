@@ -569,6 +569,12 @@ func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool, currentPath
 
 	htmlMenuString += "</ul>\n"
 
+	// Right-hand controls in a single flex group. They used to be two
+	// separate siblings, one with me-auto and one with ms-auto: the auto
+	// margins cancelled, so the menu collapsed against the logo and every
+	// control drifted right.
+	htmlMenuString += "<div class=\"d-flex align-items-center gap-2 ms-auto ms-lg-3 flex-wrap\">\n"
+
 	// Admin and user controls
 	if isAdmin {
 		htmlMenuString += adminControls()
@@ -580,6 +586,8 @@ func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool, currentPath
 		htmlMenuString += userControls(false, registrationOpen)
 	}
 
+	htmlMenuString += "</div>\n"
+
 	return htmlMenuString
 }
 
@@ -587,24 +595,21 @@ func buildMenuHTML(menu model.Menu, isAdmin bool, userLoggedIn bool, currentPath
 // live here too; it is a maintenance action and now only appears on the
 // dashboard, which keeps the header narrow.
 func adminControls() string {
-	return `<div class="d-flex gap-2 my-2 my-lg-0 me-lg-2" role="group" aria-label="Admin group">
-		<a href="/admin" class="btn btn-sm btn-outline-primary">Admin Dashboard</a>
-		</div>`
+	return `<a href="/admin" class="btn btn-sm btn-outline-primary">Admin Dashboard</a>`
 }
 
+// userControls renders Account/Logout for a signed-in visitor, or
+// Login/Register for an anonymous one. Plain buttons, not a navbar-nav list:
+// the caller already provides the flex group.
 func userControls(loggedIn bool, registrationOpen bool) string {
 	if loggedIn {
-		return `<ul class="navbar-nav ms-auto">
-			<li class="nav-item me-lg-2"><a class="btn btn-sm btn-outline-secondary my-2 my-lg-0" href="/account">Account</a></li>
-			<li class="nav-item"><button hx-post="/logout" hx-swap="none" hx-target="body" hx-headers='{"X-No-Cache": "true"}' hx-confirm="Log out?" class="btn btn-sm btn-outline-secondary my-2 my-lg-0">Logout</button></li>
-			</ul>`
+		return `<a href="/account" class="btn btn-sm btn-outline-secondary">Account</a>
+		<button hx-post="/logout" hx-swap="none" hx-target="body" hx-headers='{"X-No-Cache": "true"}' hx-confirm="Log out?" class="btn btn-sm btn-outline-secondary">Logout</button>`
 	}
-	out := `<ul class="navbar-nav ms-auto">
-		<li class="nav-item me-lg-2"><a class="btn btn-sm btn-outline-primary my-2 my-lg-0" href="/login">Login</a></li>`
+	out := `<a href="/login" class="btn btn-sm btn-outline-primary">Login</a>`
 	if registrationOpen {
 		out += `
-		<li class="nav-item"><a class="btn btn-sm btn-primary my-2 my-lg-0" href="/register">Register</a></li>`
+		<a href="/register" class="btn btn-sm btn-primary">Register</a>`
 	}
-	return out + `
-		</ul>`
+	return out
 }
