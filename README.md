@@ -1,6 +1,7 @@
 # Welcome to GoX CMS! 🎉
 
-![GoXCMS Admin](https://i.imgur.com/ipHrr9x.png)
+![GoXCMS Home](docs/screenshots/home.png)
+![GoXCMS Admin](docs/screenshots/admin.png)
 
 GoX CMS is a project that combines Go and HTMX to create a snappy, and enjoyable content management experience. It's a playground for experimenting, learning, and breaking things in a controlled environment.
 
