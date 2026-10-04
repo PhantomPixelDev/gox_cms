@@ -1,4 +1,5 @@
 <div id="post-list">
+    <div class="row">
     {{range .Posts}}
     <div class="col-12 col-md-6 mb-4">
         <div class="card h-100 shadow-sm d-flex flex-column flex-md-row overflow-hidden">
@@ -22,12 +23,9 @@
                     {{range .Categories}}
                     <a href="/blog/category/{{.Slug}}" class="badge rounded-pill text-bg-secondary text-decoration-none">{{.Name}}</a>
                     {{end}}
-    </div>
-    {{end}}
-{{/* The former .row closing tag is gone: #post-list wraps the list AND the
-     paginator, so that the /frag/blog fragment can swap both in one unit. It
-     is closed at the end of this file. */}}
-
+                </div>
+                {{end}}
+            </div>
         </div>
     </div>
     {{else}}
@@ -35,15 +33,11 @@
         <div class="alert alert-info" role="alert">No posts yet — check back soon.</div>
     </div>
     {{end}}
-</div>
+    </div>
 
 {{if gt .TotalPagesInt 1}}
 <div class="row mb-2">
     <div class="col-12">
-        {{/* A windowed paginator. It used to range over every page, so a long
-             archive produced one <li> per page on every list page. The hx-get
-             targets /frag/blog: pointing hx-get at a normal page URL would
-             inject a second <html> document into this page. */}}
         <nav aria-label="Blog pages" id="post-list-pager">
             <ul class="pagination justify-content-center flex-wrap mb-0">
                 <li class="page-item {{if not .HasPrev}}disabled{{end}}">
