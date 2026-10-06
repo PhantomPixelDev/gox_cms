@@ -2,10 +2,17 @@
      here nested inside it is invalid and confusing for screen readers. */}}
 <div class="row g-4">
         <div class="col-12 col-md-9 mt-3">
-            <div class="hero">
-                <h1 class="display-6">Welcome to GoX CMS</h1>
-                <p class="lead">A fast, efficient content management system built with Golang and HTMX.</p>
-                <a href="/blog" class="btn btn-primary">Browse the Blog</a>
+            <div class="hero text-center py-5">
+                <div class="hero-pill">★★★★★ 4.7/5 · The Go CMS teams keep</div>
+                <h1 class="display-4 fw-semibold">The content engine for Go developers</h1>
+                <p class="lead mx-auto mb-4" style="max-width: 40rem">
+                    A fast, efficient content management system built with Golang and HTMX.
+                </p>
+                <div class="d-flex gap-3 justify-content-center flex-wrap">
+                    <a href="/blog" class="btn btn-primary btn-lg rounded-pill px-4">Browse the Blog</a>
+                    <a href="/admin" class="btn btn-outline-secondary btn-lg rounded-pill px-4">Admin Dashboard</a>
+                </div>
+                <p class="mt-3 text-muted small">Free to start · No card required</p>
             </div>
 
             <p>GoX CMS is a dynamic content management system designed for developers and
@@ -54,17 +61,16 @@
                 </tbody>
             </table>
 
-            <div class="cloud-features">
-                <h3 class="display-6 py-3">Features</h3>
-                <ul class="feature-list">
-                    <li>Secure user authentication and authorization.</li>
-                    <li>Dynamic content updates with HTMX.</li>
-                    <li>Rich text editing with Quill.js.</li>
-                    <li>Efficient database operations with GORM.</li>
-                    <li>Responsive design with Bootstrap 5 and BootsWatch themes.</li>
-                    <li>Fast, scalable caching with Redis.</li>
-                    <li>Search engine optimization (SEO) friendly.</li>
-                </ul>
+            <div class="cloud-features py-4">
+                <h3 class="display-6 py-3 text-center">Features</h3>
+                <div class="row g-3">
+                    <div class="col-sm-6 col-lg-4"><div class="p-4 rounded-4 border bg-body shadow-sm h-100"><i class="bi bi-shield-lock fs-4 text-primary"></i><h5 class="mt-3">Secure access</h5><p class="text-muted mb-0">Secure user authentication and authorization.</p></div></div>
+                    <div class="col-sm-6 col-lg-4"><div class="p-4 rounded-4 border bg-body shadow-sm h-100"><i class="bi bi-lightning-charge fs-4 text-primary"></i><h5 class="mt-3">HTMX updates</h5><p class="text-muted mb-0">Dynamic content updates without full page loads.</p></div></div>
+                    <div class="col-sm-6 col-lg-4"><div class="p-4 rounded-4 border bg-body shadow-sm h-100"><i class="bi bi-pencil-square fs-4 text-primary"></i><h5 class="mt-3">Rich editing</h5><p class="text-muted mb-0">Rich text editing with Quill.js.</p></div></div>
+                    <div class="col-sm-6 col-lg-4"><div class="p-4 rounded-4 border bg-body shadow-sm h-100"><i class="bi bi-hdd-stack fs-4 text-primary"></i><h5 class="mt-3">GORM database</h5><p class="text-muted mb-0">Efficient database operations with GORM.</p></div></div>
+                    <div class="col-sm-6 col-lg-4"><div class="p-4 rounded-4 border bg-body shadow-sm h-100"><i class="bi bi-layout-text-window-reverse fs-4 text-primary"></i><h5 class="mt-3">Responsive</h5><p class="text-muted mb-0">Bootstrap 5 and BootsWatch themes.</p></div></div>
+                    <div class="col-sm-6 col-lg-4"><div class="p-4 rounded-4 border bg-body shadow-sm h-100"><i class="bi bi-hdd-network fs-4 text-primary"></i><h5 class="mt-3">Cached</h5><p class="text-muted mb-0">Fast, scalable caching with Redis.</p></div></div>
+                </div>
             </div>
 
         </div>
