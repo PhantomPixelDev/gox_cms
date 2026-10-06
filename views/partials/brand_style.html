@@ -1,0 +1,48 @@
+{{/* Emitted only when an admin picked a brand color in Settings. The value is
+     regex-whitelisted hex (see updateSettingsFromForm), so inlining it here
+     cannot inject markup. Bootstrap 5.3 hardcodes component colors (hover/active
+     shades per variant), so a --bs-primary override alone is not enough: we
+     re-point the variables here. */}}
+{{ if .Settings.BrandColor }}
+<style>
+    :root {
+        --bs-primary: {{ .Settings.BrandColor }};
+        --bs-primary-rgb: {{ .Settings.BrandColorRGB }};
+        --bs-link-color-rgb: {{ .Settings.BrandColorRGB }};
+        --bs-link-hover-color-rgb: {{ .Settings.BrandColorHoverRGB }};
+    }
+
+    [data-bs-theme="dark"] {
+        --bs-primary-rgb: {{ .Settings.BrandColorRGB }};
+        --bs-link-color-rgb: {{ .Settings.BrandColorRGB }};
+        --bs-link-hover-color-rgb: {{ .Settings.BrandColorHoverRGB }};
+    }
+
+    .btn-primary {
+        --bs-btn-bg: {{ .Settings.BrandColor }};
+        --bs-btn-border-color: {{ .Settings.BrandColor }};
+        --bs-btn-hover-bg: {{ .Settings.BrandColorHover }};
+        --bs-btn-hover-border-color: {{ .Settings.BrandColorHover }};
+        --bs-btn-active-bg: {{ .Settings.BrandColorActive }};
+        --bs-btn-active-border-color: {{ .Settings.BrandColorActive }};
+        --bs-btn-disabled-bg: {{ .Settings.BrandColor }};
+        --bs-btn-disabled-border-color: {{ .Settings.BrandColor }};
+    }
+
+    .btn-outline-primary {
+        --bs-btn-color: {{ .Settings.BrandColor }};
+        --bs-btn-border-color: {{ .Settings.BrandColor }};
+        --bs-btn-hover-color: #fff;
+        --bs-btn-hover-bg: {{ .Settings.BrandColor }};
+        --bs-btn-hover-border-color: {{ .Settings.BrandColor }};
+        --bs-btn-active-color: #fff;
+        --bs-btn-active-bg: {{ .Settings.BrandColor }};
+        --bs-btn-active-border-color: {{ .Settings.BrandColor }};
+    }
+
+    .page-item.active .page-link {
+        background-color: {{ .Settings.BrandColor }};
+        border-color: {{ .Settings.BrandColor }};
+    }
+</style>
+{{ end }}

@@ -61,8 +61,7 @@
         var root = document.documentElement;
 
         // Apply the visitor's saved theme, if any. Without a saved choice the
-        // server-rendered data-bs-theme stands (a dark Bootswatch theme starts
-        // dark and must not be reset to light here).
+        // server-rendered data-bs-theme stands.
         var theme = localStorage.getItem("data-bs-theme");
         if (theme === "dark" || theme === "light") {
             root.setAttribute("data-bs-theme", theme);

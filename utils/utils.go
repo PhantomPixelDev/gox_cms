@@ -440,7 +440,7 @@ func CreateBasicWebsiteInfo(db *gorm.DB) {
 			AnalyticsID:    "UA-XXXXXXXX-X",
 			FooterText:     "© 2024 GoX CMS. All rights reserved.",
 			Maintenance:    false,
-			Theme:          "flatly",
+			BrandColor:     "",
 			ContactEmail:   "support@goxcms.com",
 			PrivacyPolicy:  "Our privacy policy goes here...",
 			TermsOfService: "Our terms of service go here...",
@@ -462,12 +462,9 @@ func CreateBasicWebsiteInfo(db *gorm.DB) {
 		var existing model.BasicWebsiteInfo
 		if err := db.First(&existing).Error; err == nil {
 			updates := map[string]interface{}{}
-			if strings.TrimSpace(existing.ContainerClass) == "" {
-				updates["container_class"] = "container"
-			}
-			if strings.TrimSpace(existing.Theme) == "" {
-				updates["theme"] = "flatly"
-			}
+		if strings.TrimSpace(existing.ContainerClass) == "" {
+			updates["container_class"] = "container"
+		}
 			if len(updates) > 0 {
 				db.Model(&model.BasicWebsiteInfo{}).Where("id = ?", existing.ID).Updates(updates)
 				log.Println("Basic website info normalized (empty theme/container filled in)")

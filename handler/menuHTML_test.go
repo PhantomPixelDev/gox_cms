@@ -112,21 +112,17 @@ func TestMenuPartialToleratesMissingMenu(t *testing.T) {
 // left a white navbar on a dark page with unreadable menu links. A bare
 // .navbar follows data-bs-theme, so no colour classes are emitted.
 func TestNavbarClassForTheme(t *testing.T) {
-	for _, theme := range []string{"darkly", "flatly", ""} {
+	for _, theme := range []string{"anything", "flatly", ""} {
 		if got := navbarClassForTheme(theme); got != "" {
 			t.Errorf("navbarClassForTheme(%q) = %q, want empty", theme, got)
 		}
 	}
 }
 
-// Dark Bootswatch themes start in dark mode; light ones start light.
+// The server always starts light: the visitor's saved choice takes over
+// client-side via site.js.
 func TestInitialTheme(t *testing.T) {
-	for _, theme := range []string{"darkly", "cyborg", "slate", "vapor", "superhero", "solar"} {
-		if got := initialTheme(theme); got != "dark" {
-			t.Errorf("initialTheme(%q) = %q, want dark", theme, got)
-		}
-	}
-	for _, theme := range []string{"flatly", "litera", ""} {
+	for _, theme := range []string{"darkly", "flatly", ""} {
 		if got := initialTheme(theme); got != "light" {
 			t.Errorf("initialTheme(%q) = %q, want light", theme, got)
 		}

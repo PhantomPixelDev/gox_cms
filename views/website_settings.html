@@ -51,15 +51,11 @@
             <div class="card-body">
                 <div class="row g-3 mb-3">
                     <div class="col-md-4">
-                        <label for="theme" class="form-label">Colour theme</label>
-                        <select class="form-select" id="theme" name="theme">
-                            <option value="">Select a theme...</option>
-                            {{range .Themes}}
-                            <option value="{{.}}" {{if eq . $.SettingsAdmin.Theme}} selected {{end}}>{{.}}</option>
-                            {{end}}
-                        </select>
-                        <div class="form-text">A Bootswatch colour scheme. Applied on top of whichever template
-                            set is active.</div>
+                        <label for="brand_color" class="form-label">Brand color</label>
+                        <input type="color" class="form-control form-control-color" id="brand_color"
+                            name="brand_color" value="{{if .SettingsAdmin.BrandColor}}{{.SettingsAdmin.BrandColor}}{{else}}#0d6efd{{end}}">
+                        <div class="form-text">The site's primary color — applies to links, buttons and accents in
+                            both light and dark mode. Stock Bootstrap blue is #0d6efd.</div>
                     </div>
                     <div class="col-12 col-md-6">
                         <label for="site_template" class="form-label">Template set</label>

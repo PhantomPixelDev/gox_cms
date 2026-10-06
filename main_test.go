@@ -579,29 +579,45 @@ func TestUpdateSettings(t *testing.T) {
 	auth := authCookie(t, admin.ID)
 	token := csrfCookies(t, app, auth)
 
-	form := url.Values{"name": {"New Name"}, "theme": {"darkly"}, "container_class": {"container"}}
+	form := url.Values{"name": {"New Name"}, "brand_color": {"#112233"}, "container_class": {"container"}}
 	if resp, _ := postForm(t, app, "/update-settings", form, token, auth); resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("update settings: got status %d", resp.StatusCode)
 	}
 	var info model.BasicWebsiteInfo
 	db.First(&info)
-	if info.Name != "New Name" || info.Theme != "darkly" {
+	if info.Name != "New Name" || info.BrandColor != "#112233" {
 		t.Fatalf("settings not saved: %+v", info)
 	}
 
-	// A dark Bootswatch theme starts the page in dark mode, and the navbar
-	// must not carry hardcoded colour classes that would fight it.
+	// The brand color is emitted as a CSS override and the navbar must not
+	// carry hardcoded colour classes that would fight it.
 	if resp, body := do(t, app, "GET", "/"); resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("home after settings update: got status %d", resp.StatusCode)
 	} else {
-		if !strings.Contains(body, `data-bs-theme="dark"`) {
-			t.Error("dark Bootswatch theme did not render data-bs-theme=dark")
+		if !strings.Contains(body, `--bs-primary: #112233`) {
+			t.Error("brand color override missing from public page")
+		}
+		if !strings.Contains(body, `/static/vendor/bootstrap.min.css`) {
+			t.Error("public page does not load the vendored Bootstrap")
 		}
 		for _, bad := range []string{"navbar-light", "bg-light", "navbar-dark", "bg-dark"} {
 			if strings.Contains(body, bad) {
 				t.Errorf("navbar still hardcodes %q", bad)
 			}
 		}
+	}
+
+	// Malformed values are dropped to empty, i.e. stock Bootstrap primary.
+	form = url.Values{"name": {"New Name"}, "brand_color": {"not-a-color"}, "container_class": {"container"}}
+	if resp, _ := postForm(t, app, "/update-settings", form, token, auth); resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("update settings: got status %d", resp.StatusCode)
+	}
+	db.First(&info)
+	if info.BrandColor != "" {
+		t.Fatalf("malformed brand_color not dropped: %q", info.BrandColor)
+	}
+	if _, body := do(t, app, "GET", "/"); strings.Contains(body, "not-a-color") {
+		t.Error("malformed brand color leaked into the page")
 	}
 }
 
@@ -772,7 +788,7 @@ func TestNavbarFollowsTheme(t *testing.T) {
 		}
 	}
 	if !strings.Contains(body, `data-bs-theme="light"`) {
-		t.Error("expected a light default for a light Bootswatch theme")
+		t.Error("expected the server to always start with a light theme")
 	}
 	// The theme switch must be wired to the delegated handler.
 	if !strings.Contains(body, "data-theme-toggle") {

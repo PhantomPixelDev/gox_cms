@@ -24,6 +24,11 @@ type BasicWebsiteInfo struct {
 	// toggle it in Settings. Existing logins are unaffected.
 	RegistrationEnabled bool      `json:"registration_enabled" gorm:"default:false"`
 	Theme               string    `json:"theme"`
+	// BrandColor is an optional #RRGGBB override for the Bootstrap primary
+	// colour, set from Settings. Empty means stock Bootstrap primary.
+	// (Theme is inert: Bootswatch bundles were removed, so it is no longer
+	// honoured at render time.)
+	BrandColor  string `json:"brand_color"`
 	ContactEmail        string    `json:"contact_email"`
 	PrivacyPolicy       string    `json:"privacy_policy"`
 	TermsOfService      string    `json:"terms_of_service"`
@@ -33,10 +38,9 @@ type BasicWebsiteInfo struct {
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 	// NOTE: a legacy selected_theme column may exist in old databases; it is
-	// ignored. Theme is the single source of truth.
+	// ignored. Theme is retained for compatibility only.
 	ContainerClass string `json:"container_class" default:"container"`
 	// SiteTemplate picks which set of public view templates renders the site
-	// (views/site/<name>/). Distinct from Theme, which is only a Bootswatch
-	// colour scheme. Empty means "default"; see handlers.SiteTemplateSet.
+	// (views/site/<name>/). Empty means "default"; see handlers.SiteTemplateSet.
 	SiteTemplate string `json:"site_template" gorm:"default:'default'"`
 }

@@ -41,8 +41,9 @@ import (
 // straight from the existing static mount (the CSP already allows same-origin
 // CSS/JS/images/fonts).
 //
-// This is separate from BasicWebsiteInfo.Theme, which only selects a
-// Bootswatch colour scheme.
+// This is separate from BasicWebsiteInfo.Theme, which is inert: the
+// Bootswatch bundles it selected were removed in favour of a single
+// vendored Bootstrap with a brand-color override.
 const (
 	// SiteTemplateDefault is the fallback when no theme is set or the stored
 	// one has disappeared. It is also the name of the shipped Bootstrap theme.

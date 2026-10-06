@@ -2,7 +2,7 @@
 /* ---- Navbar ----
 
    The navbar must follow data-bs-theme. Rather than relying on whichever
-   Bootstrap/Bootswatch rules happen to win, link colors are pinned to the
+   Bootstrap rules happen to win, link colors are pinned to the
    active theme's own variables so they are readable in both modes. */
 
 .navbar {

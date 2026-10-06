@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"goxcms/model"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -84,6 +87,9 @@ func updateSettingsFromForm(settings *model.BasicWebsiteInfo, c *fiber.Ctx) mode
 	settings.Locale = c.FormValue("locale")                   // Add or update based on your actual form and needs
 	settings.TimeZone = c.FormValue("timezone")               // Add or update based on your actual form and needs
 	settings.RegistrationEnabled = c.FormValue("registration_enabled") == "on"
+	// The brand colour is free-form input, so anything that is not a strict
+	// #RRGGBB hex string is dropped to empty (stock Bootstrap primary).
+	settings.BrandColor = normalizeBrandColor(c.FormValue("brand_color"))
 	return *settings
 }
 
@@ -105,6 +111,11 @@ func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 		"AnalyticsID":         settings.AnalyticsID,
 		"FooterText":          settings.FooterText,
 		"Theme":               settings.Theme,
+		"BrandColor":          settings.BrandColor,
+		"BrandColorRGB":      brandColorRGB(settings.BrandColor),
+		"BrandColorHover":    shadeBrandColor(settings.BrandColor, 0.85),
+		"BrandColorHoverRGB": brandColorRGB(shadeBrandColor(settings.BrandColor, 0.85)),
+		"BrandColorActive":   shadeBrandColor(settings.BrandColor, 0.72),
 		"ContactEmail":        settings.ContactEmail,
 		"PrivacyPolicy":       settings.PrivacyPolicy,
 		"TermsOfService":      settings.TermsOfService,
@@ -121,33 +132,72 @@ func MapSettingsToMap(settings model.BasicWebsiteInfo) map[string]string {
 	}
 }
 
-// darkBootswatchThemes are dark by design, so the page starts in dark mode
-// with them.
-var darkBootswatchThemes = map[string]bool{
-	"cyborg": true, "darkly": true, "slate": true,
-	"solar": true, "superhero": true, "vapor": true,
-}
-
-// navbarClassForTheme returns extra navbar classes for the Bootswatch theme.
-//
-// It deliberately returns "" for light themes. It used to return
-// "navbar-light bg-light" (or "navbar-dark bg-dark"), which pinned the navbar
-// to a fixed palette: with dark mode on, the page went dark while the navbar
-// stayed white, and the light/dark link colors fought the active theme. A bare
-// .navbar inherits Bootstrap's --bs-navbar-* variables, which follow
-// data-bs-theme automatically.
+// navbarClassForTheme deliberately returns "": a bare .navbar inherits
+// Bootstrap's --bs-navbar-* variables, which follow data-bs-theme
+// automatically. Hardcoding palette classes here used to pin the navbar to a
+// fixed palette while the page switched with the visitor's theme choice.
 func navbarClassForTheme(theme string) string {
 	return ""
 }
 
-// initialTheme is the data-bs-theme rendered into <html>. Dark Bootswatch
-// themes start dark; everything else follows the visitor's saved choice, which
-// static/js/site.js applies after load.
+// initialTheme is the data-bs-theme rendered into <html>. The visitor's saved
+// choice wins once static/js/site.js applies it after load; the server always
+// starts light.
 func initialTheme(theme string) string {
-	if darkBootswatchThemes[theme] {
-		return "dark"
-	}
 	return "light"
+}
+
+var brandColorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// normalizeBrandColor enforces the strict #RRGGBB shape stored in settings and
+// emitted inline. Anything else becomes "" so no raw string reaches the page.
+func normalizeBrandColor(v string) string {
+	v = strings.TrimSpace(v)
+	if !brandColorRe.MatchString(v) {
+		return ""
+	}
+	return strings.ToLower(v)
+}
+
+// brandColorRGB returns "r,g,b" for a hex color, or "0,0,0" when empty.
+func brandColorRGB(hex string) string {
+	r, g, b := parseHex(hex)
+	return strconv.Itoa(r) + "," + strconv.Itoa(g) + "," + strconv.Itoa(b)
+}
+
+// shadeBrandColor darkens a #RRGGBB color by factor (0-1). Used for hover and
+// active shades of the primary button.
+func shadeBrandColor(hex string, factor float64) string {
+	r, g, b := parseHex(hex)
+	r = clamp8(int(float64(r) * factor))
+	g = clamp8(int(float64(g) * factor))
+	b = clamp8(int(float64(b) * factor))
+	return "#" + hex2(r) + hex2(g) + hex2(b)
+}
+
+func parseHex(hex string) (int, int, int) {
+	hex = strings.TrimPrefix(strings.TrimSpace(hex), "#")
+	if len(hex) != 6 {
+		return 0, 0, 0
+	}
+	r, _ := strconv.ParseInt(hex[0:2], 16, 64)
+	g, _ := strconv.ParseInt(hex[2:4], 16, 64)
+	b, _ := strconv.ParseInt(hex[4:6], 16, 64)
+	return int(r), int(g), int(b)
+}
+
+func clamp8(v int) int {
+	if v < 0 {
+		return 0
+	}
+	if v > 255 {
+		return 255
+	}
+	return v
+}
+
+func hex2(v int) string {
+	return fmt.Sprintf("%02x", v)
 }
 
 // settingsTTL bounds how stale cached settings can get in another process
