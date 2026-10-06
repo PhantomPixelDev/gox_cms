@@ -719,6 +719,19 @@ textarea:focus-visible,
     margin-top: 0;
 }
 
+.cta-band {
+    background: #212529;
+    color: #fff;
+}
+
+.cta-band .btn-light {
+    color: #212529;
+}
+
+.cta-band .text-white-50 {
+    color: rgba(255, 255, 255, 0.5);
+}
+
 .hero-pill {
     display: inline-block;
     padding: 0.35rem 0.9rem;
